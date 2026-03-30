@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+
+# local env files
+.env
+.env.*
+!.env.local.example
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# deployment/runtime artifacts
+.vercel/
+
+# misc
+.DS_Store
+

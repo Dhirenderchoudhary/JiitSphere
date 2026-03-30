@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-archivo: 'Avenir Next', 'Segoe UI', 'Trebuchet MS', sans-serif;
+    --font-manrope: 'Avenir Next', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    --background: 206 44% 96%;
+    --foreground: 208 55% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 208 55% 9%;
+    --primary: 197 70% 29%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 198 43% 89%;
+    --secondary-foreground: 208 55% 12%;
+    --muted: 199 28% 90%;
+    --muted-foreground: 206 22% 36%;
+    --accent: 26 84% 62%;
+    --accent-foreground: 210 40% 10%;
+    --border: 203 25% 82%;
+    --input: 204 30% 84%;
+    --ring: 197 70% 29%;
+    --bg-radial-1: rgba(18, 97, 130, 0.22);
+    --bg-radial-2: rgba(247, 147, 78, 0.25);
+    --bg-linear: linear-gradient(160deg, #f4f8fb 0%, #eef6f9 100%);
+  }
+
+  .dark {
+    --background: 222 35% 11%;
+    --foreground: 210 28% 94%;
+    --card: 218 28% 16%;
+    --card-foreground: 210 26% 94%;
+    --primary: 194 82% 56%;
+    --primary-foreground: 210 40% 10%;
+    --secondary: 216 22% 22%;
+    --secondary-foreground: 210 20% 92%;
+    --muted: 216 20% 19%;
+    --muted-foreground: 214 14% 72%;
+    --accent: 30 84% 64%;
+    --accent-foreground: 210 40% 10%;
+    --border: 216 20% 32%;
+    --input: 216 20% 24%;
+    --ring: 194 82% 56%;
+    --bg-radial-1: rgba(29, 161, 242, 0.25);
+    --bg-radial-2: rgba(244, 194, 110, 0.21);
+    --bg-linear: linear-gradient(165deg, #172235 0%, #1f2e46 48%, #111827 100%);
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-image:
+      radial-gradient(circle at 12% 8%, var(--bg-radial-1), transparent 30%),
+      radial-gradient(circle at 85% 12%, var(--bg-radial-2), transparent 32%),
+      var(--bg-linear);
+    transition: background-color 220ms ease, color 220ms ease, background-image 260ms ease;
+  }
+}
+
+.mesh-overlay {
+  position: relative;
+}
+
+.mesh-overlay::before,
+.mesh-overlay::after {
+  content: '';
+  position: absolute;
+  filter: blur(65px);
+  border-radius: 9999px;
+  pointer-events: none;
+}
+
+.mesh-overlay::before {
+  width: 230px;
+  height: 230px;
+  right: 7%;
+  top: -40px;
+  background: rgba(40, 140, 186, 0.35);
+  animation: float 9s ease-in-out infinite;
+}
+
+.mesh-overlay::after {
+  width: 190px;
+  height: 190px;
+  left: 5%;
+  bottom: -50px;
+  background: rgba(247, 159, 78, 0.3);
+  animation: pulseSoft 10s ease-in-out infinite;
+}
