@@ -11,7 +11,7 @@ export default function HomePage() {
         <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="gradient-border overflow-hidden rounded-2xl bg-white/90 dark:bg-slate-900/80 shadow-sm p-0.5">
-              <Image src="/JIIT-Noida-Logo.webp" alt="Jaypee logo" width={56} height={56} priority className="rounded-[14px]" />
+              <Image src="/jiitsphere-logo.png" alt="JiitSphere logo" width={56} height={56} priority className="rounded-[14px]" />
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">JIIT Student Space</p>

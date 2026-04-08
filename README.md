@@ -28,13 +28,22 @@ Study material & student portal platform for JIIT students — notes, slides, PY
 # Backend
 cd backend
 cp .env.example .env   # fill in your values
-npm install && npm run dev
+bun install && bun run dev
 
 # Frontend (new terminal)
 cd web
-cp .env.local.example .env.local   # fill in your values
-npm install && npm run dev
+cp .env.example .env.local   # fill in your values
+bun install && bun run dev
 ```
+
+## Current Deployment Flow
+
+1. The browser loads the Next.js app on Vercel from `web/`.
+2. Public study-material pages fetch data from the Railway backend at `/api/v1/materials`, `/api/v1/auth`, `/api/v1/admin`, and `/api/v1/superadmin`.
+3. Vercel-hosted API routes handle local app concerns such as study-lock unlock, admin upload forwarding, guest auth, and NextAuth callbacks.
+4. The backend connects to MongoDB Atlas for metadata and uses AWS S3 for file storage and bulk imports.
+5. The portal page uses the backend relay and SDK endpoints under `/api/v1/portal` to talk to the JIIT student portal without exposing portal requests directly in the browser.
+6. Portal data is returned to the frontend, where the attendance, grades, profile, exams, subjects, and fees views render from the cached SDK session.
 
 ## S3 Import
 

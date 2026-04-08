@@ -9,8 +9,8 @@ export default function CollegeBrand() {
         style={{ width: 44, height: 44, minWidth: 44, minHeight: 44 }}
       >
         <Image
-          src="/JIIT-Noida-Logo.webp"
-          alt="College logo"
+          src="/jiitsphere-logo.png"
+          alt="JiitSphere logo"
           width={44}
           height={44}
           className="h-full w-full object-cover"

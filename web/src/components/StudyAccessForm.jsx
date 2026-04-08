@@ -68,7 +68,7 @@ export default function StudyAccessForm({ nextPath = '/study-material' }) {
         {/* Logo + title */}
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <div className="overflow-hidden rounded-2xl border border-border bg-white dark:bg-slate-900 shadow-sm">
-            <Image src="/JIIT-Noida-Logo.webp" alt="JIIT" width={56} height={56} priority />
+            <Image src="/jiitsphere-logo.png" alt="JiitSphere" width={56} height={56} priority />
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Jaypee Institute of IT</p>
