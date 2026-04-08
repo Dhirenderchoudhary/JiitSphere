@@ -32,7 +32,29 @@ const state = {
   uniqueIps: new Set(),
   dailyUniqueIps: {},
   dailyRequests: {},
-  recent: []
+  recent: [],
+  bySection: { portal: 0, studyMaterial: 0, admin: 0, auth: 0, other: 0 },
+  sectionIps: { portal: new Set(), studyMaterial: new Set(), admin: new Set(), auth: new Set(), other: new Set() },
+  dailyBySection: {},
+  dailySectionIps: {},
+  hourlyVisitors: {},
+  /* ── Real page-view tracking ── */
+  pageViews: {
+    total: 0,
+    uniqueIps: new Set(),
+    dailyViews: {},
+    dailyUniqueIps: {},
+    byPage: {},
+    bySection: { portal: 0, studyMaterial: 0, admin: 0, superadmin: 0, home: 0, other: 0 },
+    sectionIps: { portal: new Set(), studyMaterial: new Set(), admin: new Set(), superadmin: new Set(), home: new Set(), other: new Set() },
+    dailySectionIps: {},
+    byDevice: { desktop: 0, mobile: 0, tablet: 0, bot: 0, other: 0 },
+    byBrowser: {},
+    byOs: {},
+    byReferrer: {},
+    hourlyViews: {},
+    hourlyIps: {}
+  }
 };
 
 const normalizeIp = (ip) => {
@@ -164,6 +186,26 @@ const trackRequest = ({ method, route, statusCode, durationMs, userId, ip, userA
     state.dailyUniqueIps[day].add(normalizedIp);
   }
 
+  const section = route.includes('/portal') ? 'portal'
+    : route.includes('/material') ? 'studyMaterial'
+    : route.includes('/admin') ? 'admin'
+    : route.includes('/auth') ? 'auth'
+    : 'other';
+  state.bySection[section] = (state.bySection[section] || 0) + 1;
+  if (normalizedIp) {
+    if (!state.sectionIps[section]) state.sectionIps[section] = new Set();
+    state.sectionIps[section].add(normalizedIp);
+  }
+  if (!state.dailyBySection[day]) state.dailyBySection[day] = {};
+  state.dailyBySection[day][section] = (state.dailyBySection[day][section] || 0) + 1;
+  if (!state.dailySectionIps[day]) state.dailySectionIps[day] = {};
+  if (!state.dailySectionIps[day][section]) state.dailySectionIps[day][section] = new Set();
+  if (normalizedIp) state.dailySectionIps[day][section].add(normalizedIp);
+
+  const hKey = `${day}_${hourKey(at)}`;
+  if (!state.hourlyVisitors[hKey]) state.hourlyVisitors[hKey] = new Set();
+  if (normalizedIp) state.hourlyVisitors[hKey].add(normalizedIp);
+
   state.recent.unshift({
     at: new Date(at).toISOString(),
     method,
@@ -179,6 +221,55 @@ const trackRequest = ({ method, route, statusCode, durationMs, userId, ip, userA
   if (state.recent.length > MAX_RECENT) {
     state.recent.length = MAX_RECENT;
   }
+};
+
+/* ── Page-view tracking (real frontend visits) ── */
+const classifyPage = (path) => {
+  if (!path || path === '/') return 'home';
+  if (path.startsWith('/portal')) return 'portal';
+  if (path.startsWith('/study-material') || path.startsWith('/material/')) return 'studyMaterial';
+  if (path.startsWith('/admin')) return 'admin';
+  if (path.startsWith('/superadmin')) return 'superadmin';
+  if (path.startsWith('/study-access')) return 'home';
+  return 'other';
+};
+
+const trackPageView = ({ page, ip, userAgent, referrer, at = new Date() }) => {
+  const normalizedIp = normalizeIp(ip);
+  const device = detectDeviceType(userAgent);
+  const browser = detectBrowser(userAgent);
+  const os = detectOs(userAgent);
+  const ref = normalizeReferrer(referrer);
+  const day = dateKey(at);
+  const hKey = `${day}_${hourKey(at)}`;
+  const section = classifyPage(page);
+  const pv = state.pageViews;
+
+  pv.total += 1;
+  if (normalizedIp) pv.uniqueIps.add(normalizedIp);
+
+  pv.dailyViews[day] = (pv.dailyViews[day] || 0) + 1;
+  if (!pv.dailyUniqueIps[day]) pv.dailyUniqueIps[day] = new Set();
+  if (normalizedIp) pv.dailyUniqueIps[day].add(normalizedIp);
+
+  pv.byPage[page] = (pv.byPage[page] || 0) + 1;
+
+  pv.bySection[section] = (pv.bySection[section] || 0) + 1;
+  if (!pv.sectionIps[section]) pv.sectionIps[section] = new Set();
+  if (normalizedIp) pv.sectionIps[section].add(normalizedIp);
+
+  if (!pv.dailySectionIps[day]) pv.dailySectionIps[day] = {};
+  if (!pv.dailySectionIps[day][section]) pv.dailySectionIps[day][section] = new Set();
+  if (normalizedIp) pv.dailySectionIps[day][section].add(normalizedIp);
+
+  pv.byDevice[device] = (pv.byDevice[device] || 0) + 1;
+  pv.byBrowser[browser] = (pv.byBrowser[browser] || 0) + 1;
+  pv.byOs[os] = (pv.byOs[os] || 0) + 1;
+  pv.byReferrer[ref] = (pv.byReferrer[ref] || 0) + 1;
+
+  pv.hourlyViews[hKey] = (pv.hourlyViews[hKey] || 0) + 1;
+  if (!pv.hourlyIps[hKey]) pv.hourlyIps[hKey] = new Set();
+  if (normalizedIp) pv.hourlyIps[hKey].add(normalizedIp);
 };
 
 const getSnapshot = () => {
@@ -230,13 +321,95 @@ const getSnapshot = () => {
     });
   }
 
+  const last30Days = [];
+  for (let i = 29; i >= 0; i -= 1) {
+    const day = new Date();
+    day.setDate(day.getDate() - i);
+    const key = dateKey(day);
+    const sectionDay = state.dailyBySection[key] || {};
+    const sectionIps = state.dailySectionIps[key] || {};
+    last30Days.push({
+      date: key,
+      count: state.dailyRequests[key] || 0,
+      uniqueVisitors: state.dailyUniqueIps[key]?.size || 0,
+      portal: sectionDay.portal || 0,
+      studyMaterial: sectionDay.studyMaterial || 0,
+      portalVisitors: sectionIps.portal?.size || 0,
+      studyMaterialVisitors: sectionIps.studyMaterial?.size || 0
+    });
+  }
+
   const last24Hours = [];
   for (let i = 23; i >= 0; i -= 1) {
     const slot = new Date();
     slot.setHours(slot.getHours() - i);
     const key = hourKey(slot);
-    last24Hours.push({ hour: key, count: state.byHour[key] || 0 });
+    const daySlot = dateKey(slot);
+    const hKey = `${daySlot}_${key}`;
+    last24Hours.push({ hour: key, count: state.byHour[key] || 0, visitors: state.hourlyVisitors[hKey]?.size || 0 });
   }
+
+  const sectionVisitors = {};
+  for (const [sec, ipSet] of Object.entries(state.sectionIps)) {
+    sectionVisitors[sec] = ipSet.size;
+  }
+
+  /* ── Page-view snapshot ── */
+  const pv = state.pageViews;
+
+  const pvLast30Days = [];
+  for (let i = 29; i >= 0; i -= 1) {
+    const day = new Date();
+    day.setDate(day.getDate() - i);
+    const key = dateKey(day);
+    const sectionIps = pv.dailySectionIps[key] || {};
+    pvLast30Days.push({
+      date: key,
+      views: pv.dailyViews[key] || 0,
+      visitors: pv.dailyUniqueIps[key]?.size || 0,
+      portalVisitors: sectionIps.portal?.size || 0,
+      studyMaterialVisitors: sectionIps.studyMaterial?.size || 0
+    });
+  }
+
+  const pvLast24Hours = [];
+  for (let i = 23; i >= 0; i -= 1) {
+    const slot = new Date();
+    slot.setHours(slot.getHours() - i);
+    const key = hourKey(slot);
+    const daySlot = dateKey(slot);
+    const hKey = `${daySlot}_${key}`;
+    pvLast24Hours.push({
+      hour: key,
+      views: pv.hourlyViews[hKey] || 0,
+      visitors: pv.hourlyIps[hKey]?.size || 0
+    });
+  }
+
+  const pvSectionVisitors = {};
+  for (const [sec, ipSet] of Object.entries(pv.sectionIps)) {
+    pvSectionVisitors[sec] = ipSet.size;
+  }
+
+  const pvTopBrowsers = Object.entries(pv.byBrowser)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([name, count]) => ({ name, count }));
+
+  const pvTopOs = Object.entries(pv.byOs)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([name, count]) => ({ name, count }));
+
+  const pvTopReferrers = Object.entries(pv.byReferrer)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([source, count]) => ({ source, count }));
+
+  const pvTopPages = Object.entries(pv.byPage)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15)
+    .map(([page, count]) => ({ page, count }));
 
   return {
     startedAt: state.startedAt,
@@ -255,12 +428,29 @@ const getSnapshot = () => {
     topErrorRoutes,
     slowestRoutes,
     visitsLast7Days: last7Days,
+    visitsLast30Days: last30Days,
+    bySection: state.bySection,
+    sectionVisitors,
     requestsLast24Hours: last24Hours,
-    recentRequests: state.recent
+    recentRequests: state.recent,
+    /* ── Real page-view data ── */
+    pv: {
+      totalViews: pv.total,
+      totalVisitors: pv.uniqueIps.size,
+      sectionVisitors: pvSectionVisitors,
+      last30Days: pvLast30Days,
+      last24Hours: pvLast24Hours,
+      byDevice: pv.byDevice,
+      topBrowsers: pvTopBrowsers,
+      topOs: pvTopOs,
+      topReferrers: pvTopReferrers,
+      topPages: pvTopPages
+    }
   };
 };
 
 module.exports = {
   trackRequest,
+  trackPageView,
   getSnapshot
 };

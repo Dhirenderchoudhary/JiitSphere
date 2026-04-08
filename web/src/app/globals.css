@@ -21,6 +21,8 @@
     --border: 203 25% 82%;
     --input: 204 30% 84%;
     --ring: 197 70% 29%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
     --bg-radial-1: rgba(18, 97, 130, 0.22);
     --bg-radial-2: rgba(247, 147, 78, 0.25);
     --bg-linear: linear-gradient(160deg, #f4f8fb 0%, #eef6f9 100%);
@@ -42,6 +44,8 @@
     --border: 216 20% 32%;
     --input: 216 20% 24%;
     --ring: 194 82% 56%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
     --bg-radial-1: rgba(29, 161, 242, 0.25);
     --bg-radial-2: rgba(244, 194, 110, 0.21);
     --bg-linear: linear-gradient(165deg, #172235 0%, #1f2e46 48%, #111827 100%);
@@ -64,6 +68,7 @@
   }
 }
 
+/* ── Aceternity-style effects ──────────────────────────────── */
 .mesh-overlay {
   position: relative;
 }
@@ -93,4 +98,79 @@
   bottom: -50px;
   background: rgba(247, 159, 78, 0.3);
   animation: pulseSoft 10s ease-in-out infinite;
+}
+
+/* ── Dot grid bg pattern ───────────────────────────────────── */
+.dot-grid {
+  background-image: radial-gradient(circle, hsl(var(--border)) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ── Gradient borders (Aceternity-style) ───────────────────── */
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.5), hsl(var(--accent) / 0.5), hsl(var(--primary) / 0.3));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ── Shimmer button effect ─────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer-btn {
+  background: linear-gradient(110deg, hsl(var(--primary)) 0%, hsl(var(--primary)) 40%, hsl(var(--primary) / 0.7) 50%, hsl(var(--primary)) 60%, hsl(var(--primary)) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+}
+
+/* ── Spotlight hover card ──────────────────────────────────── */
+.spotlight-card {
+  position: relative;
+  overflow: hidden;
+}
+.spotlight-card::before {
+  content: '';
+  position: absolute;
+  top: var(--mouse-y, -100px);
+  left: var(--mouse-x, -100px);
+  width: 250px;
+  height: 250px;
+  background: radial-gradient(circle, hsl(var(--primary) / 0.12) 0%, transparent 70%);
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.spotlight-card:hover::before {
+  opacity: 1;
+}
+
+/* ── Stagger animation ─────────────────────────────────────── */
+@keyframes staggerIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.stagger-item {
+  animation: staggerIn 0.4s ease-out both;
+}
+
+/* ── Glow pulse for active section ─────────────────────────── */
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.15); }
+  50% { box-shadow: 0 0 20px 4px hsl(var(--primary) / 0.1); }
+}
+.glow-pulse {
+  animation: glowPulse 3s ease-in-out infinite;
 }

@@ -1,10 +1,46 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import { BookOpen, CalendarDays, Download, GraduationCap } from 'lucide-react';
 import { Badge } from 'components/ui/badge';
 import { Button } from 'components/ui/button';
 import { Card, CardContent } from 'components/ui/card';
 
-export default function MaterialList({ items }) {
+const GUEST_DOWNLOAD_LIMIT = 5;
+const STORAGE_KEY = 'guest_downloads';
+
+function getGuestDownloads() {
+  try { return parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10); } catch { return 0; }
+}
+
+function incrementGuestDownloads() {
+  const count = getGuestDownloads() + 1;
+  try { localStorage.setItem(STORAGE_KEY, String(count)); } catch { /* noop */ }
+  return count;
+}
+
+async function triggerDownload(url, fallbackName) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = fallbackName || url.split('/').pop() || 'download';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
+  } catch {
+    // fallback: open in new tab
+    window.open(url, '_blank');
+  }
+}
+
+export default function MaterialList({ items, isGuest = false }) {
+  const [downloadsUsed, setDownloadsUsed] = useState(() => (isGuest ? getGuestDownloads() : 0));
+  const limitReached = isGuest && downloadsUsed >= GUEST_DOWNLOAD_LIMIT;
   if (!items.length) {
     return (
       <Card className="border-dashed bg-white/70 dark:bg-slate-900/60">
@@ -16,7 +52,15 @@ export default function MaterialList({ items }) {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="space-y-4">
+      {isGuest && (
+        <div className={`rounded-xl border px-4 py-3 text-sm ${limitReached ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/50 dark:text-red-300' : 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300'}`}>
+          {limitReached
+            ? 'Guest download limit reached. Sign in with your college account for unlimited downloads.'
+            : `Guest mode: ${downloadsUsed}/${GUEST_DOWNLOAD_LIMIT} downloads used.`}
+        </div>
+      )}
+      <div className="grid gap-4 md:grid-cols-2">
       {items.map((item) => (
         <Card key={item._id} className="bg-white/90 dark:bg-slate-900/70 backdrop-blur">
           <CardContent className="space-y-4 p-5">
@@ -42,15 +86,27 @@ export default function MaterialList({ items }) {
                   <BookOpen className="mr-2 h-4 w-4" /> In-App View
                 </Button>
               </Link>
-              <a href={item.fileUrl} target="_blank" rel="noreferrer">
-                <Button className="w-full" size="lg">
+              {limitReached ? (
+                <Button className="w-full" size="lg" disabled>
+                  <Download className="mr-2 h-4 w-4" /> Limit reached
+                </Button>
+              ) : (
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={() => {
+                    if (isGuest) setDownloadsUsed(incrementGuestDownloads());
+                    triggerDownload(item.fileUrl, `${item.title || item.subject}.${item.fileType}`);
+                  }}
+                >
                   <Download className="mr-2 h-4 w-4" /> Download Now
                 </Button>
-              </a>
+              )}
             </div>
           </CardContent>
         </Card>
       ))}
+      </div>
     </div>
   );
 }

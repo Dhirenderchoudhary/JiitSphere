@@ -5,7 +5,8 @@ const {
   listMaterialsAdmin,
   createMaterial,
   updateMaterial,
-  deleteMaterial
+  deleteMaterial,
+  deleteAllMaterials
 } = require('../controllers/adminController');
 
 const router = express.Router();
@@ -16,5 +17,6 @@ router.get('/materials', listMaterialsAdmin);
 router.post('/materials', upload.single('file'), createMaterial);
 router.put('/materials/:id', upload.single('file'), updateMaterial);
 router.delete('/materials/:id', deleteMaterial);
+router.delete('/materials', deleteAllMaterials);
 
 module.exports = router;

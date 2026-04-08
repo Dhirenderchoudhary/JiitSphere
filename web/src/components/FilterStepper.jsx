@@ -3,12 +3,12 @@
 import { SelectField } from 'components/ui/select-field';
 
 const steps = [
-  { key: 'degree', label: 'Degree' },
-  { key: 'branch', label: 'Branch' },
-  { key: 'year', label: 'Year' },
-  { key: 'semester', label: 'Semester' },
-  { key: 'subject', label: 'Subject' },
-  { key: 'resourceType', label: 'Resource Type' }
+  { key: 'degree', label: 'Degree', span: 1 },
+  { key: 'branch', label: 'Branch', span: 1 },
+  { key: 'year', label: 'Year', span: 1 },
+  { key: 'semester', label: 'Semester', span: 1 },
+  { key: 'subject', label: 'Subject', span: 2 },
+  { key: 'resourceType', label: 'Resource Type', span: 2 }
 ];
 
 const optionKeyMap = {
@@ -21,31 +21,35 @@ const optionKeyMap = {
 };
 
 export default function FilterStepper({ filters, onChange, options }) {
-  const isStepDisabled = (index) => {
-    if (index === 0) return false;
+  const isStepEnabled = (index) => {
+    if (index === 0) return true;
     const prevKey = steps[index - 1].key;
-    return !filters[prevKey];
+    return !!filters[prevKey];
   };
 
   return (
-    <div>
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm font-semibold text-muted-foreground">Academic Filters</p>
-      </div>
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-      {steps.map((step, index) => (
-        <div key={step.key} className="animate-fadeInUp" style={{ animationDelay: `${index * 90}ms` }}>
-          <label className="mb-1.5 block text-sm font-semibold">{step.label}</label>
-          <SelectField
-            value={filters[step.key] || ''}
-            disabled={isStepDisabled(index)}
-            onChange={(value) => onChange(step.key, value)}
-            placeholder={`Select ${step.label}`}
-            options={options[optionKeyMap[step.key]] || []}
-          />
-        </div>
-      ))}
-      </div>
+    <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+      {steps.map((step, index) => {
+        const enabled = isStepEnabled(index);
+        const hasValue = !!filters[step.key];
+        const spanClass = step.span === 2 ? 'col-span-2' : '';
+
+        return (
+          <div key={step.key} className={spanClass}>
+            <label className={`mb-1 block text-xs font-semibold transition-colors ${enabled ? 'text-foreground' : 'text-muted-foreground/50'}`}>
+              {step.label}
+              {hasValue && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-primary align-middle" />}
+            </label>
+            <SelectField
+              value={filters[step.key] || ''}
+              disabled={!enabled}
+              onChange={(value) => onChange(step.key, value)}
+              placeholder={enabled ? `Select ${step.label}` : '—'}
+              options={options[optionKeyMap[step.key]] || []}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

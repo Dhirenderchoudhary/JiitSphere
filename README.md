@@ -1,123 +1,52 @@
-# JIITStudyMaterial
+# JiitSphere
 
-Production-ready starter for college study materials platform with web + mobile + backend.
+Study material & student portal platform for JIIT students — notes, slides, PYQs, lectures, and an integrated web portal.
 
-## Monorepo Structure
+## Stack
 
-```text
-JIITStudyMaterial/
-  backend/
-    src/
-      config/
-      controllers/
-      middlewares/
-      models/
-      routes/
-      services/
-      scripts/
-      utils/
-  web/
-    src/app/
-    src/components/
-    src/lib/
-  mobile/
-    src/navigation/
-    src/screens/
-    src/services/
-  docs/
-  materials/
-```
+- **Frontend:** Next.js 14 (App Router) · Tailwind CSS · shadcn/ui
+- **Backend:** Express.js · MongoDB · AWS S3
+- **Auth:** NextAuth (Google OAuth, `@mail.jiit.ac.in` only) + Guest access
+- **Deployment:** Vercel (frontend) + Railway (backend)
 
-## Core Features Implemented
+## Features
 
-- Clean MVC backend (Express + MongoDB)
-- S3 upload + CloudFront URLs
-- Filter APIs for degree/branch/year/semester/subject/resource type
-- Admin CRUD APIs
-- Admin list API for moderation and pagination
-- Bulk import script to ingest your existing folder directly
-- Next.js web flow and in-app viewer
-- React Native mobile skeleton and in-app viewer
-
-## MongoDB Schema (Material)
-
-- title: String
-- description: String
-- degree: Enum(BTech, MTech, BCA, MCA)
-- branch: String
-- year: Number
-- semester: Number
-- subject: String
-- resourceType: Enum(Slides, Lectures, Tutorials, PYQs, Solutions)
-- fileType: Enum(pdf, ppt, pptx, doc, docx, mp4, zip, xls, xlsx, txt, other)
-- fileSizeBytes: Number
-- fileUrl: String
-- s3Key: String
-- uploadedBy: String
-- isPublished: Boolean
-- timestamps
+- Browse materials by degree → branch → year → semester → subject → resource type
+- Auto-filtering — results load as you select filters
+- In-app PDF/document viewer
+- Admin upload dashboard with login
+- Superadmin analytics dashboard (visitors, charts, stats)
+- Student portal relay (JIIT WebKiosk integration)
+- S3 bulk import from existing folder structure
+- Guest mode with 5-download limit
+- PWA support (installable on mobile)
+- Dark mode
 
 ## Quick Start
 
-### 1) Backend
-
 ```bash
+# Backend
 cd backend
-npm install
-cp .env.example .env
-npm run dev
-```
+cp .env.example .env   # fill in your values
+npm install && npm run dev
 
-### 2) Web
-
-```bash
+# Frontend (new terminal)
 cd web
-npm install
-cp .env.local.example .env.local
-npm run dev
+cp .env.local.example .env.local   # fill in your values
+npm install && npm run dev
 ```
 
-### 3) Mobile
-
-```bash
-cd mobile
-npm install
-npm run android
-# or npm run ios
-```
-
-## Use Your Existing StudyMaterial Folder
-
-You already pasted data in:
-
-```text
-StudyMaterial/
-```
-
-Run dry-run first (recommended):
+## S3 Import
 
 ```bash
 cd backend
-npm install
-npm run import:folder -- ../StudyMaterial --dry-run --report ./import-report.json
+bun run import:s3              # import from S3 bucket
+bun run import:s3 -- --dry-run # preview only
 ```
 
-After reviewing import report, run real import:
+## Docs
 
-```bash
-npm run import:folder -- ../StudyMaterial --report ./import-report.json
-```
-
-Current dry-run summary on your folder:
-
-- Total discovered files: 5564
-- Import-ready files: 4044
-- Skipped (missing year/semester inference): 1149
-- Unsupported extension files: 371
-
-## API and Deployment Docs
-
-- docs/API_EXAMPLES.md
-- docs/ADMIN_WORKFLOW.md
-- docs/DEPLOYMENT.md
-# JPORTAL
+- [Deployment Guide](docs/DEPLOYMENT.md)
+- [API Examples](docs/API_EXAMPLES.md)
+- [Admin Workflow](docs/ADMIN_WORKFLOW.md)
+- [System Guide](docs/COMPLETE_SYSTEM_GUIDE.md)

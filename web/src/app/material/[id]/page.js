@@ -3,11 +3,20 @@ import CollegeBrand from 'components/CollegeBrand';
 import { Badge } from 'components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from 'components/ui/card';
 
-const isVideo = (type) => type === 'mp4';
+const isVideo = (type) => ['mp4', 'webm', 'ogg'].includes(type);
+const isImage = (type) => ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(type);
+const isNativeViewable = (type) => type === 'pdf' || isVideo(type) || isImage(type);
+
+function getViewerUrl(fileUrl, fileType) {
+  if (isNativeViewable(fileType)) return fileUrl;
+  // Use Google Docs Viewer for office files (pptx, docx, xlsx, etc.)
+  return `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+}
 
 export default async function MaterialViewerPage({ params }) {
   const response = await fetchMaterialById(params.id);
   const material = response.data;
+  const viewerUrl = getViewerUrl(material.fileUrl, material.fileType);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-7 sm:px-6 lg:px-8">
@@ -29,8 +38,10 @@ export default async function MaterialViewerPage({ params }) {
         <CardContent>
         {isVideo(material.fileType) ? (
           <video className="h-[78vh] w-full rounded-2xl border border-border" controls src={material.fileUrl} />
+        ) : isImage(material.fileType) ? (
+          <img className="mx-auto max-h-[78vh] rounded-2xl border border-border" src={material.fileUrl} alt={material.title} />
         ) : (
-          <iframe className="h-[78vh] w-full rounded-2xl border border-border" src={material.fileUrl} title={material.title} />
+          <iframe className="h-[78vh] w-full rounded-2xl border border-border" src={viewerUrl} title={material.title} allowFullScreen />
         )}
         </CardContent>
       </Card>

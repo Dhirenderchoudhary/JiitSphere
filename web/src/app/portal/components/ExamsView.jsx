@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Button } from 'components/ui/button';
 import { Card, CardContent } from 'components/ui/card';
-import { fetchPortalExams } from 'lib/api';
+import { fetchPortalExams, SessionExpiredError } from 'lib/api';
 import { glassPanel, SHOW_TECHNICAL_DETAILS } from '../constants';
 import {
   dateScore,
@@ -17,7 +17,7 @@ import {
   pickRenderablePairs
 } from '../utils';
 
-export default function ExamsView({ token, semesters = [] }) {
+export default function ExamsView({ token, semesters = [], onExpired }) {
   const [exams, setExams] = useState([]);
   const [message, setMessage] = useState('');
   const [selectedSem, setSelectedSem] = useState('all');
@@ -36,12 +36,13 @@ export default function ExamsView({ token, semesters = [] }) {
         setMessage('No exam schedule available right now. Try refresh once the portal updates data.');
       }
     } catch (err) {
+      if (err instanceof SessionExpiredError) { onExpired?.(); return; }
       setExams([]);
       setMessage(err?.message || 'Unable to load exams');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, onExpired]);
 
   useEffect(() => {
     loadExams(false);

@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Button } from 'components/ui/button';
 import { Card, CardContent } from 'components/ui/card';
-import { fetchPortalAttendance, fetchPortalAttendanceMeta, fetchPortalSubjectAttendance } from 'lib/api';
+import { fetchPortalAttendance, fetchPortalAttendanceMeta, fetchPortalSubjectAttendance, SessionExpiredError } from 'lib/api';
 import { glassPanel, SHOW_TECHNICAL_DETAILS } from '../constants';
 import {
   getAttendanceTargetStorageKey,
@@ -19,7 +19,7 @@ import {
   monthStatsFromRows
 } from '../utils';
 
-export default function AttendanceView({ token }) {
+export default function AttendanceView({ token, onExpired }) {
   const [meta, setMeta] = useState(null);
   const [selectedSem, setSelectedSem] = useState('');
   const [attendanceMode, setAttendanceMode] = useState('overview');
@@ -62,11 +62,12 @@ export default function AttendanceView({ token }) {
       const latest = payload?.latest_semester?.registration_id || '';
       setSelectedSem(latest);
     }).catch((err) => {
+      if (err instanceof SessionExpiredError) { onExpired?.(); return; }
       setMeta({ semesters: [] });
       setAttendance([]);
       setMessage(err?.message || 'Unable to load attendance metadata');
     });
-  }, [token]);
+  }, [token, onExpired]);
 
   useEffect(() => {
     if (!selectedSem) return;
@@ -80,10 +81,50 @@ export default function AttendanceView({ token }) {
         setMessage(response.data.message);
       }
     }).catch((err) => {
+      if (err instanceof SessionExpiredError) { onExpired?.(); return; }
       setAttendance([]);
       setMessage(err?.message || 'Unable to load attendance data');
     });
-  }, [token, selectedSem]);
+  }, [token, selectedSem, onExpired]);
+
+  useEffect(() => {
+    if (!selectedSem || !attendance.length) return;
+
+    let cancelled = false;
+    const subjectCodes = Array.from(new Set(attendance.map((row) => row.subjectcode).filter(Boolean)));
+
+    Promise.all(subjectCodes.map(async (subjectCode) => {
+      try {
+        const response = await fetchPortalSubjectAttendance(token, selectedSem, subjectCode);
+        return {
+          subjectCode,
+          loaded: true,
+          rows: response?.data?.studentAttdsummarylist || [],
+          message: response?.data?.message || ''
+        };
+      } catch (error) {
+        return {
+          subjectCode,
+          loaded: true,
+          rows: [],
+          message: error?.message || 'Unable to load subject attendance'
+        };
+      }
+    })).then((results) => {
+      if (cancelled) return;
+      setSubjectDetails((prev) => {
+        const next = { ...prev };
+        results.forEach(({ subjectCode, ...detail }) => {
+          next[subjectCode] = detail;
+        });
+        return next;
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attendance, selectedSem, token]);
 
   const loadSubject = async (subjectCode) => {
     if (subjectDetails[subjectCode]?.loaded) return;
@@ -157,33 +198,83 @@ export default function AttendanceView({ token }) {
         {attendance.map((row) => (
           <Card key={row.subjectcode} className="border-slate-200/80 dark:border-slate-700/80 bg-white/95 dark:bg-slate-900/70">
             <CardContent className="p-4">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="font-semibold">{row.subjectdesc || row.subjectcode}</h3>
-                  <p className="text-xs text-muted-foreground">Code: {row.subjectcode || '-'}</p>
-                </div>
-                {(() => {
-                  const ratio = resolveAttendanceCounts(row, targetAttendancePct);
-                  return (
-                <div className="rounded-full bg-cyan-50 px-2 py-1 text-right">
-                  <p className="text-sm font-bold text-cyan-700">
-                    {toPercent(row.LTpercantage)}
-                    <span className="ml-1 text-[10px] font-semibold text-cyan-800">
-                      ({ratio?.total ? `${ratio.attended}/${ratio.total}` : '-/-'})
-                    </span>
-                  </p>
-                </div>
-                  );
-                })()}
-              </div>
-              <div className="mb-2 text-xs text-slate-600 dark:text-slate-300">
-                <p>{buildAttendanceGuidance(row, targetAttendancePct)}</p>
-              </div>
-              <div className="grid grid-cols-1 gap-1 text-xs text-muted-foreground sm:grid-cols-3 sm:gap-2">
-                <p>Lecture: {toPercent(row.Lpercentage)}</p>
-                <p>Tutorial: {toPercent(row.Tpercentage)}</p>
-                <p>Practical: {toPercent(row.Ppercentage)}</p>
-              </div>
+              {(() => {
+                const pct = Number(row.LTpercantage || 0);
+                const target = Number(targetAttendancePct || 75);
+                const detailRows = subjectDetails[row.subjectcode]?.rows || [];
+                const exactTotal = detailRows.length;
+                const exactAttended = detailRows.filter((entry) => String(entry?.present || '').toLowerCase() === 'present').length;
+                const ratio = exactTotal
+                  ? { attended: exactAttended, total: exactTotal, source: 'daily' }
+                  : resolveAttendanceCounts(row, targetAttendancePct);
+                const guidance = buildAttendanceGuidance(row, targetAttendancePct);
+                const badgeBg = pct >= target
+                  ? 'bg-emerald-500 dark:bg-emerald-600'
+                  : pct >= target - 10
+                    ? 'bg-amber-500 dark:bg-amber-600'
+                    : 'bg-red-500 dark:bg-red-600';
+                const guidanceCls = pct >= target
+                  ? 'text-emerald-700 dark:text-emerald-400'
+                  : pct >= target - 10
+                    ? 'text-amber-700 dark:text-amber-400'
+                    : 'text-red-600 dark:text-red-400';
+                const barCls = pct >= target
+                  ? 'bg-emerald-500'
+                  : pct >= target - 10
+                    ? 'bg-amber-500'
+                    : 'bg-red-500';
+                return (
+                  <>
+                    {/* Subject header row */}
+                    <div className="mb-3 flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate font-semibold leading-snug">{row.subjectdesc || row.subjectcode}</h3>
+                        <p className="text-xs text-muted-foreground">Code: {row.subjectcode || '-'}</p>
+                      </div>
+                      {/* Attended / Total + Percentage badge */}
+                      <div className="flex shrink-0 items-center gap-2">
+                        {ratio?.total ? (
+                          <div className="flex flex-col items-end leading-none text-muted-foreground">
+                            <span className="text-base font-black text-foreground">{ratio.attended}</span>
+                            <span className="my-0.5 h-px w-full bg-border" />
+                            <span className="text-base font-semibold">{ratio.total}</span>
+                          </div>
+                        ) : null}
+                        <div className={`flex shrink-0 flex-col items-center justify-center rounded-2xl ${badgeBg} px-3 py-1.5 text-white shadow-sm`}>
+                          <span className="whitespace-nowrap text-lg font-black leading-none">{toPercent(row.LTpercantage)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Progress bar */}
+                    <div className="mb-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                      <div
+                        className={`h-full rounded-full transition-all ${barCls}`}
+                        style={{ width: `${Math.min(100, pct)}%` }}
+                      />
+                    </div>
+
+                    {/* Guidance line */}
+                    <p className={`mb-2 text-xs font-semibold ${guidanceCls}`}>{guidance}</p>
+
+                    {/* L / T / P breakdown */}
+                    <div className="grid grid-cols-3 gap-1 text-center text-[11px] text-muted-foreground">
+                      <div className="rounded-lg border border-border py-1">
+                        <p className="font-semibold text-foreground">{toPercent(row.Lpercentage)}</p>
+                        <p>Lecture</p>
+                      </div>
+                      <div className="rounded-lg border border-border py-1">
+                        <p className="font-semibold text-foreground">{toPercent(row.Tpercentage)}</p>
+                        <p>Tutorial</p>
+                      </div>
+                      <div className="rounded-lg border border-border py-1">
+                        <p className="font-semibold text-foreground">{toPercent(row.Ppercentage)}</p>
+                        <p>Practical</p>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
               {SHOW_TECHNICAL_DETAILS ? (
                 <div className="mt-2 grid gap-1 text-[11px] text-muted-foreground sm:grid-cols-2">
                   <p>Subject ID: {row.subjectid || '-'}</p>

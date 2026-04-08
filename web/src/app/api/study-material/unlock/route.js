@@ -1,5 +1,8 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
+import { rateLimit } from 'lib/rateLimit';
+
+const limiter = rateLimit({ name: 'study-unlock', windowMs: 15 * 60 * 1000, max: 10 });
 
 const STUDY_ACCESS_COOKIE = 'study_material_access';
 const STUDY_ACCESS_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
@@ -19,6 +22,9 @@ const getPasswordHash = () => {
 };
 
 export async function POST(request) {
+  const limited = limiter(request);
+  if (limited) return limited;
+
   const payload = await request.json().catch(() => ({}));
   const submittedPassword = String(payload?.password || '');
   const submittedHash = hashValue(submittedPassword).toLowerCase();

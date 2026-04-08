@@ -9,9 +9,11 @@ const materialRoutes = require('./routes/materialRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const authRoutes = require('./routes/authRoutes');
 const portalRoutes = require('./routes/portalRoutes');
+const superadminRoutes = require('./routes/superadminRoutes');
 const errorHandler = require('./middlewares/errorHandler');
 const requestAnalytics = require('./middlewares/requestAnalytics');
 const { apiLimiter } = require('./middlewares/rateLimiters');
+const { trackPageView } = require('./services/requestAnalyticsStore');
 
 const app = express();
 
@@ -105,6 +107,19 @@ app.use('/api/v1/materials', materialRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/portal', portalRoutes);
+app.use('/api/v1/superadmin', superadminRoutes);
+
+/* ── Lightweight page-view beacon ── */
+app.post('/api/v1/track', (req, res) => {
+  const page = String(req.body?.page || '/').slice(0, 500);
+  trackPageView({
+    page,
+    ip: req.ip,
+    userAgent: req.headers['user-agent'] || '',
+    referrer: req.headers.referer || req.headers.referrer || req.body?.referrer || ''
+  });
+  res.status(204).end();
+});
 
 app.use(errorHandler);
 

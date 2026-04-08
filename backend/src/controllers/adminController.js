@@ -107,7 +107,15 @@ const updateMaterial = asyncHandler(async (req, res) => {
 
   updatableFields.forEach((field) => {
     if (req.body[field] !== undefined) {
-      material[field] = req.body[field];
+      if (field === 'year' || field === 'semester') {
+        const num = Number(req.body[field]);
+        if (!Number.isInteger(num) || num < 1 || num > 10) return;
+        material[field] = num;
+      } else if (field === 'isPublished') {
+        material[field] = Boolean(req.body[field]);
+      } else {
+        material[field] = String(req.body[field]).trim();
+      }
     }
   });
 
@@ -152,9 +160,15 @@ const deleteMaterial = asyncHandler(async (req, res) => {
   return res.json({ success: true, message: 'Material deleted successfully' });
 });
 
+const deleteAllMaterials = asyncHandler(async (_req, res) => {
+  const result = await Material.deleteMany({});
+  return res.json({ success: true, message: `Deleted ${result.deletedCount} materials` });
+});
+
 module.exports = {
   listMaterialsAdmin,
   createMaterial,
   updateMaterial,
-  deleteMaterial
+  deleteMaterial,
+  deleteAllMaterials
 };

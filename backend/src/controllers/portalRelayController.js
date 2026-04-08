@@ -186,7 +186,9 @@ const extractFailureMessage = (payload) => {
   if (Array.isArray(errors) && errors.length) return String(errors[0]);
   if (typeof errors === 'string' && errors.trim()) return errors;
 
-  return String(payload?.message || payload?.status?.identifier || '').trim();
+  const fallback = String(payload?.message || payload?.status?.identifier || '').trim();
+  if (/^(no message available|n\/a|null|undefined)$/i.test(fallback)) return '';
+  return fallback;
 };
 
 const applyAuthContextToSession = (session, payload) => {
@@ -255,13 +257,13 @@ const runEncryptedLoginFlow = async ({
       );
 
       const tokenAttempt = await executeRelayAttempt(session, {
-        path: '/StudentPortalAPI/token/generate-token1',
+        path: '/StudentPortalAPI/token/generatetoken',
         method: 'POST',
         contentType,
         rawBody: encryptedGenerateToken
       });
       tokenAttempt.strategy = strategy;
-      tokenAttempt.phase = 'generate-token1';
+      tokenAttempt.phase = 'generatetoken';
       tokenAttempt.timeZoneVariant = variant.timeZone;
       attempts.push(tokenAttempt);
 

@@ -1,13 +1,28 @@
 import { NextResponse } from 'next/server';
 
 const STUDY_ACCESS_COOKIE = 'study_material_access';
+const ADMIN_AUTH_COOKIE = 'admin_auth';
 
 export function middleware(request) {
   const pathname = request.nextUrl.pathname;
 
+  // ── CSRF origin check for mutating API requests ───────────────
+  if (pathname.startsWith('/api') && request.method !== 'GET' && request.method !== 'HEAD') {
+    const origin = request.headers.get('origin');
+    const host = request.headers.get('host');
+    if (origin) {
+      let originHost;
+      try { originHost = new URL(origin).host; } catch { originHost = ''; }
+      if (originHost !== host) {
+        return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+      }
+    }
+  }
+
   // Allow lock page and static assets to avoid redirect loops.
   if (
     pathname === '/study-access' ||
+    pathname.startsWith('/superadmin') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
     pathname === '/favicon.ico' ||
@@ -17,8 +32,24 @@ export function middleware(request) {
     return NextResponse.next();
   }
 
+  // Admin route — require admin_auth cookie
+  if (pathname.startsWith('/admin')) {
+    const isAdminAuth = request.cookies.get(ADMIN_AUTH_COOKIE)?.value === '1';
+    if (!isAdminAuth) {
+      // Let the page render — it will show the login form client-side
+      // But set a header so the page knows auth is missing
+      return NextResponse.next();
+    }
+    return NextResponse.next();
+  }
+
   const isUnlocked = request.cookies.get(STUDY_ACCESS_COOKIE)?.value === '1';
-  if (isUnlocked) return NextResponse.next();
+  if (isUnlocked) {
+    const response = NextResponse.next();
+    response.headers.set('X-Frame-Options', 'DENY');
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    return response;
+  }
 
   const targetPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
   const redirectUrl = request.nextUrl.clone();

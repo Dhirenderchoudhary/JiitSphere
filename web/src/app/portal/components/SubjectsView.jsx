@@ -4,11 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Button } from 'components/ui/button';
 import { Card, CardContent } from 'components/ui/card';
-import { fetchPortalSubjects } from 'lib/api';
+import { fetchPortalSubjects, SessionExpiredError } from 'lib/api';
 import { glassPanel, SHOW_TECHNICAL_DETAILS } from '../constants';
 import { pickRenderablePairs } from '../utils';
 
-export default function SubjectsView({ token, semesters = [], defaultSemester }) {
+export default function SubjectsView({ token, semesters = [], defaultSemester, onExpired }) {
   const [subjects, setSubjects] = useState({ registered: [], faculties: [], details: [] });
   const [message, setMessage] = useState('');
   const [selectedSem, setSelectedSem] = useState('');
@@ -32,12 +32,13 @@ export default function SubjectsView({ token, semesters = [], defaultSemester })
       const response = await fetchPortalSubjects(token, selectedSem, forceRefresh);
       setSubjects(response?.data || { registered: [], faculties: [], details: [] });
     } catch (err) {
+      if (err instanceof SessionExpiredError) { onExpired?.(); return; }
       setSubjects({ registered: [], faculties: [], details: [] });
       setMessage(err?.message || 'Unable to load subjects');
     } finally {
       setLoading(false);
     }
-  }, [selectedSem, token]);
+  }, [selectedSem, token, onExpired]);
 
   useEffect(() => {
     loadSubjects(false);

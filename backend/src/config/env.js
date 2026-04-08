@@ -91,11 +91,10 @@ module.exports = {
     .split(',')
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean),
-  authSecret: process.env.AUTH_SECRET || 'replace-this-auth-secret',
+  authSecret: process.env.AUTH_SECRET || '',
   userPasswordHash:
-    process.env.USER_PASSWORD_HASH ||
-    '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4',
-  userAllowedIdentifiers: String(process.env.USER_ALLOWED_IDENTIFIERS || 'student@jiit.ac.in')
+    process.env.USER_PASSWORD_HASH || '',
+  userAllowedIdentifiers: String(process.env.USER_ALLOWED_IDENTIFIERS || '')
     .split(',')
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean),
@@ -111,7 +110,7 @@ module.exports = {
   maxUploadSizeMb: Number(process.env.MAX_UPLOAD_SIZE_MB || 200),
   portalRealtimeDefault: parseBool(process.env.PORTAL_REALTIME_DEFAULT, true),
   portalRealtimeMinSyncIntervalMs: Number(process.env.PORTAL_REALTIME_MIN_SYNC_INTERVAL_MS || 30000),
-  portalRequestTimeoutMs: Number(process.env.PORTAL_REQUEST_TIMEOUT_MS || 8000),
+  portalRequestTimeoutMs: Number(process.env.PORTAL_REQUEST_TIMEOUT_MS || 12000),
   sessionMaxAgeMs: Number(process.env.SESSION_MAX_AGE_MS || 24 * 60 * 60 * 1000),
   sessionCleanupIntervalMs: Number(process.env.SESSION_CLEANUP_INTERVAL_MS || 15 * 60 * 1000)
 };

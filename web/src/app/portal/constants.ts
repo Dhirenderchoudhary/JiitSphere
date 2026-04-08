@@ -5,6 +5,12 @@ export const TOKEN_KEY = 'jaypee_buddy_token';
 export const LAST_PORTAL_USER_ID = 'jaypee_buddy_portal_user';
 export const PORTAL_VERIFIED_KEY = 'jaypee_buddy_portal_verified';
 export const ATTENDANCE_TARGET_KEY_PREFIX = 'jaypee_buddy_attendance_target';
+export const LOGIN_AT_KEY = 'jaypee_buddy_login_at';
+
+/** How long (ms) before we treat cached portal data as stale on tab focus */
+export const STALE_ON_FOCUS_MS = 5 * 60 * 1000; // 5 minutes
+/** Auto-refresh interval (ms) while the portal tab is open */
+export const AUTO_REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 
 const envFlag = (value: string | undefined, fallback = 'false') =>
   String(value || fallback).toLowerCase() === 'true';
@@ -47,5 +53,5 @@ export const adminTabs: PortalTab[] = [
   { id: 'analytics', label: 'Analytics', icon: CalendarClock }
 ];
 
-export const glassPanel = 'rounded-2xl border border-slate-200/70 dark:border-slate-700/70 bg-white/90 dark:bg-slate-900/70 shadow-[0_8px_26px_-14px_rgba(15,23,42,0.35)] backdrop-blur';
-export const darkPanel = 'rounded-2xl border border-cyan-200/80 bg-white/92 dark:bg-slate-900/70 shadow-[0_14px_30px_-20px_rgba(14,116,144,0.45)] backdrop-blur';
+export const glassPanel = 'rounded-2xl border border-border bg-card/95 shadow-sm backdrop-blur';
+export const darkPanel = 'rounded-2xl border border-border bg-card/95 shadow-[0_-4px_20px_-8px_rgba(14,116,144,0.15)] backdrop-blur';

@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Card, CardContent } from 'components/ui/card';
-import { fetchPortalProfile } from 'lib/api';
+import { fetchPortalProfile, SessionExpiredError } from 'lib/api';
 import { LAST_PORTAL_USER_ID, SHOW_TECHNICAL_DETAILS } from '../constants';
 import { toPrettyValue, toLabel, flattenScalarPairs } from '../utils';
 
-export default function ProfileView({ token }) {
+export default function ProfileView({ token, onExpired }) {
   const [profile, setProfile] = useState(null);
   const [message, setMessage] = useState('');
   const [fallbackEnrollment, setFallbackEnrollment] = useState('');
@@ -36,6 +36,7 @@ export default function ProfileView({ token }) {
         }
       } catch (err) {
         if (!cancelled) {
+          if (err instanceof SessionExpiredError) { onExpired?.(); return; }
           setProfile({ realData: false, message: err?.message || 'Unable to load profile' });
           setMessage(err?.message || 'Unable to load profile');
         }
@@ -47,7 +48,7 @@ export default function ProfileView({ token }) {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, onExpired]);
 
   if (!profile) return <p className="pb-24 text-sm text-muted-foreground">Loading profile...</p>;
 

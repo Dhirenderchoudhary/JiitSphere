@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Download } from 'lucide-react';
 import { Button } from 'components/ui/button';
 import { Card, CardContent } from 'components/ui/card';
-import { fetchPortalGrades, downloadPortalMarks } from 'lib/api';
+import { fetchPortalGrades, downloadPortalMarks, SessionExpiredError } from 'lib/api';
 import { SHOW_TECHNICAL_DETAILS } from '../constants';
 import {
   semesterSortScore,
@@ -14,7 +14,7 @@ import {
   normalizeCsvCell
 } from '../utils';
 
-export default function GradesView({ token }) {
+export default function GradesView({ token, onExpired }) {
   const [semesters, setSemesters] = useState([]);
   const [grades, setGrades] = useState([]);
   const [gradeCards, setGradeCards] = useState({});
@@ -47,6 +47,7 @@ export default function GradesView({ token }) {
       })
       .catch((err) => {
         if (cancelled) return;
+        if (err instanceof SessionExpiredError) { onExpired?.(); return; }
         setGrades([]);
         setGradeCards({});
         setSemesters([]);
@@ -56,7 +57,7 @@ export default function GradesView({ token }) {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, onExpired]);
 
   const sortedSemesters = useMemo(() => {
     return [...semesters].sort((a, b) => {
@@ -484,6 +485,29 @@ export default function GradesView({ token }) {
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Download portal marksheet — bottom of overview */}
+              <div className="flex flex-col gap-2 border-t border-slate-200 dark:border-slate-700 pt-3 sm:flex-row sm:items-center">
+                <select
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground sm:flex-1"
+                  value={selectedSem}
+                  onChange={(e) => setSelectedSem(e.target.value)}
+                >
+                  {sortedSemesters.map((s) => (
+                    <option key={s.registration_id || s.registration_code} value={s.registration_id}>
+                      {s.registration_code || s.registration_id || 'Semester'}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  onClick={downloadPortalMarksPdf}
+                  disabled={downloadingMarks || !currentSummary}
+                  className="w-full sm:w-auto bg-cyan-600 hover:bg-cyan-700 text-white"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  {downloadingMarks ? 'Downloading…' : 'Download Marksheet PDF'}
+                </Button>
               </div>
               </>
             )}

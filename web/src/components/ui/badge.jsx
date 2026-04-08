@@ -1,10 +1,16 @@
 import { cn } from 'lib/utils';
 
-export function Badge({ className, ...props }) {
+const badgeVariants = {
+  default: 'border-border bg-secondary text-secondary-foreground',
+  outline: 'border-border bg-transparent text-foreground',
+};
+
+export function Badge({ className, variant = 'default', ...props }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground',
+        'inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium',
+        badgeVariants[variant] || badgeVariants.default,
         className
       )}
       {...props}

@@ -6,6 +6,15 @@ type QueryValue = Primitive | null | undefined;
 type QueryParams = Record<string, QueryValue>;
 type JsonObject = Record<string, unknown>;
 
+/** Thrown when the backend returns 401. Callers should redirect to login. */
+export class SessionExpiredError extends Error {
+  readonly statusCode = 401;
+  constructor() {
+    super('TOKEN_EXPIRED');
+    this.name = 'SessionExpiredError';
+  }
+}
+
 const cleanParams = (params: QueryParams = {}): string => {
   const entries = Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '');
   return new URLSearchParams(entries as Array<[string, string]>).toString();
@@ -32,6 +41,7 @@ const sdkGet = async <T = JsonObject>(token: string, path: string, params: Query
     headers: { Authorization: `Bearer ${token}` },
     cache: 'no-store'
   });
+  if (response.status === 401) throw new SessionExpiredError();
   const data = await parseJson<T & { message?: string }>(response);
   if (!response.ok) throw new Error(data.message || 'SDK request failed');
   return data;

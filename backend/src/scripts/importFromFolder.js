@@ -17,7 +17,7 @@ const REPORT_PATH = process.argv.includes('--report')
   : path.resolve('import-report.json');
 
 if (!ROOT_FOLDER) {
-  console.error('Usage: npm run import:folder -- <materials_folder> [--dry-run] [--metadata-only] [--report ./import-report.json]');
+  console.error('Usage: bun run import:folder -- <materials_folder> [--dry-run] [--metadata-only] [--report ./import-report.json]');
   process.exit(1);
 }
 

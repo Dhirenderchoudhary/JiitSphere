@@ -4,10 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Button } from 'components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from 'components/ui/card';
-import { fetchPortalFees } from 'lib/api';
+import { fetchPortalFees, SessionExpiredError } from 'lib/api';
 import { formatCurrency, deriveFeeStatus, feeStatusBadgeClass, semesterSortScore } from '../utils';
 
-export default function FeesView({ token, semesters = [] }) {
+export default function FeesView({ token, semesters = [], onExpired }) {
   const [fees, setFees] = useState([]);
   const [message, setMessage] = useState('');
   const [debugHint, setDebugHint] = useState('');
@@ -38,13 +38,14 @@ export default function FeesView({ token, semesters = [] }) {
           setDebugHint('');
         }
     } catch (err) {
+      if (err instanceof SessionExpiredError) { onExpired?.(); return; }
       setFees([]);
       setMessage(err?.message || 'Unable to load fee details');
       setDebugHint('');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, onExpired]);
 
   useEffect(() => {
     loadFees(false);
