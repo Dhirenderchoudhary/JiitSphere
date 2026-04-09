@@ -69,6 +69,45 @@
       var(--bg-linear);
     transition: background-color 220ms ease, color 220ms ease, background-image 260ms ease;
   }
+
+  a,
+  button,
+  input,
+  select,
+  textarea {
+    outline: none;
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer components {
+  .page-shell {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .surface-card {
+    @apply rounded-2xl border border-border bg-card/90 shadow-sm backdrop-blur;
+  }
+
+  .section-title {
+    @apply text-xl font-black tracking-tight sm:text-2xl;
+  }
 }
 
 /* ── Aceternity-style effects ──────────────────────────────── */
@@ -92,6 +131,7 @@
   top: -40px;
   background: rgba(40, 140, 186, 0.35);
   animation: float 9s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
 .mesh-overlay::after {
@@ -101,6 +141,7 @@
   bottom: -50px;
   background: rgba(247, 159, 78, 0.3);
   animation: pulseSoft 10s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
 /* ── Dot grid bg pattern ───────────────────────────────────── */
@@ -158,6 +199,18 @@
 }
 .spotlight-card:hover::before {
   opacity: 1;
+}
+
+@media (max-width: 1024px), (hover: none), (pointer: coarse) {
+  .mesh-overlay::before,
+  .mesh-overlay::after,
+  .spotlight-card::before {
+    display: none;
+  }
+
+  .stagger-item {
+    animation: none !important;
+  }
 }
 
 /* ── Stagger animation ─────────────────────────────────────── */

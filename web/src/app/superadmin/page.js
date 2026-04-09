@@ -68,14 +68,14 @@ function ChartTooltip({ active, payload, label }) {
 }
 
 /* ───────── BAR ROW ───────── */
-function BarRow({ label, value, max, color = 'bg-emerald-400' }) {
+function BarRow({ label, value, max, color = '#34d399' }) {
   const w = max ? Math.max(2, (value / max) * 100) : 0;
   return (
     <div className="flex items-center gap-3">
       <span className="w-28 shrink-0 text-right text-sm text-muted-foreground">{label}</span>
       <div className="flex-1">
         <div className="h-5 rounded" style={{ width: `${w}%` }}>
-          <div className={`h-5 rounded ${color}`} />
+          <div className="h-5 rounded" style={{ backgroundColor: color }} />
         </div>
       </div>
       <span className="w-12 text-right font-mono text-xs text-muted-foreground">{fmt(value)}</span>
@@ -132,12 +132,12 @@ function LoginView({ onLogin }) {
             )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Admin ID</label>
-                <Input placeholder="Enter admin ID" value={id} onChange={(e) => setId(e.target.value)} required autoComplete="username" />
+                <label htmlFor="superadmin-id" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Admin ID</label>
+                <Input id="superadmin-id" placeholder="Enter admin ID" value={id} onChange={(e) => setId(e.target.value)} required autoComplete="username" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Password</label>
-                <Input type="password" placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
+                <label htmlFor="superadmin-password" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Password</label>
+                <Input id="superadmin-password" type="password" placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
               </div>
               <Button type="submit" className="w-full" size="lg" disabled={loading}>
                 {loading ? 'Verifying...' : 'Sign In'}
@@ -195,10 +195,10 @@ function Dashboard({ token, onLogout }) {
   const hourlyData = (data.pv?.last24Hours || []).map((h) => ({ time: `${h.hour}:00`, Visitors: h.visitors || 0, Views: h.views || 0 }));
 
   return (
-    <main className="min-h-screen">
+    <main className="page-shell min-h-screen py-5 sm:py-6">
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+      <header className="sticky top-0 z-30 mb-5 rounded-2xl border border-border bg-card/90 backdrop-blur">
+        <div className="flex items-center justify-between px-4 py-3 sm:px-5">
           <div className="flex items-center gap-3">
             <button onClick={() => window.history.back()} className="text-muted-foreground hover:text-foreground transition">&larr;</button>
             <h1 className="text-lg font-bold">JiitSphere</h1>
@@ -220,7 +220,7 @@ function Dashboard({ token, onLogout }) {
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 space-y-6 pb-20">
+      <div className="space-y-6 pb-20">
         {/* Title Banner */}
         <div className="mesh-overlay relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-emerald-600 to-teal-700 p-5 text-white shadow-glow md:p-6">
           <div className="absolute inset-0 dot-grid opacity-[0.06]" />
@@ -329,7 +329,7 @@ function Dashboard({ token, onLogout }) {
               <div className="mt-2 w-full space-y-1.5">
                 {browserData.map((b, i) => {
                   const maxB = Math.max(...browserData.map((x) => x.value));
-                  return <BarRow key={b.name} label={b.name} value={b.value} max={maxB} color={`bg-[${COLORS[i % COLORS.length]}]`} />;
+                  return <BarRow key={b.name} label={b.name} value={b.value} max={maxB} color={COLORS[i % COLORS.length]} />;
                 })}
               </div>
             </div>
@@ -350,7 +350,7 @@ function Dashboard({ token, onLogout }) {
               <div className="mt-2 w-full space-y-1.5">
                 {osData.map((o, i) => {
                   const maxO = Math.max(...osData.map((x) => x.value));
-                  return <BarRow key={o.name} label={o.name} value={o.value} max={maxO} color={`bg-[${COLORS[i % COLORS.length]}]`} />;
+                  return <BarRow key={o.name} label={o.name} value={o.value} max={maxO} color={COLORS[i % COLORS.length]} />;
                 })}
               </div>
             </div>
@@ -373,7 +373,7 @@ function Dashboard({ token, onLogout }) {
             <div className="mt-2 w-full max-w-md space-y-1.5">
               {deviceData.map((d, i) => {
                 const maxD = Math.max(...deviceData.map((x) => x.value));
-                return <BarRow key={d.name} label={d.name} value={d.value} max={maxD} color={`bg-[${COLORS[i % COLORS.length]}]`} />;
+                return <BarRow key={d.name} label={d.name} value={d.value} max={maxD} color={COLORS[i % COLORS.length]} />;
               })}
             </div>
           </div>

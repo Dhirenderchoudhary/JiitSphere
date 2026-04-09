@@ -166,7 +166,7 @@ export default function PortalShell({ token, onLogout }) {
 
       {content}
 
-      <nav className={`fixed bottom-9 left-1/2 z-30 flex w-[min(980px,96vw)] -translate-x-1/2 items-center justify-between gap-1 p-1.5 sm:bottom-10 sm:w-[min(900px,92vw)] sm:p-2 ${darkPanel}`}>
+      <nav aria-label="Portal sections" className={`fixed bottom-9 left-1/2 z-30 flex w-[min(980px,96vw)] -translate-x-1/2 items-center justify-between gap-1 p-1.5 sm:bottom-10 sm:w-[min(900px,92vw)] sm:p-2 ${darkPanel}`}>
         {displayedTabs.map((tab) => {
           const Icon = tab.icon;
           const active = tab.id === activeTab;
@@ -175,6 +175,8 @@ export default function PortalShell({ token, onLogout }) {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
+              aria-current={active ? 'page' : undefined}
+              aria-label={`Open ${tab.label}`}
               className={`flex flex-1 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-semibold transition-all duration-200 sm:px-2 sm:text-[11px] ${
                 active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}

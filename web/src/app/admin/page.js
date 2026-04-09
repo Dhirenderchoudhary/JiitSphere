@@ -70,12 +70,12 @@ function AdminLogin({ onSuccess }) {
             )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Admin ID</label>
-                <Input placeholder="Enter admin ID" value={id} onChange={(e) => setId(e.target.value)} required autoComplete="username" />
+                <label htmlFor="admin-id" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Admin ID</label>
+                <Input id="admin-id" placeholder="Enter admin ID" value={id} onChange={(e) => setId(e.target.value)} required autoComplete="username" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Password</label>
-                <Input type="password" placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
+                <label htmlFor="admin-password" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Password</label>
+                <Input id="admin-password" type="password" placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
               </div>
               <Button type="submit" className="w-full" size="lg" disabled={loading}>
                 {loading ? 'Verifying...' : 'Sign In'}
@@ -194,7 +194,7 @@ export default function AdminPage() {
   };
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-7 sm:px-6 lg:px-8">
+    <main className="page-shell max-w-3xl py-7">
       {/* Header */}
       <div className="mb-5 flex items-center justify-between">
         <CollegeBrand />

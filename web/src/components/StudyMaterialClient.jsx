@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
   ChevronRight, BookOpen, Download, RotateCcw, Sparkles,
   FileText, StickyNote, ClipboardList, PenTool, Layers,
-  GraduationCap, Calendar, GitBranch, BookMarked, ArrowRight
+  GraduationCap, Calendar, GitBranch, BookMarked, ArrowRight, AlertTriangle
 } from 'lucide-react';
 import CollegeBrand from 'components/CollegeBrand';
 import SignOutButton from 'components/SignOutButton';
@@ -109,18 +109,6 @@ async function triggerDownload(url, fallbackName) {
   }
 }
 
-/* ── spotlight card mouse tracker ───────────────────────────── */
-function useSpotlight() {
-  const ref = useRef(null);
-  const onMouseMove = useCallback((e) => {
-    if (!ref.current) return;
-    const rect = ref.current.getBoundingClientRect();
-    ref.current.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
-    ref.current.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
-  }, []);
-  return { ref, onMouseMove };
-}
-
 /* ── step flow ──────────────────────────────────────────────── */
 const STEPS = ['year', 'semester', 'branch', 'subject'];
 
@@ -129,6 +117,10 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
   const [filters, setFilters] = useState({ degree: 'BTech' });
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [optionsLoading, setOptionsLoading] = useState(true);
+  const [optionsError, setOptionsError] = useState('');
+  const [optionsRefreshKey, setOptionsRefreshKey] = useState(0);
+  const [supportsRichEffects, setSupportsRichEffects] = useState(false);
   const [activeTab, setActiveTab] = useState(null);
   const [downloadsUsed, setDownloadsUsed] = useState(() => (isGuest ? getGuestDownloads() : 0));
 
@@ -137,17 +129,55 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
   const currentStep = currentStepIndex === -1 ? 'done' : STEPS[currentStepIndex];
   const allSelected = currentStep === 'done';
 
-  /* ── data fetching ────────────────────────────────────────── */
   useEffect(() => {
-    fetchFilterOptions()
-      .then((data) => setOptions(data.data || {}))
-      .catch(() => setOptions({}));
+    if (typeof window === 'undefined') return undefined;
+
+    const mediaQuery = window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 1024px)');
+    const update = () => setSupportsRichEffects(mediaQuery.matches);
+    update();
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', update);
+      return () => mediaQuery.removeEventListener('change', update);
+    }
+
+    mediaQuery.addListener(update);
+    return () => mediaQuery.removeListener(update);
   }, []);
 
+  const handleSpotlightMove = useCallback((e) => {
+    if (!supportsRichEffects) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+    e.currentTarget.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
+  }, [supportsRichEffects]);
+
+  /* ── data fetching ────────────────────────────────────────── */
   useEffect(() => {
+    setOptionsLoading(true);
+    setOptionsError('');
+
+    fetchFilterOptions()
+      .then((data) => setOptions(data.data || {}))
+      .catch((error) => {
+        setOptions({});
+        setOptionsError(error?.message || 'Failed to load filter options.');
+      })
+      .finally(() => {
+        setOptionsLoading(false);
+      });
+  }, [optionsRefreshKey]);
+
+  useEffect(() => {
+    if (!filters.year) return;
+
+    setOptionsError('');
+
     fetchBrowseOptions({ degree: filters.degree, year: filters.year, semester: filters.semester, branch: filters.branch, subject: filters.subject })
       .then((data) => setOptions((prev) => ({ ...prev, ...(data.data || {}) })))
-      .catch(() => undefined);
+      .catch((error) => {
+        setOptionsError(error?.message || 'Failed to load browse options.');
+      });
   }, [filters.degree, filters.year, filters.semester, filters.branch, filters.subject]);
 
   const loadMaterials = useCallback(async (f) => {
@@ -301,20 +331,46 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
             <p className="mt-0.5 text-sm text-muted-foreground">{stepSubtext[currentStep]}</p>
           </div>
 
+          {optionsLoading ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-live="polite" aria-busy="true">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="h-24 animate-pulse rounded-2xl border border-border bg-card/70" />
+              ))}
+            </div>
+          ) : null}
+
+          {!optionsLoading && optionsError ? (
+            <div className="mb-4 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <p className="font-semibold">Unable to load options</p>
+                  <p className="mt-0.5 text-xs opacity-90">{optionsError}</p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-3"
+                onClick={() => setOptionsRefreshKey((key) => key + 1)}
+              >
+                Retry
+              </Button>
+            </div>
+          ) : null}
+
           {/* Year cards — big, visual */}
-          {currentStep === 'year' && (
+          {!optionsLoading && currentStep === 'year' && (
             <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
               {optionMap.year.map((opt, i) => (
                 <button
                   key={opt.value}
                   onClick={() => selectOption('year', opt.value)}
-                  className="spotlight-card gradient-border group relative rounded-2xl bg-card p-5 text-left shadow-sm transition-all duration-200 hover:shadow-lg hover:scale-[1.03] active:scale-[0.98] stagger-item"
+                  aria-label={`Select ${opt.label}`}
+                  className={`spotlight-card gradient-border group relative rounded-2xl bg-card p-5 text-left shadow-sm transition-all duration-200 hover:shadow-lg hover:scale-[1.03] active:scale-[0.98] ${supportsRichEffects ? 'stagger-item' : ''}`}
                   style={{ animationDelay: `${i * 80}ms` }}
-                  onMouseMove={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    e.currentTarget.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
-                    e.currentTarget.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
-                  }}
+                  onMouseMove={supportsRichEffects ? handleSpotlightMove : undefined}
                 >
                   <span className="text-3xl">{opt.icon}</span>
                   <p className="mt-3 text-base font-black group-hover:text-primary transition-colors">{opt.label}</p>
@@ -326,13 +382,14 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
           )}
 
           {/* Semester — pill buttons */}
-          {currentStep === 'semester' && (
+          {!optionsLoading && currentStep === 'semester' && (
             <div className="flex flex-wrap gap-3">
               {optionMap.semester.map((opt, i) => (
                 <button
                   key={opt.value}
                   onClick={() => selectOption('semester', opt.value)}
-                  className="group relative rounded-xl border border-border bg-card px-6 py-3 font-bold shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md hover:scale-[1.04] active:scale-[0.97] stagger-item"
+                  aria-label={`Select ${opt.label}`}
+                  className={`group relative rounded-xl border border-border bg-card px-6 py-3 font-bold shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md hover:scale-[1.04] active:scale-[0.97] ${supportsRichEffects ? 'stagger-item' : ''}`}
                   style={{ animationDelay: `${i * 60}ms` }}
                 >
                   <span className="group-hover:text-primary transition-colors">{opt.label}</span>
@@ -342,19 +399,16 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
           )}
 
           {/* Branch — colored cards */}
-          {currentStep === 'branch' && (
+          {!optionsLoading && currentStep === 'branch' && (
             <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
               {optionMap.branch.map((opt, i) => (
                 <button
                   key={opt.value}
                   onClick={() => selectOption('branch', opt.value)}
-                  className="spotlight-card group relative overflow-hidden rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-lg hover:scale-[1.03] active:scale-[0.98] stagger-item"
+                  aria-label={`Select branch ${opt.label}`}
+                  className={`spotlight-card group relative overflow-hidden rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-lg hover:scale-[1.03] active:scale-[0.98] ${supportsRichEffects ? 'stagger-item' : ''}`}
                   style={{ animationDelay: `${i * 70}ms` }}
-                  onMouseMove={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    e.currentTarget.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
-                    e.currentTarget.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
-                  }}
+                  onMouseMove={supportsRichEffects ? handleSpotlightMove : undefined}
                 >
                   <GitBranch className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                   <p className="mt-2 text-sm font-black group-hover:text-primary transition-colors">{opt.label}</p>
@@ -365,13 +419,14 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
           )}
 
           {/* Subject — list-style cards */}
-          {currentStep === 'subject' && (
+          {!optionsLoading && currentStep === 'subject' && (
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {optionMap.subject.map((opt, i) => (
                 <button
                   key={opt.value}
                   onClick={() => selectOption('subject', opt.value)}
-                  className="group flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md hover:bg-primary/5 stagger-item"
+                  aria-label={`Select subject ${opt.label}`}
+                  className={`group flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md hover:bg-primary/5 ${supportsRichEffects ? 'stagger-item' : ''}`}
                   style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}
                 >
                   <div className="flex items-center gap-3">
@@ -386,9 +441,9 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
             </div>
           )}
 
-          {(optionMap[currentStep] || []).length === 0 && (
+          {!optionsLoading && (optionMap[currentStep] || []).length === 0 && !optionsError && (
             <div className="rounded-2xl border border-dashed border-border bg-card/50 p-10 text-center">
-              <p className="text-sm text-muted-foreground">No options available for this selection.</p>
+              <p className="text-sm text-muted-foreground">No options available for this selection yet. Try another filter or refresh.</p>
             </div>
           )}
         </section>
@@ -426,6 +481,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
                     <button
                       key={type}
                       onClick={() => setActiveTab(type)}
+                      aria-label={`View ${type} materials`}
                       className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold transition-all duration-200 ${
                         isActive
                           ? `${meta.border} ${meta.bg} ${meta.text} shadow-sm scale-[1.02]`
@@ -467,13 +523,9 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
                       {items.map((item, i) => (
                         <div
                           key={item._id}
-                          className={`spotlight-card group rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-200 ${meta.cardHover} hover:shadow-md stagger-item`}
+                          className={`spotlight-card group rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-200 ${meta.cardHover} hover:shadow-md ${supportsRichEffects ? 'stagger-item' : ''}`}
                           style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}
-                          onMouseMove={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            e.currentTarget.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
-                            e.currentTarget.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
-                          }}
+                          onMouseMove={supportsRichEffects ? handleSpotlightMove : undefined}
                         >
                           <div className="mb-3">
                             <h4 className="line-clamp-2 text-sm font-bold leading-snug">{item.title}</h4>

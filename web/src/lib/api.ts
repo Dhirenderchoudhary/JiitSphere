@@ -21,7 +21,21 @@ const cleanParams = (params: QueryParams = {}): string => {
 };
 
 const parseJson = async <T = JsonObject>(response: Response): Promise<T> => {
-  return (await response.json()) as T;
+  const contentType = (response.headers.get('content-type') || '').toLowerCase();
+
+  if (!contentType.includes('application/json')) {
+    const text = await response.text();
+    const preview = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    throw new Error(
+      `Expected JSON from API but got ${contentType || 'unknown'} (HTTP ${response.status}). ${preview ? `Response starts: ${preview}` : ''}`
+    );
+  }
+
+  try {
+    return (await response.json()) as T;
+  } catch {
+    throw new Error(`Invalid JSON response from API (HTTP ${response.status}).`);
+  }
 };
 
 const authHeader = (token: string): Record<string, string> => ({

@@ -145,22 +145,26 @@ export default function LoginView({ onAuth }) {
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Enrollment Number</label>
+                <label htmlFor="portal-enrollment" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Enrollment Number</label>
                 <Input
+                  id="portal-enrollment"
                   placeholder="e.g. 9923102082"
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
                   required
+                  autoComplete="username"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Password</label>
+                <label htmlFor="portal-password" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Password</label>
                 <Input
+                  id="portal-password"
                   type="password"
                   placeholder="Enter password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  autoComplete="current-password"
                 />
               </div>
               {captchaImage ? (
@@ -175,6 +179,7 @@ export default function LoginView({ onAuth }) {
                     className="h-12 w-full rounded-lg border border-border object-contain bg-white"
                   />
                   <Input
+                    id="portal-captcha"
                     placeholder="Enter captcha"
                     value={captchaValue}
                     onChange={(e) => setCaptchaValue(e.target.value)}
@@ -183,7 +188,7 @@ export default function LoginView({ onAuth }) {
               ) : null}
               {SHOW_PORTAL_LOGIN_DIAGNOSTICS && probeMessage ? <p className="text-xs text-muted-foreground">{probeMessage}</p> : null}
               {error ? (
-                <div className="rounded-xl border border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-950/50 px-4 py-2.5 text-sm text-red-600 dark:text-red-300 font-medium">
+                <div aria-live="polite" className="rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600 dark:border-red-700 dark:bg-red-950/50 dark:text-red-300">
                   {error}
                 </div>
               ) : null}

@@ -2,6 +2,7 @@ import { fetchMaterialById } from 'lib/api';
 import CollegeBrand from 'components/CollegeBrand';
 import HistoryBackButton from 'components/HistoryBackButton';
 import { Badge } from 'components/ui/badge';
+import { Button } from 'components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from 'components/ui/card';
 
 const isVideo = (type) => ['mp4', 'webm', 'ogg'].includes(type);
@@ -20,16 +21,25 @@ export default async function MaterialViewerPage({ params }) {
   const viewerUrl = getViewerUrl(material.fileUrl, material.fileType);
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-7 sm:px-6 lg:px-8">
-      <div className="mb-4">
+    <main className="page-shell py-6 sm:py-7">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <HistoryBackButton fallbackHref="/study-material">← Back</HistoryBackButton>
+        <div className="flex items-center gap-2">
+          <a href={material.fileUrl} target="_blank" rel="noopener noreferrer">
+            <Button variant="secondary" size="sm">Open Source</Button>
+          </a>
+          <a href={material.fileUrl} download>
+            <Button size="sm">Download</Button>
+          </a>
+        </div>
       </div>
       <Card className="overflow-hidden bg-card/95 dark:bg-card/80 backdrop-blur">
         <CardHeader className="space-y-4">
           <CollegeBrand />
           <div>
-            <CardTitle className="text-2xl">{material.title}</CardTitle>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <CardTitle className="text-2xl sm:text-3xl">{material.title}</CardTitle>
+            <p className="mt-2 text-sm text-muted-foreground">{material.subject} • {material.branch} • {material.degree}</p>
+            <div className="mt-3 flex flex-wrap gap-2" aria-label="Material metadata badges">
               <Badge>{material.degree}</Badge>
               <Badge>{material.branch}</Badge>
               <Badge>Year {material.year}</Badge>

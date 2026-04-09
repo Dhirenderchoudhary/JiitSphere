@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { AlertCircle, ShieldCheck, UserRound } from 'lucide-react';
 import { Button } from 'components/ui/button';
+import { Card, CardContent } from 'components/ui/card';
 import HistoryBackButton from 'components/HistoryBackButton';
 
 /* Google "G" SVG mark */
@@ -76,7 +77,8 @@ export default function StudyAccessForm({ nextPath = '/study-material' }) {
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-border bg-card/90 dark:bg-card/80 p-6 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.18)] backdrop-blur space-y-5">
+        <Card className="bg-card/90 dark:bg-card/80 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.18)] backdrop-blur">
+          <CardContent className="space-y-5 p-6">
 
           {/* Error banner — wrong account domain */}
           {accessDenied ? (
@@ -106,6 +108,7 @@ export default function StudyAccessForm({ nextPath = '/study-material' }) {
             className="w-full gap-3 text-sm font-semibold"
             onClick={handleGoogleSignIn}
             disabled={loading}
+            aria-label="Continue with Google account"
           >
             {loading ? <Spinner /> : <GoogleIcon />}
             {loading ? 'Redirecting to Google…' : 'Continue with Google'}
@@ -123,6 +126,7 @@ export default function StudyAccessForm({ nextPath = '/study-material' }) {
             className="w-full gap-3 text-sm font-semibold"
             onClick={handleGuestLogin}
             disabled={guestLoading}
+            aria-label="Continue as guest with limited downloads"
           >
             {guestLoading ? <Spinner /> : <UserRound className="h-5 w-5" />}
             {guestLoading ? 'Entering…' : 'Continue as Guest'}
@@ -134,7 +138,8 @@ export default function StudyAccessForm({ nextPath = '/study-material' }) {
           <HistoryBackButton fallbackHref="/" className="w-full text-muted-foreground">
             ← Back
           </HistoryBackButton>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Footer note */}
         <p className="mt-5 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
