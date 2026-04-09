@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { LogOut, RefreshCw } from 'lucide-react';
 import TopPanelTools from 'components/TopPanelTools';
 import { Button } from 'components/ui/button';
@@ -15,14 +16,21 @@ import {
   STALE_ON_FOCUS_MS,
   AUTO_REFRESH_INTERVAL_MS
 } from '../constants';
-import AttendanceView from './AttendanceView';
-import GradesView from './GradesView';
-import ExamsView from './ExamsView';
-import SubjectsView from './SubjectsView';
-import FeesView from './FeesView';
-import ProfileView from './ProfileView';
-import AnalyticsView from './AnalyticsView';
 import HydrationStatusPanel from './HydrationStatusPanel';
+
+const tabLoadingState = (
+  <div className="surface-card flex min-h-[220px] items-center justify-center p-6 text-sm text-muted-foreground">
+    Loading section...
+  </div>
+);
+
+const AttendanceView = dynamic(() => import('./AttendanceView'), { loading: () => tabLoadingState });
+const GradesView = dynamic(() => import('./GradesView'), { loading: () => tabLoadingState });
+const ExamsView = dynamic(() => import('./ExamsView'), { loading: () => tabLoadingState });
+const SubjectsView = dynamic(() => import('./SubjectsView'), { loading: () => tabLoadingState });
+const FeesView = dynamic(() => import('./FeesView'), { loading: () => tabLoadingState });
+const ProfileView = dynamic(() => import('./ProfileView'), { loading: () => tabLoadingState });
+const AnalyticsView = dynamic(() => import('./AnalyticsView'), { loading: () => tabLoadingState });
 
 /** Format milliseconds ago into a human label like "just now", "3 min ago", "2 hr ago" */
 const formatAgo = (ms) => {

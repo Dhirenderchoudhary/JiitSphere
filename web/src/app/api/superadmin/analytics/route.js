@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { rateLimit } from 'lib/rateLimit';
 
 const limiter = rateLimit({ name: 'superadmin-analytics', windowMs: 60 * 1000, max: 30 });
-const BACKEND_BASE_URL = process.env.INTERNAL_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api/v1';
+const BACKEND_BASE_URL = process.env.INTERNAL_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5050/api/v1';
 
 const resolveOrigin = (request) => {
   const forwardedOrigin = request.headers.get('origin');

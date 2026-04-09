@@ -87,56 +87,47 @@ export default function AttendanceView({ token, onExpired }) {
     });
   }, [token, selectedSem, onExpired]);
 
-  useEffect(() => {
-    if (!selectedSem || !attendance.length) return;
-
-    let cancelled = false;
-    const subjectCodes = Array.from(new Set(attendance.map((row) => row.subjectcode).filter(Boolean)));
-
-    Promise.all(subjectCodes.map(async (subjectCode) => {
-      try {
-        const response = await fetchPortalSubjectAttendance(token, selectedSem, subjectCode);
-        return {
-          subjectCode,
-          loaded: true,
-          rows: response?.data?.studentAttdsummarylist || [],
-          message: response?.data?.message || ''
-        };
-      } catch (error) {
-        return {
-          subjectCode,
-          loaded: true,
-          rows: [],
-          message: error?.message || 'Unable to load subject attendance'
-        };
-      }
-    })).then((results) => {
-      if (cancelled) return;
-      setSubjectDetails((prev) => {
-        const next = { ...prev };
-        results.forEach(({ subjectCode, ...detail }) => {
-          next[subjectCode] = detail;
-        });
-        return next;
-      });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [attendance, selectedSem, token]);
-
   const loadSubject = async (subjectCode) => {
-    if (subjectDetails[subjectCode]?.loaded) return;
-    const response = await fetchPortalSubjectAttendance(token, selectedSem, subjectCode);
+    const current = subjectDetails[subjectCode];
+    if (!subjectCode || !selectedSem || current?.loading || current?.loaded) return;
+
     setSubjectDetails((prev) => ({
       ...prev,
       [subjectCode]: {
-        loaded: true,
-        rows: response?.data?.studentAttdsummarylist || [],
-        message: response?.data?.message || ''
+        loaded: false,
+        loading: true,
+        rows: [],
+        message: ''
       }
     }));
+
+    try {
+      const response = await fetchPortalSubjectAttendance(token, selectedSem, subjectCode, false);
+      setSubjectDetails((prev) => ({
+        ...prev,
+        [subjectCode]: {
+          loaded: true,
+          loading: false,
+          rows: response?.data?.studentAttdsummarylist || [],
+          message: response?.data?.message || ''
+        }
+      }));
+    } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        onExpired?.();
+        return;
+      }
+
+      setSubjectDetails((prev) => ({
+        ...prev,
+        [subjectCode]: {
+          loaded: true,
+          loading: false,
+          rows: [],
+          message: err?.message || 'Unable to load subject attendance'
+        }
+      }));
+    }
   };
 
   return (
@@ -311,8 +302,18 @@ export default function AttendanceView({ token, onExpired }) {
               ) : null}
               <div className="mt-3 flex gap-2">
                 {attendanceMode === 'day' ? (
-                  <Button size="default" variant="secondary" className="border-slate-300 dark:border-slate-600" onClick={() => loadSubject(row.subjectcode)}>
-                    View Day-to-Day
+                  <Button
+                    size="default"
+                    variant="secondary"
+                    className="border-slate-300 dark:border-slate-600"
+                    onClick={() => loadSubject(row.subjectcode)}
+                    disabled={subjectDetails[row.subjectcode]?.loading || subjectDetails[row.subjectcode]?.loaded}
+                  >
+                    {subjectDetails[row.subjectcode]?.loading
+                      ? 'Loading...'
+                      : subjectDetails[row.subjectcode]?.loaded
+                        ? 'Loaded'
+                        : 'View Day-to-Day'}
                   </Button>
                 ) : null}
               </div>

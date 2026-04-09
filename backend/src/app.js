@@ -25,6 +25,37 @@ const isLocalDevOrigin = (origin) => {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
 };
 
+const matchesAllowedOrigin = (origin, allowedOrigin) => {
+  if (!origin || !allowedOrigin) return false;
+  const normalizedAllowed = String(allowedOrigin).trim();
+  if (origin === normalizedAllowed) return true;
+
+  let expectedProtocol = null;
+  let wildcardHost = null;
+
+  const schemeWildcard = normalizedAllowed.match(/^(https?):\/\/\*\.(.+)$/i);
+  if (schemeWildcard) {
+    expectedProtocol = `${schemeWildcard[1].toLowerCase()}:`;
+    wildcardHost = schemeWildcard[2].toLowerCase();
+  } else if (normalizedAllowed.startsWith('*.')) {
+    wildcardHost = normalizedAllowed.slice(2).toLowerCase();
+  }
+
+  if (!wildcardHost) return false;
+
+  try {
+    const originUrl = new URL(origin);
+    const originProtocol = originUrl.protocol;
+    const originHost = originUrl.hostname.toLowerCase();
+
+    if (expectedProtocol && originProtocol !== expectedProtocol) return false;
+
+    return originHost === wildcardHost || originHost.endsWith(`.${wildcardHost}`);
+  } catch (_error) {
+    return false;
+  }
+};
+
 if (env.trustProxy) {
   app.set('trust proxy', 1);
 }
@@ -32,17 +63,28 @@ if (env.trustProxy) {
 /* ── CORS — strict in production ─────────────────────────────────── */
 const corsOptions = {
   origin(origin, callback) {
+    const denyCors = () => {
+      const originLabel = origin || 'unknown';
+      const error = new Error(`CORS origin denied: ${originLabel}`);
+      error.statusCode = 403;
+      return callback(error);
+    };
+
     if (!origin) {
-      if (env.isProduction) return callback(new Error('CORS origin denied'));
+      // Non-browser callers (health checks, server-to-server, curl) may omit Origin.
+      // Allow them and continue to enforce explicit checks when an Origin is present.
+      if (env.isProduction) return callback(null, true);
       return callback(null, true);
     }
     if (!env.isProduction && isLocalDevOrigin(origin)) return callback(null, true);
     if (!env.corsAllowedOrigins.length) {
       if (!env.isProduction) return callback(null, true);
-      return callback(new Error('CORS origin denied'));
+      return denyCors();
     }
-    if (env.corsAllowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error('CORS origin denied'));
+    if (env.corsAllowedOrigins.some((allowedOrigin) => matchesAllowedOrigin(origin, allowedOrigin))) {
+      return callback(null, true);
+    }
+    return denyCors();
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

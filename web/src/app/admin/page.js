@@ -145,7 +145,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!authed) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api/v1'}/materials/filters/options`)
+    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5050/api/v1'}/materials/filters/options`)
       .then((r) => r.json())
       .then((d) => { if (d.data?.subjects) setSubjects(d.data.subjects); })
       .catch(() => {});

@@ -3,6 +3,30 @@ const asyncHandler = require('../middlewares/asyncHandler');
 const { uploadBufferToS3, deleteFromS3 } = require('../services/s3Service');
 const { getFileTypeFromName } = require('../utils/file');
 
+const createHttpError = (statusCode, message) => {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+};
+
+const parseOptionalInt = (value, label, { min, max }) => {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
+    throw createHttpError(400, `${label} must be an integer between ${min} and ${max}`);
+  }
+  return parsed;
+};
+
+const parsePositiveInt = (value, label, fallback, { min = 1, max = Number.MAX_SAFE_INTEGER } = {}) => {
+  if (value === undefined || value === null || value === '') return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
+    throw createHttpError(400, `${label} must be an integer between ${min} and ${max}`);
+  }
+  return parsed;
+};
+
 const requiredFields = ['title', 'degree', 'branch', 'year', 'semester', 'subject', 'resourceType'];
 
 const validateRequiredFields = (body) => {
@@ -31,14 +55,16 @@ const listMaterialsAdmin = asyncHandler(async (req, res) => {
   const query = {};
   if (degree) query.degree = degree;
   if (branch) query.branch = branch;
-  if (year) query.year = Number(year);
-  if (semester) query.semester = Number(semester);
+  const parsedYear = parseOptionalInt(year, 'year', { min: 1, max: 5 });
+  const parsedSemester = parseOptionalInt(semester, 'semester', { min: 1, max: 10 });
+  if (parsedYear !== null) query.year = parsedYear;
+  if (parsedSemester !== null) query.semester = parsedSemester;
   if (subject) query.subject = subject;
   if (resourceType) query.resourceType = resourceType;
   if (includeUnpublished !== 'true') query.isPublished = true;
 
-  const pageNumber = Number(page);
-  const limitNumber = Math.min(Number(limit), 100);
+  const pageNumber = parsePositiveInt(page, 'page', 1, { min: 1, max: 100000 });
+  const limitNumber = parsePositiveInt(limit, 'limit', 25, { min: 1, max: 100 });
   const skip = (pageNumber - 1) * limitNumber;
 
   const [items, total] = await Promise.all([
@@ -109,7 +135,8 @@ const updateMaterial = asyncHandler(async (req, res) => {
     if (req.body[field] !== undefined) {
       if (field === 'year' || field === 'semester') {
         const num = Number(req.body[field]);
-        if (!Number.isInteger(num) || num < 1 || num > 10) return;
+        const max = field === 'year' ? 5 : 10;
+        if (!Number.isInteger(num) || num < 1 || num > max) return;
         material[field] = num;
       } else if (field === 'isPublished') {
         material[field] = Boolean(req.body[field]);

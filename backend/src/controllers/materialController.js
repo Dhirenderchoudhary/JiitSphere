@@ -1,7 +1,53 @@
 const Material = require('../models/Material');
+const mongoose = require('mongoose');
 const asyncHandler = require('../middlewares/asyncHandler');
 
 const normalizeOption = (value) => String(value || '').trim();
+
+const FILTER_OPTIONS_CACHE_TTL_MS = 30 * 1000;
+const BROWSE_OPTIONS_CACHE_TTL_MS = 20 * 1000;
+const MAX_BROWSE_CACHE_ENTRIES = 150;
+
+let filterOptionsCache = {
+  expiresAt: 0,
+  data: null
+};
+
+const browseOptionsCache = new Map();
+
+const createHttpError = (statusCode, message) => {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+};
+
+const parseOptionalInt = (value, label, { min, max }) => {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
+    throw createHttpError(400, `${label} must be an integer between ${min} and ${max}`);
+  }
+  return parsed;
+};
+
+const parsePositiveInt = (value, label, fallback, { min = 1, max = Number.MAX_SAFE_INTEGER } = {}) => {
+  if (value === undefined || value === null || value === '') return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
+    throw createHttpError(400, `${label} must be an integer between ${min} and ${max}`);
+  }
+  return parsed;
+};
+
+const now = () => Date.now();
+
+const setBrowseCache = (key, value) => {
+  browseOptionsCache.set(key, { expiresAt: now() + BROWSE_OPTIONS_CACHE_TTL_MS, data: value });
+  if (browseOptionsCache.size <= MAX_BROWSE_CACHE_ENTRIES) return;
+
+  const oldest = [...browseOptionsCache.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt)[0]?.[0];
+  if (oldest) browseOptionsCache.delete(oldest);
+};
 
 const uniqueNaturalSort = (values = []) => {
   const normalized = values.map(normalizeOption).filter(Boolean);
@@ -37,17 +83,22 @@ const getMaterials = asyncHandler(async (req, res) => {
 
   if (degree) query.degree = degree;
   if (branch) query.branch = branch;
-  if (year) query.year = Number(year);
-  if (semester) query.semester = Number(semester);
+  const parsedYear = parseOptionalInt(year, 'year', { min: 1, max: 5 });
+  const parsedSemester = parseOptionalInt(semester, 'semester', { min: 1, max: 10 });
+  if (parsedYear !== null) query.year = parsedYear;
+  if (parsedSemester !== null) query.semester = parsedSemester;
   if (subject) query.subject = subject;
   if (resourceType) query.resourceType = resourceType;
 
   if (search) {
-    query.$text = { $search: search };
+    const trimmedSearch = String(search).trim().slice(0, 120);
+    if (trimmedSearch) {
+      query.$text = { $search: trimmedSearch };
+    }
   }
 
-  const pageNumber = Number(page);
-  const limitNumber = Math.min(Number(limit), 100);
+  const pageNumber = parsePositiveInt(page, 'page', 1, { min: 1, max: 100000 });
+  const limitNumber = parsePositiveInt(limit, 'limit', 20, { min: 1, max: 100 });
   const skip = (pageNumber - 1) * limitNumber;
 
   const [items, total] = await Promise.all([
@@ -72,6 +123,10 @@ const getMaterials = asyncHandler(async (req, res) => {
 });
 
 const getMaterialById = asyncHandler(async (req, res) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return res.status(404).json({ success: false, message: 'Material not found' });
+  }
+
   const material = await Material.findById(req.params.id).lean();
 
   if (!material || !material.isPublished) {
@@ -82,6 +137,10 @@ const getMaterialById = asyncHandler(async (req, res) => {
 });
 
 const getFilterOptions = asyncHandler(async (_req, res) => {
+  if (filterOptionsCache.data && filterOptionsCache.expiresAt > now()) {
+    return res.json({ success: true, data: filterOptionsCache.data, cached: true });
+  }
+
   const [degrees, branches, years, semesters, subjects, resourceTypes] = await Promise.all([
     Material.distinct('degree', { isPublished: true }),
     Material.distinct('branch', { isPublished: true }),
@@ -91,26 +150,45 @@ const getFilterOptions = asyncHandler(async (_req, res) => {
     Material.distinct('resourceType', { isPublished: true })
   ]);
 
-  return res.json({
-    success: true,
-    data: {
-      branches: uniqueNaturalSort(branches),
-      years: years.sort((a, b) => a - b),
-      semesters: semesters.sort((a, b) => a - b),
-      subjects: uniqueNaturalSort(subjects),
-      resourceTypes: uniqueNaturalSort(resourceTypes),
-      degrees: uniqueNaturalSort(degrees)
-    }
-  });
+  const data = {
+    branches: uniqueNaturalSort(branches),
+    years: years.sort((a, b) => a - b),
+    semesters: semesters.sort((a, b) => a - b),
+    subjects: uniqueNaturalSort(subjects),
+    resourceTypes: uniqueNaturalSort(resourceTypes),
+    degrees: uniqueNaturalSort(degrees)
+  };
+
+  filterOptionsCache = {
+    data,
+    expiresAt: now() + FILTER_OPTIONS_CACHE_TTL_MS
+  };
+
+  return res.json({ success: true, data });
 });
 
 const getBrowseOptions = asyncHandler(async (req, res) => {
   const query = { isPublished: true };
   if (req.query.degree) query.degree = req.query.degree;
   if (req.query.branch) query.branch = req.query.branch;
-  if (req.query.year) query.year = Number(req.query.year);
-  if (req.query.semester) query.semester = Number(req.query.semester);
+  const parsedYear = parseOptionalInt(req.query.year, 'year', { min: 1, max: 5 });
+  const parsedSemester = parseOptionalInt(req.query.semester, 'semester', { min: 1, max: 10 });
+  if (parsedYear !== null) query.year = parsedYear;
+  if (parsedSemester !== null) query.semester = parsedSemester;
   if (req.query.subject) query.subject = req.query.subject;
+
+  const cacheKey = JSON.stringify({
+    degree: query.degree || '',
+    branch: query.branch || '',
+    year: query.year || '',
+    semester: query.semester || '',
+    subject: query.subject || ''
+  });
+
+  const cached = browseOptionsCache.get(cacheKey);
+  if (cached && cached.expiresAt > now()) {
+    return res.json({ success: true, data: cached.data, cached: true });
+  }
 
   const [branches, years, semesters, subjects, resourceTypes] = await Promise.all([
     Material.distinct('branch', query),
@@ -120,16 +198,17 @@ const getBrowseOptions = asyncHandler(async (req, res) => {
     Material.distinct('resourceType', query)
   ]);
 
-  return res.json({
-    success: true,
-    data: {
-      branches: uniqueNaturalSort(branches),
-      years: years.sort((a, b) => a - b),
-      semesters: semesters.sort((a, b) => a - b),
-      subjects: uniqueNaturalSort(subjects),
-      resourceTypes: uniqueNaturalSort(resourceTypes)
-    }
-  });
+  const data = {
+    branches: uniqueNaturalSort(branches),
+    years: years.sort((a, b) => a - b),
+    semesters: semesters.sort((a, b) => a - b),
+    subjects: uniqueNaturalSort(subjects),
+    resourceTypes: uniqueNaturalSort(resourceTypes)
+  };
+
+  setBrowseCache(cacheKey, data);
+
+  return res.json({ success: true, data });
 });
 
 module.exports = {

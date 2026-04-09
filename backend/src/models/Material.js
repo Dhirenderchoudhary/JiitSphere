@@ -76,6 +76,8 @@ const materialSchema = new mongoose.Schema(
 );
 
 materialSchema.index({ degree: 1, branch: 1, year: 1, semester: 1, subject: 1, resourceType: 1 });
+materialSchema.index({ isPublished: 1, degree: 1, year: 1, semester: 1, branch: 1, subject: 1, resourceType: 1 });
+materialSchema.index({ isPublished: 1, createdAt: -1 });
 materialSchema.index({ title: 'text', subject: 'text', description: 'text' });
 
 module.exports = mongoose.model('Material', materialSchema);

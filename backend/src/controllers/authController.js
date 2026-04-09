@@ -8,6 +8,18 @@ const allowedUsers = env.userAllowedIdentifiers.reduce((acc, identifier) => {
   return acc;
 }, {});
 
+const timingSafeHashEquals = (a = '', b = '') => {
+  const left = String(a || '');
+  const right = String(b || '');
+  if (!left || !right) return false;
+
+  const leftBuffer = Buffer.from(left, 'utf8');
+  const rightBuffer = Buffer.from(right, 'utf8');
+  if (leftBuffer.length !== rightBuffer.length) return false;
+
+  return crypto.timingSafeEqual(leftBuffer, rightBuffer);
+};
+
 const makeDisplayName = (identifier) => {
   if (!identifier.includes('@')) {
     return `Student ${identifier}`;
@@ -26,9 +38,14 @@ const login = (req, res) => {
   const normalizedIdentifier = String(userId || email || '')
     .trim()
     .toLowerCase();
+  const normalizedPassword = String(password || '');
 
-  if (!normalizedIdentifier || !password) {
+  if (!normalizedIdentifier || !normalizedPassword) {
     return res.status(400).json({ success: false, message: 'User ID and password are required' });
+  }
+
+  if (normalizedIdentifier.length > 120 || normalizedPassword.length > 512) {
+    return res.status(400).json({ success: false, message: 'Invalid credential payload' });
   }
 
   if (!portalMode && !env.userAllowAll && !allowedUsers[normalizedIdentifier]) {
@@ -36,8 +53,8 @@ const login = (req, res) => {
   }
 
   if (!portalMode) {
-    const incomingHash = crypto.createHash('sha256').update(String(password)).digest('hex');
-    if (incomingHash !== env.userPasswordHash) {
+    const incomingHash = crypto.createHash('sha256').update(normalizedPassword).digest('hex');
+    if (!timingSafeHashEquals(incomingHash, env.userPasswordHash)) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
   }

@@ -70,7 +70,7 @@ module.exports = {
     .filter(Boolean),
   jsonBodyLimitMb: Number(process.env.JSON_BODY_LIMIT_MB || 2),
   globalRateLimitWindowMs: Number(process.env.GLOBAL_RATE_LIMIT_WINDOW_MS || 60 * 1000),
-  globalRateLimitMax: Number(process.env.GLOBAL_RATE_LIMIT_MAX || isProduction ? 300 : 1200),
+  globalRateLimitMax: Number(process.env.GLOBAL_RATE_LIMIT_MAX || (isProduction ? 300 : 1200)),
   serverKeepAliveTimeoutMs: Number(process.env.SERVER_KEEP_ALIVE_TIMEOUT_MS || 65000),
   serverHeadersTimeoutMs: Number(process.env.SERVER_HEADERS_TIMEOUT_MS || 66000),
   gracefulShutdownTimeoutMs: Number(process.env.GRACEFUL_SHUTDOWN_TIMEOUT_MS || 12000),

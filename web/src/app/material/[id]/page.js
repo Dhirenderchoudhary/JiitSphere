@@ -53,7 +53,8 @@ export default async function MaterialViewerPage({ params }) {
         {isVideo(material.fileType) ? (
           <video className="h-[78vh] w-full rounded-2xl border border-border" controls src={material.fileUrl} />
         ) : isImage(material.fileType) ? (
-          <img className="mx-auto max-h-[78vh] rounded-2xl border border-border" src={material.fileUrl} alt={material.title} />
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="mx-auto max-h-[78vh] rounded-2xl border border-border" src={material.fileUrl} alt={material.title} loading="lazy" decoding="async" />
         ) : (
           <iframe className="h-[78vh] w-full rounded-2xl border border-border" src={viewerUrl} title={material.title} allowFullScreen />
         )}

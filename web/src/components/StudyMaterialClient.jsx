@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -116,6 +116,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
   const [options, setOptions] = useState({});
   const [filters, setFilters] = useState({ degree: 'BTech' });
   const [materials, setMaterials] = useState([]);
+  const [materialsError, setMaterialsError] = useState('');
   const [loading, setLoading] = useState(false);
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [optionsError, setOptionsError] = useState('');
@@ -182,11 +183,13 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
 
   const loadMaterials = useCallback(async (f) => {
     setLoading(true);
+    setMaterialsError('');
     try {
-      const response = await fetchMaterials({ ...f, limit: 200 });
+      const response = await fetchMaterials({ ...f, limit: 100 });
       setMaterials(response.data || []);
-    } catch {
+    } catch (error) {
       setMaterials([]);
+      setMaterialsError(error?.message || 'Failed to load materials.');
     } finally {
       setLoading(false);
     }
@@ -220,30 +223,42 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
       return next;
     });
     setMaterials([]);
+    setMaterialsError('');
     setActiveTab(null);
   };
 
   const resetAll = () => {
     setFilters({ degree: 'BTech' });
     setMaterials([]);
+    setMaterialsError('');
     setActiveTab(null);
   };
 
   /* ── group materials ──────────────────────────────────────── */
-  const grouped = {};
-  materials.forEach((m) => {
-    const type = m.resourceType || 'Other';
-    if (!grouped[type]) grouped[type] = [];
-    grouped[type].push(m);
-  });
-  const sortedTypes = [...TYPE_ORDER.filter((t) => grouped[t]), ...Object.keys(grouped).filter((t) => !TYPE_ORDER.includes(t))];
+  const grouped = useMemo(() => {
+    const groupedItems = {};
+    materials.forEach((m) => {
+      const type = m.resourceType || 'Other';
+      if (!groupedItems[type]) groupedItems[type] = [];
+      groupedItems[type].push(m);
+    });
+    return groupedItems;
+  }, [materials]);
+
+  const sortedTypes = useMemo(
+    () => [...TYPE_ORDER.filter((t) => grouped[t]), ...Object.keys(grouped).filter((t) => !TYPE_ORDER.includes(t))],
+    [grouped]
+  );
 
   // Set default active tab once materials load
   useEffect(() => {
-    if (sortedTypes.length > 0 && activeTab === null) {
+    if (sortedTypes.length > 0 && (activeTab === null || !sortedTypes.includes(activeTab))) {
       setActiveTab(sortedTypes[0]);
     }
-  }, [sortedTypes.length, activeTab, sortedTypes]);
+    if (!sortedTypes.length && activeTab !== null) {
+      setActiveTab(null);
+    }
+  }, [activeTab, sortedTypes]);
 
   /* ── option lists ─────────────────────────────────────────── */
   const optionMap = {
@@ -456,6 +471,20 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
             <div className="flex flex-col items-center justify-center py-20">
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
               <p className="mt-3 text-sm text-muted-foreground">Loading materials…</p>
+            </div>
+          ) : materialsError ? (
+            <div className="rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300">
+              <p className="font-semibold">Unable to load materials</p>
+              <p className="mt-1 text-xs opacity-90">{materialsError}</p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-3"
+                onClick={() => loadMaterials(filters)}
+              >
+                Retry
+              </Button>
             </div>
           ) : sortedTypes.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card/50 p-12 text-center">

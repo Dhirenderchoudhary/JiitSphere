@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5050/api/v1';
 const PORTAL_REALTIME_DEFAULT = String(process.env.NEXT_PUBLIC_PORTAL_REALTIME || 'false').toLowerCase() === 'true';
 
 type Primitive = string | number | boolean;
@@ -214,8 +214,12 @@ export const fetchPortalAttendanceMeta = async (token: string, refresh = PORTAL_
   sdkGet(token, '/portal/sdk/attendance/meta', withRealtime({}, refresh));
 export const fetchPortalAttendance = async (token: string, semester: string, refresh = PORTAL_REALTIME_DEFAULT) =>
   sdkGet(token, '/portal/sdk/attendance', withRealtime({ semester }, refresh));
-export const fetchPortalSubjectAttendance = async (token: string, semester: string, subject: string) =>
-  sdkGet(token, '/portal/sdk/attendance/subject', withRealtime({ semester, subject }, PORTAL_REALTIME_DEFAULT));
+export const fetchPortalSubjectAttendance = async (
+  token: string,
+  semester: string,
+  subject: string,
+  refresh = false
+) => sdkGet(token, '/portal/sdk/attendance/subject', withRealtime({ semester, subject }, refresh));
 export const fetchPortalProfile = async (token: string, refresh = PORTAL_REALTIME_DEFAULT) =>
   sdkGet(token, '/portal/sdk/profile', withRealtime({}, refresh));
 export const fetchPortalGrades = async (token: string, refresh = PORTAL_REALTIME_DEFAULT) =>
