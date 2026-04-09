@@ -34,7 +34,7 @@ export default function RootLayout({ children }) {
     <html lang="en" suppressHydrationWarning>
       <body className="font-[var(--font-manrope)]">
         <Script id="theme-init" strategy="beforeInteractive">
-          {`try{if(localStorage.getItem('jaypee_theme')==='dark'){document.documentElement.classList.add('dark')}}catch(_e){}`}
+          {`try{const saved=localStorage.getItem('jaypee_theme');const useDark=saved?saved==='dark':true;document.documentElement.classList.toggle('dark',useDark);if(!saved)localStorage.setItem('jaypee_theme','dark')}catch(_e){}`}
         </Script>
         <ServiceWorkerRegistration />
         <PageTracker />

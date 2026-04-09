@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    color-scheme: light;
     --font-archivo: 'Avenir Next', 'Segoe UI', 'Trebuchet MS', sans-serif;
     --font-manrope: 'Avenir Next', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
     --background: 206 44% 96%;
@@ -29,26 +30,27 @@
   }
 
   .dark {
-    --background: 222 35% 11%;
-    --foreground: 210 28% 94%;
-    --card: 218 28% 16%;
-    --card-foreground: 210 26% 94%;
+    color-scheme: dark;
+    --background: 223 38% 5%;
+    --foreground: 210 20% 96%;
+    --card: 223 28% 9%;
+    --card-foreground: 210 20% 96%;
     --primary: 194 82% 56%;
     --primary-foreground: 210 40% 10%;
-    --secondary: 216 22% 22%;
-    --secondary-foreground: 210 20% 92%;
-    --muted: 216 20% 19%;
-    --muted-foreground: 214 14% 72%;
+    --secondary: 223 18% 14%;
+    --secondary-foreground: 210 20% 95%;
+    --muted: 223 16% 12%;
+    --muted-foreground: 214 10% 72%;
     --accent: 30 84% 64%;
     --accent-foreground: 210 40% 10%;
-    --border: 216 20% 32%;
-    --input: 216 20% 24%;
+    --border: 223 16% 22%;
+    --input: 223 18% 16%;
     --ring: 194 82% 56%;
     --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 98%;
-    --bg-radial-1: rgba(29, 161, 242, 0.25);
-    --bg-radial-2: rgba(244, 194, 110, 0.21);
-    --bg-linear: linear-gradient(165deg, #172235 0%, #1f2e46 48%, #111827 100%);
+    --bg-radial-1: rgba(34, 211, 238, 0.12);
+    --bg-radial-2: rgba(251, 191, 36, 0.08);
+    --bg-linear: linear-gradient(165deg, #04070c 0%, #090d18 48%, #050608 100%);
   }
 
   * {
@@ -60,6 +62,7 @@
     color: hsl(var(--foreground));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
     background-image:
       radial-gradient(circle at 12% 8%, var(--bg-radial-1), transparent 30%),
       radial-gradient(circle at 85% 12%, var(--bg-radial-2), transparent 32%),

@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { AlertCircle, ShieldCheck, UserRound } from 'lucide-react';
 import { Button } from 'components/ui/button';
+import HistoryBackButton from 'components/HistoryBackButton';
 
 /* Google "G" SVG mark */
 function GoogleIcon({ className = 'h-5 w-5' }) {
@@ -29,7 +29,6 @@ export default function StudyAccessForm({ nextPath = '/study-material' }) {
   const [guestLoading, setGuestLoading] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   useEffect(() => {
     if (searchParams?.get('error') === 'AccessDenied') {
@@ -52,7 +51,7 @@ export default function StudyAccessForm({ nextPath = '/study-material' }) {
     try {
       const res = await fetch('/api/auth/guest', { method: 'POST' });
       if (res.ok) {
-        router.push(nextPath);
+        window.location.assign(nextPath);
       }
     } catch (_err) {
       // ignore
@@ -67,7 +66,7 @@ export default function StudyAccessForm({ nextPath = '/study-material' }) {
 
         {/* Logo + title */}
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="overflow-hidden rounded-2xl border border-border bg-white dark:bg-slate-900 shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-border bg-card/90 dark:bg-card/80 shadow-sm">
             <Image src="/jiitsphere-logo.png" alt="JiitSphere" width={56} height={56} priority />
           </div>
           <div>
@@ -77,7 +76,7 @@ export default function StudyAccessForm({ nextPath = '/study-material' }) {
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-border bg-white/90 dark:bg-slate-900/80 p-6 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.18)] backdrop-blur space-y-5">
+        <div className="rounded-2xl border border-border bg-card/90 dark:bg-card/80 p-6 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.18)] backdrop-blur space-y-5">
 
           {/* Error banner — wrong account domain */}
           {accessDenied ? (
@@ -132,9 +131,9 @@ export default function StudyAccessForm({ nextPath = '/study-material' }) {
             Guest access is limited to 5 downloads.
           </p>
 
-          <Button variant="ghost" size="sm" className="w-full text-muted-foreground" asChild>
-            <Link href="/">← Back to Home</Link>
-          </Button>
+          <HistoryBackButton fallbackHref="/" className="w-full text-muted-foreground">
+            ← Back
+          </HistoryBackButton>
         </div>
 
         {/* Footer note */}

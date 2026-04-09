@@ -233,7 +233,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
         <CollegeBrand />
         <div className="flex flex-wrap items-center gap-2">
           {user ? (
-            <div className="flex items-center gap-2 rounded-full border border-border bg-white/60 dark:bg-slate-800/60 px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur">
+            <div className="flex items-center gap-2 rounded-full border border-border bg-card/75 dark:bg-card/75 px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur">
               {user.image && <Image src={user.image} alt={user.name || 'User'} width={22} height={22} className="rounded-full" unoptimized />}
               <span className="max-w-[160px] truncate text-muted-foreground">{user.email}</span>
               <SignOutButton />
@@ -480,7 +480,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
                             <Badge variant="outline" className="mt-1.5 text-[10px] px-1.5 py-0 font-medium">{item.fileType?.toUpperCase()}</Badge>
                           </div>
                           <div className="flex gap-2">
-                            <Link href={`/material/${item._id}`} target="_blank" rel="noopener noreferrer" className="flex-1">
+                            <Link href={`/material/${item._id}`} className="flex-1">
                               <Button className="w-full" size="sm" variant="secondary">
                                 <BookOpen className="mr-1.5 h-3.5 w-3.5" /> View
                               </Button>

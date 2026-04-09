@@ -16,9 +16,12 @@ export default function ThemeToggleButton({ className = '' }) {
 
   useEffect(() => {
     const saved = window.localStorage.getItem(THEME_KEY);
-    const useDark = saved === 'dark';
+    const useDark = saved ? saved === 'dark' : true;
     setIsDark(useDark);
     applyTheme(useDark);
+    if (!saved) {
+      window.localStorage.setItem(THEME_KEY, 'dark');
+    }
     setMounted(true);
   }, []);
 

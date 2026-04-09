@@ -1,5 +1,6 @@
 import { fetchMaterialById } from 'lib/api';
 import CollegeBrand from 'components/CollegeBrand';
+import HistoryBackButton from 'components/HistoryBackButton';
 import { Badge } from 'components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from 'components/ui/card';
 
@@ -20,7 +21,10 @@ export default async function MaterialViewerPage({ params }) {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-7 sm:px-6 lg:px-8">
-      <Card className="overflow-hidden bg-white/92 dark:bg-slate-900/70 backdrop-blur">
+      <div className="mb-4">
+        <HistoryBackButton fallbackHref="/study-material">← Back</HistoryBackButton>
+      </div>
+      <Card className="overflow-hidden bg-card/95 dark:bg-card/80 backdrop-blur">
         <CardHeader className="space-y-4">
           <CollegeBrand />
           <div>
