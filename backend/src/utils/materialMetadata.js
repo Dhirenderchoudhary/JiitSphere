@@ -1,4 +1,5 @@
 const path = require('path');
+const { normalizeSubject } = require('./subject');
 
 const romanToNumber = {
   i: 1,
@@ -114,7 +115,7 @@ const inferMaterialMetadata = ({ relativePath, fileType }) => {
   const year = guessYearFromSemester(semester);
   const branch = guessBranch(folders, filename);
   const degree = guessDegree(folders, filename, branch);
-  const subject = pickSubject(folders);
+  const subject = normalizeSubject(pickSubject(folders));
   const resourceType = guessResourceType(folders, filename, fileType);
 
   return {

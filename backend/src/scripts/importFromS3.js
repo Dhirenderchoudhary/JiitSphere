@@ -6,6 +6,7 @@ const env = require('../config/env');
 const s3Client = require('../config/aws');
 const Material = require('../models/Material');
 const { getFileTypeFromName } = require('../utils/file');
+const { normalizeSubject } = require('../utils/subject');
 
 const S3_PREFIX = process.argv[2] || 'StudyMaterial/';
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -76,17 +77,8 @@ const parseS3Key = (s3Key, prefix) => {
   const year = extractNumber(parts[0]);
   const semester = extractNumber(parts[1]);
   const branch = parts.length >= 3 ? parts[2].trim() : 'GENERAL';
-  let subject = parts.length >= 4 ? parts[3].trim() : 'General';
-
-  // Clean subject: remove course codes like (18B11EC315), normalize case
-  subject = subject.replace(/\s*\([\w\d]+\)\s*$/, '').trim().toUpperCase();
-
-  // Fix known typos
-  const SUBJECT_TYPOS = {
-    'MTHEMATICS-1': 'MATHEMATICS-1',
-    'UNIVERAL HUMAN VALUES': 'UNIVERSAL HUMAN VALUES'
-  };
-  if (SUBJECT_TYPOS[subject]) subject = SUBJECT_TYPOS[subject];
+  const rawSubject = parts.length >= 4 ? parts[3].trim() : 'General';
+  const subject = normalizeSubject(rawSubject);
 
   // If there's a folder between subject and filename, treat it as resource type
   let resourceType = 'Lectures';
