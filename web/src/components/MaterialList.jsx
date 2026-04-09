@@ -40,6 +40,7 @@ async function triggerDownload(url, fallbackName) {
 
 export default function MaterialList({ items, isGuest = false }) {
   const [downloadsUsed, setDownloadsUsed] = useState(() => (isGuest ? getGuestDownloads() : 0));
+  const [downloadingId, setDownloadingId] = useState(null);
   const limitReached = isGuest && downloadsUsed >= GUEST_DOWNLOAD_LIMIT;
   if (!items.length) {
     return (
@@ -94,12 +95,23 @@ export default function MaterialList({ items, isGuest = false }) {
                   <Button
                     className="w-full"
                     size="lg"
-                    onClick={() => {
+                    disabled={downloadingId === item._id}
+                    onClick={async () => {
                       if (isGuest) setDownloadsUsed(incrementGuestDownloads());
-                      triggerDownload(item.fileUrl, `${item.title || item.subject}.${item.fileType}`);
+                      setDownloadingId(item._id);
+                      try {
+                        await triggerDownload(item.fileUrl, `${item.title || item.subject}.${item.fileType}`);
+                      } finally {
+                        setDownloadingId(null);
+                      }
                     }}
                   >
-                    <Download className="mr-2 h-4 w-4" /> Download Now
+                    {downloadingId === item._id ? (
+                      <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    ) : (
+                      <Download className="mr-2 h-4 w-4" />
+                    )}
+                    {downloadingId === item._id ? 'Downloading...' : 'Download Now'}
                   </Button>
                 )}
               </div>

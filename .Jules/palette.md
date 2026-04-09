@@ -1,0 +1,3 @@
+## 2025-04-09 - Missing Loading State for Async Downloads
+**Learning:** Blob-based file downloads (via `fetch` + `URL.createObjectURL`) do not trigger the native browser download UI until the file is fully fetched. This creates a confusing UX where clicking "Download" appears to do nothing for large files or on slow connections, leading users to repeatedly click the button.
+**Action:** Always add explicit loading states (e.g., spinners, disabled states, or "Downloading..." text) to buttons that trigger async file fetches before the native download dialog can appear.
