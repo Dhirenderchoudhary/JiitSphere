@@ -5,7 +5,12 @@ import { authOptions } from 'lib/auth';
 import StudyMaterialClient from 'components/StudyMaterialClient';
 
 export default async function StudyMaterialPage() {
-  const session = await getServerSession(authOptions);
+  let session = null;
+  try {
+    session = await getServerSession(authOptions);
+  } catch {
+    session = null;
+  }
   const cookieStore = cookies();
   const isGuest = !session && cookieStore.get('guest_mode')?.value === '1';
 

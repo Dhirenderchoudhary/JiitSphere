@@ -1,6 +1,7 @@
 import './globals.css';
 import Script from 'next/script';
 import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import ServiceWorkerRegistration from 'components/ServiceWorkerRegistration';
 import PageTracker from 'components/PageTracker';
 
@@ -32,14 +33,14 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="font-[var(--font-manrope)]">
+      <body className="flex min-h-screen flex-col font-[var(--font-manrope)]">
         <Script id="theme-init" strategy="beforeInteractive">
           {`try{const saved=localStorage.getItem('jaypee_theme');const useDark=saved?saved==='dark':true;document.documentElement.classList.toggle('dark',useDark);if(!saved)localStorage.setItem('jaypee_theme','dark')}catch(_e){}`}
         </Script>
         <ServiceWorkerRegistration />
         <PageTracker />
-        {children}
-        <footer className="fixed bottom-0 left-0 right-0 z-20 flex h-8 items-center justify-center border-t border-slate-200/60 bg-white/90 text-[11px] text-muted-foreground backdrop-blur dark:border-slate-700/60 dark:bg-slate-900/90">
+        <div className="flex-1">{children}</div>
+        <footer className="mt-8 flex h-8 items-center justify-center border-t border-slate-200/60 bg-white/80 px-4 text-center text-[11px] text-muted-foreground backdrop-blur dark:border-slate-700/60 dark:bg-slate-900/80">
           Made with ❤️ for JiitPeers by{' '}
           <a
             href="https://www.DhirenderChoudhary.com/"
@@ -51,6 +52,7 @@ export default function RootLayout({ children }) {
           </a>
         </footer>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
