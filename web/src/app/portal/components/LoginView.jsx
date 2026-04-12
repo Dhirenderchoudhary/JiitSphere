@@ -124,92 +124,105 @@ export default function LoginView({ onAuth }) {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md">
-        {/* Logo + Title */}
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg">
-            <span className="text-2xl font-black">J</span>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Student Portal</p>
-            <h1 className="mt-0.5 font-[var(--font-archivo)] text-3xl font-black tracking-tight">JPortal</h1>
-          </div>
+    <main className="flex min-h-screen items-center justify-center px-4 py-12 bg-background relative overflow-hidden">
+      {/* Background geometric accents */}
+      <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-primary/5 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-1/4 h-1/4 bg-blue-500/5 blur-[100px] pointer-events-none" />
+
+      <div className="w-full max-w-[420px] relative z-10 space-y-8">
+        {/* Branding */}
+        <div className="space-y-2">
+           <div className="flex items-center gap-3">
+              <div className="size-10 bg-primary flex items-center justify-center rounded-none shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
+                 <span className="text-primary-foreground font-black text-xl tracking-tighter">J</span>
+              </div>
+              <div>
+                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">SECURE ACCESS</p>
+                 <h2 className="text-2xl font-black tracking-tightest text-foreground font-[var(--font-instrument-sans)] uppercase">JiitSphere Portal</h2>
+              </div>
+           </div>
+           <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest leading-relaxed">
+             Institutional gateway for the Monumental Student OS.
+           </p>
         </div>
 
-        {/* Login Card */}
-        <Card className="gradient-border bg-card/95 backdrop-blur shadow-[0_18px_60px_-28px_rgba(15,23,42,0.35)]">
-          <CardHeader className="pb-2">
-            <CardDescription>Sign in with your enrollment number and password.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-1.5">
-                <label htmlFor="portal-enrollment" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Enrollment Number</label>
+        {/* Login Form */}
+        <Card className="rounded-none border-border/60 bg-card/60 spotlight-card shadow-2xl">
+          <CardContent className="p-8">
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-2">
+                <label htmlFor="portal-enrollment" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Enrollment Identity</label>
                 <Input
                   id="portal-enrollment"
-                  placeholder="e.g. 9923102082"
+                  placeholder="ENROLLMENT NO."
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
                   required
                   autoComplete="username"
+                  className="rounded-none border-border/50 bg-background/50 h-12 font-bold focus:border-primary transition-all pr-12"
                 />
               </div>
-              <div className="space-y-1.5">
-                <label htmlFor="portal-password" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Password</label>
+              <div className="space-y-2">
+                <label htmlFor="portal-password" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Secret Password</label>
                 <Input
                   id="portal-password"
                   type="password"
-                  placeholder="Enter password"
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoComplete="current-password"
+                  className="rounded-none border-border/50 bg-background/50 h-12 font-bold focus:border-primary transition-all pr-12"
                 />
               </div>
+
               {captchaImage ? (
-                <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Portal Captcha</p>
-                  <Image
-                    src={captchaImage}
-                    alt="Portal captcha"
-                    width={320}
-                    height={48}
-                    unoptimized
-                    className="h-12 w-full rounded-lg border border-border object-contain bg-white"
-                  />
+                <div className="space-y-4 border border-border/40 p-4 bg-muted/10">
+                  <div className="flex justify-between items-center">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Relay Challenge</p>
+                    <span className="text-[8px] font-bold text-muted-foreground/40 uppercase">VERIFY BOT STATUS</span>
+                  </div>
+                  <div className="relative border border-border/50 bg-white p-2">
+                    <Image
+                      src={captchaImage}
+                      alt="Portal captcha"
+                      width={320}
+                      height={48}
+                      unoptimized
+                      className="h-10 w-full object-contain filter grayscale contrast-125"
+                    />
+                  </div>
                   <Input
                     id="portal-captcha"
-                    placeholder="Enter captcha"
+                    placeholder="ENTER CAPTCHA"
                     value={captchaValue}
                     onChange={(e) => setCaptchaValue(e.target.value)}
+                    className="rounded-none border-border/50 bg-background/50 h-10 font-bold focus:border-primary text-center tracking-[0.5em] uppercase"
                   />
                 </div>
               ) : null}
-              {SHOW_PORTAL_LOGIN_DIAGNOSTICS && probeMessage ? <p className="text-xs text-muted-foreground">{probeMessage}</p> : null}
+
               {error ? (
-                <div aria-live="polite" className="rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600 dark:border-red-700 dark:bg-red-950/50 dark:text-red-300">
+                <div aria-live="polite" className="border-l-4 border-red-500 bg-red-500/5 px-4 py-3 text-[10px] font-black text-red-500 uppercase tracking-widest">
                   {error}
                 </div>
               ) : null}
-              {SHOW_PORTAL_LOGIN_DIAGNOSTICS && attemptDiagnostics.length ? (
-                <div className="max-h-44 space-y-2 overflow-auto rounded-xl border border-border bg-muted/20 p-3 text-xs">
-                  {attemptDiagnostics.map((row, idx) => (
-                    <div key={`${row.endpoint}-${idx}`} className="rounded-lg border border-border/60 p-2">
-                      <p className="font-semibold text-foreground">{row.phase} • {row.strategy}</p>
-                      <p className="text-muted-foreground">{row.endpoint}</p>
-                      <p className="text-muted-foreground">HTTP {row.status ?? '-'}</p>
-                      {row.message ? <p className="text-muted-foreground">{row.message}</p> : null}
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-              <Button className="w-full" size="lg" disabled={loading}>
-                {loading ? 'Signing in...' : captchaImage ? 'Verify Captcha & Sign In' : 'Continue'}
+
+              {SHOW_PORTAL_LOGIN_DIAGNOSTICS && probeMessage && (
+                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-center animate-pulse">{probeMessage}</p>
+              )}
+
+              <Button className="w-full h-14 rounded-none font-black uppercase tracking-[0.2em] shadow-lg active:scale-[0.98] transition-all" disabled={loading}>
+                {loading ? 'AUTHENTICATING...' : captchaImage ? 'VERIFY & GRANT ACCESS' : 'ESTABLISH LINK'}
               </Button>
             </form>
           </CardContent>
         </Card>
+        
+        <div className="flex justify-between items-center opacity-40">
+           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">v2.5 // ARCHITECTURAL</span>
+           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">© 2026 JIITSPHERE</span>
+        </div>
       </div>
     </main>
   );

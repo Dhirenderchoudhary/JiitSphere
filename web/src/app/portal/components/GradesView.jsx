@@ -5,6 +5,7 @@ import { Download } from 'lucide-react';
 import { Button } from 'components/ui/button';
 import { Card, CardContent } from 'components/ui/card';
 import { fetchPortalGrades, downloadPortalMarks, SessionExpiredError } from 'lib/api';
+import { cn } from 'lib/utils';
 import { SHOW_TECHNICAL_DETAILS } from '../constants';
 import {
   semesterSortScore,
@@ -303,299 +304,202 @@ export default function GradesView({ token, onExpired }) {
       {!sortedSemesters.length && !sortedGrades.length ? <p className="text-sm text-muted-foreground">{message || 'No direct grades data available.'}</p> : null}
 
       {sortedSemesters.length ? (
-        <div className="grid grid-cols-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 p-1 text-xs">
-          <button
-            type="button"
-            className={`rounded-lg px-2 py-1.5 font-semibold ${gradesMode === 'overview' ? 'bg-cyan-700 text-white' : 'text-slate-500 dark:text-slate-400'}`}
-            onClick={() => setGradesMode('overview')}
-          >
-            Overview
-          </button>
-          <button
-            type="button"
-            className={`rounded-lg px-2 py-1.5 font-semibold ${gradesMode === 'semester' ? 'bg-cyan-700 text-white' : 'text-slate-500 dark:text-slate-400'}`}
-            onClick={() => setGradesMode('semester')}
-          >
-            Semester
-          </button>
-          <button
-            type="button"
-            className={`rounded-lg px-2 py-1.5 font-semibold ${gradesMode === 'marks' ? 'bg-cyan-700 text-white' : 'text-slate-500 dark:text-slate-400'}`}
-            onClick={() => setGradesMode('marks')}
-          >
-            Marks
-          </button>
+        <div className="flex border border-border bg-muted/20 p-1">
+          {['overview', 'semester', 'marks'].map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              className={cn(
+                "flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all",
+                gradesMode === mode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => setGradesMode(mode)}
+            >
+              {mode}
+            </button>
+          ))}
         </div>
       ) : null}
 
       {sortedSemesters.length && gradesMode !== 'marks' ? (
-        <Card className="border-slate-200/80 dark:border-slate-700/80 bg-white/95 dark:bg-slate-900/70">
-          <CardContent className="space-y-4 p-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
-                <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Latest Semester</p>
-                <p className="mt-1 font-semibold">{currentSummary?.registration_code || 'Semester'}</p>
-                <p className="text-sm text-muted-foreground">SGPA: {toFixedSafe(currentSummary?.sgpa, 2)}</p>
-                {SHOW_TECHNICAL_DETAILS ? <p className="text-sm text-muted-foreground">Registration ID: {currentSummary?.registration_id || '-'}</p> : null}
+        <Card className="rounded-none border-border/60 bg-card/60  transition-all duration-300">
+          <CardContent className="space-y-6 p-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="border border-border/50 p-4 space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Current Status</p>
+                <div className="flex items-baseline gap-2">
+                   <p className="text-xl font-bold tracking-tight text-foreground">{currentSummary?.registration_code || 'Semester'}</p>
+                   <span className="text-xs font-bold text-muted-foreground opacity-60">SGPA: {toFixedSafe(currentSummary?.sgpa, 2)}</span>
+                </div>
               </div>
-              <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 text-right">
-                <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Current CGPA</p>
-                <p className="mt-1 text-2xl font-black text-primary">{toFixedSafe(currentSummary?.cgpa, 2)}</p>
+              <div className="border-2 border-primary/20 p-4 flex flex-col items-center justify-center bg-primary/5">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80">Cumulative CGPA</p>
+                <p className="text-4xl font-black tracking-tightest text-primary">{toFixedSafe(currentSummary?.cgpa, 2)}</p>
               </div>
             </div>
 
             {gradesMode === 'semester' ? (
-            <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Semester</label>
-                <select
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  value={selectedSem}
-                  onChange={(e) => setSelectedSem(e.target.value)}
-                >
-                  {sortedSemesters.map((s) => (
-                    <option key={s.registration_id || s.registration_code} value={s.registration_id}>
-                      {s.registration_code || s.registration_id || 'Semester'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-wrap gap-2 sm:justify-end">
-                <Button
-                  variant="default"
-                  onClick={downloadPortalMarksPdf}
-                  disabled={downloadingMarks || !currentSummary}
-                  className="w-full sm:w-auto bg-cyan-700 hover:bg-cyan-800 text-white"
-                >
-                  <Download className="mr-2 h-4 w-4" /> {downloadingMarks ? 'Downloading...' : 'Download Marks (Portal PDF)'}
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={downloadMarksPdf}
-                  disabled={!(gradeCards[selectedSem] || []).length}
-                  className="w-full sm:w-auto"
-                >
-                  <Download className="mr-2 h-4 w-4" /> Download Semester PDF
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={downloadGradesPdf}
-                  disabled={!(gradeCards[selectedSem] || []).length}
-                  className="w-full sm:w-auto"
-                >
-                  <Download className="mr-2 h-4 w-4" /> Download Grades PDF
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={downloadMarksCsv}
-                  disabled={!(gradeCards[selectedSem] || []).length}
-                  className="w-full sm:w-auto"
-                >
-                  <Download className="mr-2 h-4 w-4" /> CSV
-                </Button>
-              </div>
-            </div>
-            ) : (
-              <>
-              {graphSeries ? (
-                <div className="rounded-xl border border-cyan-100 bg-gradient-to-br from-cyan-50 via-white to-amber-50 p-3 shadow-[0_12px_30px_-24px_rgba(14,116,144,0.6)]">
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">CGPA / SGPA Trend</p>
-                    <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-slate-300">
-                      <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" /> SGPA</span>
-                      <span className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-cyan-600" /> CGPA</span>
-                    </div>
-                  </div>
-                  <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
-                    <span className="rounded-full border border-cyan-200 bg-cyan-50 px-2 py-1 font-semibold text-cyan-700">Tap any dot to inspect value</span>
-                    {selectedGraphRow ? (
-                      <span className="rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-slate-700 dark:text-slate-200">
-                        {(selectedGraphRow.registration_code || 'Semester')} • SGPA {toFixedSafe(selectedGraphRow.sgpa, 2)} • CGPA {toFixedSafe(selectedGraphRow.cgpa, 2)}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="overflow-x-auto">
-                    <svg viewBox={`0 0 ${graphSeries.width} ${graphSeries.height}`} className="h-56 min-w-[640px] w-full">
-                      <rect x="0" y="0" width={graphSeries.width} height={graphSeries.height} fill="transparent" />
-                      {[0, 1, 2, 3, 4].map((step) => {
-                        const y = graphSeries.padY + (step * (graphSeries.height - graphSeries.padY * 2)) / 4;
-                        return <line key={`grid-${step}`} x1={graphSeries.padX} y1={y} x2={graphSeries.width - graphSeries.padX} y2={y} stroke="#bae6fd" strokeDasharray="4 4" />;
-                      })}
-                      <polyline fill="none" stroke="#10b981" strokeWidth="3" points={graphSeries.sgpaPoints} />
-                      <polyline fill="none" stroke="#0891b2" strokeWidth="3" points={graphSeries.cgpaPoints} />
-                      {graphRows.map((row, idx) => {
-                        const x = graphSeries.padX + (idx * (graphSeries.width - graphSeries.padX * 2)) / Math.max(graphRows.length - 1, 1);
-                        const yS = graphSeries.padY + ((graphSeries.yMax - Number(row.sgpa || 0)) * (graphSeries.height - graphSeries.padY * 2)) / Math.max(graphSeries.yMax - graphSeries.yMin, 0.5);
-                        const yC = graphSeries.padY + ((graphSeries.yMax - Number(row.cgpa || 0)) * (graphSeries.height - graphSeries.padY * 2)) / Math.max(graphSeries.yMax - graphSeries.yMin, 0.5);
-                        const active = idx === selectedGraphIndex;
-                        return (
-                          <g key={`dots-${row.registration_id || idx}`}>
-                            <circle
-                              cx={x}
-                              cy={yS}
-                              r={active ? '5' : '4'}
-                              fill="#10b981"
-                              stroke={active ? '#065f46' : 'transparent'}
-                              strokeWidth="1.5"
-                              style={{ cursor: 'pointer' }}
-                              onClick={() => setSelectedGraphIndex(idx)}
-                            />
-                            <circle
-                              cx={x}
-                              cy={yC}
-                              r={active ? '5' : '4'}
-                              fill="#0891b2"
-                              stroke={active ? '#0c4a6e' : 'transparent'}
-                              strokeWidth="1.5"
-                              style={{ cursor: 'pointer' }}
-                              onClick={() => setSelectedGraphIndex(idx)}
-                            />
-                          </g>
-                        );
-                      })}
-                      {graphRows.map((row, idx) => {
-                        const x = graphSeries.padX + (idx * (graphSeries.width - graphSeries.padX * 2)) / Math.max(graphRows.length - 1, 1);
-                        return (
-                          <g key={`x-label-${row.registration_id || idx}`}>
-                            <text x={x} y={graphSeries.height - 4} textAnchor="middle" fontSize="10" fill="#94a3b8">
-                              {idx + 1}
-                            </text>
-                          </g>
-                        );
-                      })}
-                    </svg>
-                  </div>
+              <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end border-t border-border/20 pt-6">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Select Semester</label>
+                  <select
+                    className="w-full rounded-none border border-border bg-background px-3 py-2 text-sm font-bold appearance-none cursor-pointer hover:border-primary/50 transition-colors"
+                    value={selectedSem}
+                    onChange={(e) => setSelectedSem(e.target.value)}
+                  >
+                    {sortedSemesters.map((s) => (
+                      <option key={s.registration_id || s.registration_code} value={s.registration_id}>
+                        {s.registration_code || s.registration_id || 'Semester'}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              ) : null}
-
-              <div className="grid gap-2 sm:grid-cols-2">
-                {sortedSemesters.map((s, idx) => {
-                  const gradeRow = sortedGrades.find((g) => String(g.registration_id) === String(s.registration_id));
-                  return (
-                    <div key={`${s.registration_id}-${idx}`} className="rounded-lg border border-border p-3">
-                      <p className="text-sm font-semibold">{s.registration_code || `Semester ${idx + 1}`}</p>
-                      {gradeRow ? (
-                        <>
-                          <p className="text-xs text-muted-foreground">SGPA: {toFixedSafe(gradeRow.sgpa, 2)}</p>
-                          <p className="text-xs text-muted-foreground">CGPA: {toFixedSafe(gradeRow.cgpa, 2)}</p>
-                        </>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">No grades yet</p>
-                      )}
+                <div className="flex flex-wrap gap-2 sm:justify-end">
+                   <Button
+                    variant="default"
+                    onClick={downloadPortalMarksPdf}
+                    disabled={downloadingMarks || !currentSummary}
+                    className="rounded-none font-bold uppercase tracking-wider h-10 px-6 active:scale-95"
+                  >
+                    <Download className="mr-2 h-4 w-4" /> {downloadingMarks ? 'FETCHING...' : 'PORTAL PDF'}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {graphSeries ? (
+                  <div className="border border-border/60 bg-muted/10 p-4 relative overflow-hidden group">
+                    <div className="flex items-center justify-between mb-4">
+                       <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground">Performance Trend</h4>
+                       <div className="flex gap-4 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                          <span className="flex items-center gap-1.5"><div className="size-2 bg-emerald-500" /> SGPA</span>
+                          <span className="flex items-center gap-1.5"><div className="size-2 bg-primary" /> CGPA</span>
+                       </div>
                     </div>
-                  );
-                })}
+                    <div className="overflow-x-auto">
+                      <svg viewBox={`0 0 ${graphSeries.width} ${graphSeries.height}`} className="h-52 min-w-[640px] w-full">
+                        <polyline fill="none" stroke="currentColor" strokeWidth="2" strokeOpacity="0.1" points={graphSeries.sgpaPoints} className="text-emerald-500" />
+                        <polyline fill="none" stroke="currentColor" strokeWidth="3" points={graphSeries.cgpaPoints} className="text-primary" />
+                        {graphRows.map((row, idx) => {
+                          const x = graphSeries.padX + (idx * (graphSeries.width - graphSeries.padX * 2)) / Math.max(graphRows.length - 1, 1);
+                          const yC = graphSeries.padY + ((graphSeries.yMax - Number(row.cgpa || 0)) * (graphSeries.height - graphSeries.padY * 2)) / Math.max(graphSeries.yMax - graphSeries.yMin, 0.5);
+                          const active = idx === selectedGraphIndex;
+                          return (
+                            <circle key={`cgpa-${idx}`} cx={x} cy={yC} r={active ? "6" : "4"} fill="currentColor" className={cn("text-primary cursor-pointer transition-all", active ? "ring-4 ring-primary/20" : "")} onClick={() => setSelectedGraphIndex(idx)} />
+                          );
+                        })}
+                      </svg>
+                    </div>
+                    {selectedGraphRow && (
+                      <div className="mt-4 border-t border-border/20 pt-4 flex justify-between items-center">
+                         <span className="text-[10px] font-black text-muted-foreground uppercase">{selectedGraphRow.registration_code}</span>
+                         <div className="flex gap-4">
+                            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-tighter">SGPA: {toFixedSafe(selectedGraphRow.sgpa, 2)}</span>
+                            <span className="text-[10px] font-black text-primary uppercase tracking-tighter">CGPA: {toFixedSafe(selectedGraphRow.cgpa, 2)}</span>
+                         </div>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+                
+                <div className="grid gap-2 sm:grid-cols-2">
+                   {sortedSemesters.map((s, idx) => {
+                    const gradeRow = sortedGrades.find((g) => String(g.registration_id) === String(s.registration_id));
+                    return (
+                      <div key={s.registration_id} className="border border-border/50 p-4 flex justify-between items-center group hover:border-primary/40 transition-colors">
+                        <div className="space-y-0.5">
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">{s.registration_code}</p>
+                          <p className="text-xs font-bold text-foreground">SGPA: {gradeRow ? toFixedSafe(gradeRow.sgpa, 2) : 'N/A'}</p>
+                        </div>
+                        <div className="text-right">
+                           <p className="text-xl font-black text-primary tracking-tightest">{gradeRow ? toFixedSafe(gradeRow.cgpa, 2) : '-'}</p>
+                           <p className="text-[8px] font-bold text-muted-foreground uppercase opacity-40 whitespace-nowrap">CGPA Snapshot</p>
+                        </div>
+                      </div>
+                    );
+                   })}
+                </div>
               </div>
-
-              {/* Download portal marksheet — bottom of overview */}
-              <div className="flex flex-col gap-2 border-t border-slate-200 dark:border-slate-700 pt-3 sm:flex-row sm:items-center">
-                <select
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground sm:flex-1"
-                  value={selectedSem}
-                  onChange={(e) => setSelectedSem(e.target.value)}
-                >
-                  {sortedSemesters.map((s) => (
-                    <option key={s.registration_id || s.registration_code} value={s.registration_id}>
-                      {s.registration_code || s.registration_id || 'Semester'}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  onClick={downloadPortalMarksPdf}
-                  disabled={downloadingMarks || !currentSummary}
-                  className="w-full sm:w-auto bg-cyan-600 hover:bg-cyan-700 text-white"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  {downloadingMarks ? 'Downloading…' : 'Download Marksheet PDF'}
-                </Button>
-              </div>
-              </>
             )}
           </CardContent>
         </Card>
       ) : null}
 
       {gradesMode === 'marks' && sortedSemesters.length ? (
-        <Card className="border-slate-200/80 dark:border-slate-700/80 bg-white/95 dark:bg-slate-900/70 text-slate-900 dark:text-slate-100">
-          <CardContent className="space-y-3 p-4">
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Semester</label>
-              <select
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-                value={selectedSem}
-                onChange={(e) => setSelectedSem(e.target.value)}
-              >
-                {sortedSemesters.map((s) => (
-                  <option key={s.registration_id || s.registration_code} value={s.registration_id}>
-                    {s.registration_code || s.registration_id || 'Semester'}
-                  </option>
-                ))}
-              </select>
+        <Card className="rounded-none border-border/60 bg-card/60">
+          <CardContent className="p-6 space-y-6">
+            <div className="grid gap-4 sm:grid-cols-[1fr_auto] items-end">
+               <div className="space-y-1.5 flex-1">
+                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Target Semester</label>
+                <select
+                  className="w-full rounded-none border border-border bg-background px-3 py-2 text-sm font-bold appearance-none cursor-pointer hover:border-primary/50 transition-colors"
+                  value={selectedSem}
+                  onChange={(e) => setSelectedSem(e.target.value)}
+                >
+                  {sortedSemesters.map((s) => (
+                    <option key={s.registration_id} value={s.registration_id}>{s.registration_code}</option>
+                  ))}
+                </select>
+               </div>
+               <Button
+                  onClick={downloadPortalMarksPdf}
+                  disabled={downloadingMarks || !currentSummary}
+                  className="rounded-none font-bold uppercase tracking-wider h-10 px-8"
+                >
+                  <Download className="mr-2 h-4 w-4" /> {downloadingMarks ? 'FETCHING...' : 'FULL PORTAL PDF'}
+                </Button>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                onClick={downloadPortalMarksPdf}
-                disabled={downloadingMarks || !currentSummary}
-                className="w-full sm:w-auto bg-cyan-600 hover:bg-cyan-700 text-white"
-              >
-                <Download className="mr-2 h-4 w-4" /> {downloadingMarks ? 'Downloading…' : 'Download Marks (Portal PDF)'}
-              </Button>
-              <Button variant="secondary" onClick={downloadMarksPdf} disabled={!(gradeCards[selectedSem] || []).length} className="w-full sm:w-auto">
-                <Download className="mr-2 h-4 w-4" /> Download Semester PDF
-              </Button>
-              <Button variant="secondary" onClick={downloadGradesPdf} disabled={!(gradeCards[selectedSem] || []).length} className="w-full sm:w-auto">
-                <Download className="mr-2 h-4 w-4" /> Download Grades PDF
-              </Button>
-              <Button variant="secondary" onClick={downloadMarksCsv} disabled={!(gradeCards[selectedSem] || []).length} className="w-full sm:w-auto">
-                <Download className="mr-2 h-4 w-4" /> CSV
-              </Button>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+               <Button variant="outline" size="sm" onClick={downloadMarksPdf} className="rounded-none font-bold text-[10px] uppercase tracking-widest h-10">Marks PDF</Button>
+               <Button variant="outline" size="sm" onClick={downloadGradesPdf} className="rounded-none font-bold text-[10px] uppercase tracking-widest h-10">Grades PDF</Button>
+               <Button variant="outline" size="sm" onClick={downloadMarksCsv} className="rounded-none font-bold text-[10px] uppercase tracking-widest h-10">CSV Data</Button>
             </div>
           </CardContent>
         </Card>
-      ) : null}
-
-      {gradesMode === 'marks' && sortedSemesters.length && !visibleRows.length ? (
-        <p className="text-sm text-muted-foreground px-1">No marks data available yet for {currentSummary?.registration_code || 'this semester'}.</p>
       ) : null}
 
       {gradesMode === 'marks' && visibleRows.length ? (
-        <Card className="border-slate-200/80 dark:border-slate-700/80 bg-white/95 dark:bg-slate-900/70 text-slate-900 dark:text-slate-100">
-          <CardContent className="rounded-lg border border-slate-200 dark:border-slate-700 p-2 text-xs">
-            <div className="hidden grid-cols-[1.4fr_auto_auto_auto_auto] gap-2 border-b border-slate-200 dark:border-slate-700 px-1 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground sm:grid">
-              <span>Subject</span>
-              <span>Code</span>
-              <span>Credits</span>
-              <span>Marks</span>
-              <span>Grade</span>
-            </div>
-            {visibleRows.map((row, idx) => (
-              <div key={`${row.registration_id || 'all'}-${row.subjectcode || row.subjectdesc}-${idx}`} className="border-b border-slate-200 dark:border-slate-700 px-1 py-2 last:border-b-0">
-                <div className="space-y-1 sm:hidden">
-                  <p className="font-medium text-slate-900 dark:text-slate-100">{row.subjectdesc}</p>
-                  {row.registration_code ? <p className="text-[11px] text-muted-foreground">{row.registration_code}</p> : null}
-                  <div className="flex flex-wrap gap-3 text-[11px] text-slate-600 dark:text-slate-300">
-                    <span>Code: {row.subjectcode || '-'}</span>
-                    <span>Credits: {toDisplayNumber(row.credit, 1)}</span>
-                    <span>Marks: {toDisplayMarks(row.marksobtained, row.totalmarks)}</span>
-                    <span>GP: {toDisplayNumber(row.gradepoint, 1)}</span>
-                    <span>Grade: {row.grade || '-'}</span>
+        <div className="space-y-4">
+           <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1fr] px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
+              <span>Course Title</span>
+              <span className="text-center">Credits</span>
+              <span className="text-center">Marks</span>
+              <span className="text-right">Grade</span>
+           </div>
+           {visibleRows.map((row, idx) => (
+            <Card key={idx} className="rounded-none border-border/40 bg-card/40 hover:border-primary/30 transition-all group">
+               <CardContent className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:grid sm:grid-cols-[2fr_1fr_1fr_1fr] gap-4 sm:items-center">
+                     <div className="space-y-1">
+                        <h4 className="text-sm font-bold text-foreground font-[var(--font-instrument-sans)] truncate tracking-tight">{row.subjectdesc}</h4>
+                        <div className="flex gap-3">
+                           <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{row.subjectcode}</span>
+                           <span className="text-[9px] font-bold text-primary uppercase tracking-widest">{row.registration_code}</span>
+                        </div>
+                     </div>
+                     <div className="hidden sm:flex flex-col items-center">
+                         <span className="text-sm font-bold text-foreground">{toDisplayNumber(row.credit, 1)}</span>
+                         <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest opacity-40">CREDITS</span>
+                     </div>
+                     <div className="hidden sm:flex flex-col items-center">
+                         <span className="text-sm font-bold text-foreground">{toDisplayMarks(row.marksobtained, row.totalmarks)}</span>
+                         <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest opacity-40">SCORE</span>
+                     </div>
+                     <div className="flex justify-between sm:justify-end items-center gap-4">
+                        <div className="sm:hidden flex flex-wrap gap-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                           <span>CR: {toDisplayNumber(row.credit, 1)}</span>
+                           <span>MK: {toDisplayMarks(row.marksobtained, row.totalmarks)}</span>
+                        </div>
+                        <div className="bg-primary/10 border border-primary/20 px-3 py-1 min-w-[50px] text-center">
+                           <span className="text-lg font-black text-primary">{row.grade || '-'}</span>
+                        </div>
+                     </div>
                   </div>
-                </div>
-
-                <div className="hidden grid-cols-[1.4fr_auto_auto_auto_auto] gap-2 sm:grid">
-                  <div>
-                    <p className="font-medium text-slate-900 dark:text-slate-100">{row.subjectdesc}</p>
-                    {row.registration_code ? <p className="text-[11px] text-muted-foreground">{row.registration_code}</p> : null}
-                  </div>
-                  <span className="text-slate-600 dark:text-slate-300">{row.subjectcode || '-'}</span>
-                  <span className="text-slate-600 dark:text-slate-300">{toDisplayNumber(row.credit, 1)}</span>
-                  <span className="text-slate-600 dark:text-slate-300">{toDisplayMarks(row.marksobtained, row.totalmarks)}</span>
-                  <span className="font-semibold text-slate-900 dark:text-slate-100">{row.grade || '-'} <span className="text-muted-foreground">(GP {toDisplayNumber(row.gradepoint, 1)})</span></span>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+               </CardContent>
+            </Card>
+           ))}
+        </div>
       ) : null}
     </div>
   );

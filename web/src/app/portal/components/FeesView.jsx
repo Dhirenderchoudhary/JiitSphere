@@ -5,6 +5,7 @@ import { RefreshCw } from 'lucide-react';
 import { Button } from 'components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from 'components/ui/card';
 import { fetchPortalFees, SessionExpiredError } from 'lib/api';
+import { cn } from 'lib/utils';
 import { formatCurrency, deriveFeeStatus, feeStatusBadgeClass, semesterSortScore } from '../utils';
 
 export default function FeesView({ token, semesters = [], onExpired }) {
@@ -128,93 +129,105 @@ export default function FeesView({ token, semesters = [], onExpired }) {
   }, [semesterById, sortedFees]);
 
   return (
-    <div className="space-y-4 pb-24 sm:pb-20">
-      <Card className="border-slate-200/80 dark:border-slate-700/80 bg-white/95 dark:bg-slate-900/70">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Fee Summary</CardTitle>
-          <CardDescription>Current overview from portal records</CardDescription>
+    <div className="space-y-6 pb-24 sm:pb-20">
+      <Card className="rounded-none border-border/40 bg-card/40 spotlight-card shadow-2xl">
+        <CardHeader className="pb-4 border-b border-border/10">
+          <CardTitle className="text-xl font-black uppercase tracking-[0.3em] text-primary font-[var(--font-instrument-sans)]">WALLET SUMMARY</CardTitle>
+          <CardDescription className="text-[10px] font-bold uppercase tracking-widest opacity-60">Consolidated financial standing across all terms</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 p-3">
-              <p className="text-xs text-muted-foreground">Total Demand</p>
-              <p className="text-lg font-bold text-slate-900 dark:text-slate-100">{formatCurrency(summary.total)}</p>
+        <CardContent className="p-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="border border-border/40 p-4 bg-muted/5 space-y-1">
+              <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-widest">GROSS DEMAND</span>
+              <p className="text-2xl font-black text-foreground font-[var(--font-instrument-sans)]">{formatCurrency(summary.total)}</p>
             </div>
-            <div className="rounded-xl border border-green-200 bg-green-50 p-3">
-              <p className="text-xs text-green-700">Total Paid</p>
-              <p className="text-lg font-bold text-green-800">{formatCurrency(summary.paid)}</p>
+            <div className="border border-emerald-500/20 p-4 bg-emerald-500/5 space-y-1">
+              <span className="text-[8px] font-black text-emerald-600/60 uppercase tracking-widest">TOTAL ACQUITTED</span>
+              <p className="text-2xl font-black text-emerald-600 font-[var(--font-instrument-sans)]">{formatCurrency(summary.paid)}</p>
             </div>
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-              <p className="text-xs text-amber-700">Outstanding</p>
-              <p className="text-lg font-bold text-amber-800">{formatCurrency(summary.due)}</p>
+            <div className="border border-amber-500/20 p-4 bg-amber-500/5 space-y-1">
+              <span className="text-[8px] font-black text-amber-600/60 uppercase tracking-widest">OUTSTANDING DEBT</span>
+              <p className="text-2xl font-black text-amber-600 font-[var(--font-instrument-sans)]">{formatCurrency(summary.due)}</p>
             </div>
-            <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
-              <p className="text-xs text-rose-700">Fine / Late Fee</p>
-              <p className="text-lg font-bold text-rose-800">{formatCurrency(summary.fine)}</p>
+            <div className="border border-red-500/20 p-4 bg-red-500/5 space-y-1">
+              <span className="text-[8px] font-black text-red-600/60 uppercase tracking-widest">PENALTY // FINES</span>
+              <p className="text-2xl font-black text-red-600 font-[var(--font-instrument-sans)]">{formatCurrency(summary.fine)}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="border-slate-200/80 dark:border-slate-700/80 bg-white/95 dark:bg-slate-900/70">
-        <CardHeader className="pb-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <CardTitle className="text-base">Semester-wise Fee Records</CardTitle>
-              <CardDescription>{groupedFees.length ? `${groupedFees.length} semesters loaded` : 'No records available yet'}</CardDescription>
-            </div>
-            <Button type="button" variant="secondary" size="sm" onClick={() => loadFees(true)} disabled={loading}>
-              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              {loading ? 'Syncing...' : 'Refresh'}
-            </Button>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between px-2">
+           <h3 className="text-xs font-black uppercase tracking-[0.3em] text-muted-foreground">Term Breakdown</h3>
+           <div className="flex items-center gap-4">
+              {lastSyncAt && <span className="text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest">SYNC: {lastSyncAt}</span>}
+              <Button type="button" variant="link" size="sm" onClick={() => loadFees(true)} disabled={loading} className="h-auto p-0 text-[10px] font-black uppercase tracking-widest text-primary hover:no-underline">
+                <RefreshCw className={cn("mr-2 h-3 w-3", loading && "animate-spin")} />
+                {loading ? 'SYNCING...' : 'FORCE REFRESH'}
+              </Button>
+           </div>
+        </div>
+
+        {!groupedFees.length ? (
+           <div className="p-12 text-center border border-dashed border-border/40">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-pre-line">{message || debugHint || 'No financial records discovered.'}</p>
+           </div>
+        ) : (
+          <div className="grid gap-4">
+            {groupedFees.map((item, idx) => (
+              <Card key={`${item.registration_code || item.semester_label || 'fee'}-${idx}`} className="rounded-none border-border/40 bg-card/40 hover:border-primary/30 transition-all group">
+                <CardContent className="p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div className="space-y-1">
+                      <h4 className="text-lg font-black tracking-tightest text-foreground font-[var(--font-instrument-sans)] uppercase">
+                        {item.semester_label || item.registration_code || `TERM ${idx + 1}`}
+                      </h4>
+                      {item.record_count > 1 && (
+                         <span className="text-[8px] font-black bg-primary/10 text-primary px-2 py-0.5 uppercase tracking-widest">
+                           {item.record_count} ENTRIES AGGREGATED
+                         </span>
+                      )}
+                    </div>
+                    <div className={cn(
+                       "px-4 py-1.5 text-[10px] font-black uppercase tracking-widest border",
+                       deriveFeeStatus(item) === 'PAID' ? "border-emerald-500/40 bg-emerald-500/5 text-emerald-500" : "border-amber-500/40 bg-amber-500/5 text-amber-500"
+                    )}>
+                      {deriveFeeStatus(item)}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="border border-border/40 p-3 space-y-1">
+                      <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">DEMAND</span>
+                      <p className="text-sm font-black text-foreground">{formatCurrency(item.total_demand)}</p>
+                    </div>
+                    <div className="border border-border/40 p-3 space-y-1 bg-emerald-500/[0.02]">
+                      <span className="text-[7px] font-black text-emerald-600/60 uppercase tracking-widest">PAID</span>
+                      <p className="text-sm font-black text-emerald-600">{formatCurrency(item.paid_amount)}</p>
+                    </div>
+                    <div className="border border-border/40 p-3 space-y-1 bg-amber-500/[0.02]">
+                      <span className="text-[7px] font-black text-amber-600/60 uppercase tracking-widest">OUTSTANDING</span>
+                      <p className="text-sm font-black text-amber-600">{formatCurrency(item.due_amount)}</p>
+                    </div>
+                    <div className="border border-border/40 p-3 space-y-1 bg-red-500/[0.02]">
+                      <span className="text-[7px] font-black text-red-600/60 uppercase tracking-widest">PENALTY</span>
+                      <p className="text-sm font-black text-red-600">{formatCurrency(item.fine_amount)}</p>
+                    </div>
+                  </div>
+
+                  {item.latest_payment_date && (
+                    <div className="mt-4 pt-4 border-t border-border/10 flex items-center justify-between">
+                       <span className="text-[8px] font-black text-muted-foreground/40 uppercase tracking-widest">LATEST TRANSACTION RECORDED</span>
+                       <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{item.latest_payment_date}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
           </div>
-          {lastSyncAt ? <p className="text-[11px] text-muted-foreground">Last synced: {lastSyncAt}</p> : null}
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {!groupedFees.length ? (
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">{message || 'No fee data was returned by the portal for this account.'}</p>
-              {debugHint ? <p className="text-xs text-muted-foreground">{debugHint}</p> : null}
-            </div>
-          ) : (
-            groupedFees.map((item, idx) => (
-              <div
-                key={`${item.registration_code || item.semester_label || 'fee'}-${idx}`}
-                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-background/40 p-3"
-              >
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{item.semester_label || item.registration_code || `Semester ${idx + 1}`}</p>
-                    {item.record_count > 1 ? <p className="text-[11px] text-muted-foreground">{item.record_count} fee records merged</p> : null}
-                  </div>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${feeStatusBadgeClass(deriveFeeStatus(item))}`}>
-                    {deriveFeeStatus(item)}
-                  </span>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="rounded-lg border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-800/50 p-2.5">
-                    <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Demand</p>
-                    <p className="mt-1 text-sm font-semibold">{formatCurrency(item.total_demand)}</p>
-                  </div>
-                  <div className="rounded-lg border border-green-200/80 bg-green-50/80 p-2.5">
-                    <p className="text-[11px] uppercase tracking-[0.08em] text-green-700">Paid</p>
-                    <p className="mt-1 text-sm font-semibold text-green-800">{formatCurrency(item.paid_amount)}</p>
-                  </div>
-                  <div className="rounded-lg border border-amber-200/80 bg-amber-50/80 p-2.5">
-                    <p className="text-[11px] uppercase tracking-[0.08em] text-amber-700">Due</p>
-                    <p className="mt-1 text-sm font-semibold text-amber-800">{formatCurrency(item.due_amount)}</p>
-                  </div>
-                  <div className="rounded-lg border border-rose-200/80 bg-rose-50/80 p-2.5">
-                    <p className="text-[11px] uppercase tracking-[0.08em] text-rose-700">Fine</p>
-                    <p className="mt-1 text-sm font-semibold text-rose-800">{formatCurrency(item.fine_amount)}</p>
-                  </div>
-                </div>
-                {item.latest_payment_date ? <p className="mt-2 text-xs text-muted-foreground">Last payment date: {item.latest_payment_date}</p> : null}
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+        )}
+      </div>
     </div>
   );
 }

@@ -4,6 +4,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { Button } from 'components/ui/button';
 import { Card, CardContent } from 'components/ui/card';
 import { fetchPortalAttendance, fetchPortalAttendanceMeta, fetchPortalSubjectAttendance, SessionExpiredError } from 'lib/api';
+import { motion } from 'framer-motion';
+import { cn } from 'lib/utils';
 import { glassPanel, SHOW_TECHNICAL_DETAILS } from '../constants';
 import {
   getAttendanceTargetStorageKey,
@@ -132,12 +134,12 @@ export default function AttendanceView({ token, onExpired }) {
 
   return (
     <div className="space-y-4 pb-28 sm:pb-24">
-      <div className={`sticky top-0 z-20 p-3 ${glassPanel}`}>
-        <div className="grid grid-cols-[1fr_auto] gap-2">
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Semester</label>
+      <div className={`sticky top-0 z-20 p-4 ${glassPanel}`}>
+        <div className="grid grid-cols-[1fr_auto] gap-4">
+          <div className="space-y-1.5">
+            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Semester</label>
             <select
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              className="w-full rounded-none border border-border bg-background px-3 py-2 text-sm font-bold appearance-none cursor-pointer hover:border-primary/50 transition-colors"
               value={selectedSem}
               onChange={(e) => setSelectedSem(e.target.value)}
             >
@@ -148,35 +150,37 @@ export default function AttendanceView({ token, onExpired }) {
               ))}
             </select>
           </div>
-          <div className="w-28">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Target %</label>
+          <div className="w-32 space-y-1.5">
+            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Target %</label>
             <select
               value={targetAttendancePct}
               onChange={(e) => setTargetAttendancePct(e.target.value)}
-              className="h-10 w-full rounded-lg border border-border bg-background px-2 text-sm"
+              className="h-10 w-full rounded-none border border-border bg-background px-3 text-sm font-bold appearance-none cursor-pointer hover:border-primary/50 transition-colors"
             >
               <option value="">Select</option>
-              <option value="60">60%</option>
-              <option value="65">65%</option>
-              <option value="70">70%</option>
-              <option value="75">75%</option>
-              <option value="80">80%</option>
-              <option value="85">85%</option>
-              <option value="90">90%</option>
+              {[60, 65, 70, 75, 80, 85, 90].map(val => (
+                <option key={val} value={val}>{val}%</option>
+              ))}
             </select>
           </div>
         </div>
-        <div className="mt-3 grid grid-cols-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 p-1 text-xs">
+        <div className="mt-6 flex border border-border bg-muted/20 p-1">
           <button
             type="button"
-            className={`rounded-lg px-2 py-1.5 font-semibold ${attendanceMode === 'overview' ? 'bg-cyan-700 text-white' : 'text-slate-500 dark:text-slate-400'}`}
+            className={cn(
+              "flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all",
+              attendanceMode === 'overview' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+            )}
             onClick={() => setAttendanceMode('overview')}
           >
             Overview
           </button>
           <button
             type="button"
-            className={`rounded-lg px-2 py-1.5 font-semibold ${attendanceMode === 'day' ? 'bg-cyan-700 text-white' : 'text-slate-500 dark:text-slate-400'}`}
+            className={cn(
+              "flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all",
+              attendanceMode === 'day' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+            )}
             onClick={() => setAttendanceMode('day')}
           >
             Day-to-Day
@@ -184,11 +188,11 @@ export default function AttendanceView({ token, onExpired }) {
         </div>
       </div>
 
-      <div className="space-y-3">
-        {!attendance.length ? <p className="text-sm text-muted-foreground">{message || 'No attendance records available for this semester.'}</p> : null}
+      <div className="space-y-4">
+        {!attendance.length ? <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">{message || 'No records found.'}</p> : null}
         {attendance.map((row) => (
-          <Card key={row.subjectcode} className="border-slate-200/80 dark:border-slate-700/80 bg-white/95 dark:bg-slate-900/70">
-            <CardContent className="p-4">
+          <Card key={row.subjectcode} className="rounded-none border-border/60 bg-card/60 spotlight-card hover:border-primary/30 transition-all duration-300">
+            <CardContent className="p-6">
               {(() => {
                 const pct = Number(row.LTpercantage || 0);
                 const target = Number(targetAttendancePct || 75);
@@ -198,70 +202,71 @@ export default function AttendanceView({ token, onExpired }) {
                 const ratio = exactTotal
                   ? { attended: exactAttended, total: exactTotal, source: 'daily' }
                   : resolveAttendanceCounts(row, targetAttendancePct);
+                
                 const guidance = buildAttendanceGuidance(row, targetAttendancePct);
-                const badgeBg = pct >= target
-                  ? 'bg-emerald-500 dark:bg-emerald-600'
-                  : pct >= target - 10
-                    ? 'bg-amber-500 dark:bg-amber-600'
-                    : 'bg-red-500 dark:bg-red-600';
-                const guidanceCls = pct >= target
-                  ? 'text-emerald-700 dark:text-emerald-400'
-                  : pct >= target - 10
-                    ? 'text-amber-700 dark:text-amber-400'
-                    : 'text-red-600 dark:text-red-400';
-                const barCls = pct >= target
-                  ? 'bg-emerald-500'
-                  : pct >= target - 10
-                    ? 'bg-amber-500'
-                    : 'bg-red-500';
+                
+                // Color logic based on target
+                const statusColorCls = pct >= target 
+                  ? 'text-emerald-500' 
+                  : pct >= target - 10 ? 'text-amber-500' : 'text-red-500';
+
                 return (
                   <>
-                    {/* Subject header row */}
-                    <div className="mb-3 flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <h3 className="truncate font-semibold leading-snug">{row.subjectdesc || row.subjectcode}</h3>
-                        <p className="text-xs text-muted-foreground">Code: {row.subjectcode || '-'}</p>
+                    <div className="mb-4 flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <h3 className="text-lg font-bold leading-none tracking-tight text-foreground font-[var(--font-instrument-sans)] truncate group-hover:text-primary transition-colors">
+                          {row.subjectdesc || row.subjectcode}
+                        </h3>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] opacity-60">
+                          {row.subjectcode}
+                        </p>
                       </div>
-                      {/* Attended / Total + Percentage badge */}
-                      <div className="flex shrink-0 items-center gap-2">
+                      <div className="flex shrink-0 items-center gap-4">
                         {ratio?.total ? (
-                          <div className="flex flex-col items-end leading-none text-muted-foreground">
-                            <span className="text-base font-black text-foreground">{ratio.attended}</span>
-                            <span className="my-0.5 h-px w-full bg-border" />
-                            <span className="text-base font-semibold">{ratio.total}</span>
+                          <div className="flex flex-col items-end gap-0.5 font-black leading-none">
+                            <span className="text-xl text-foreground">{ratio.attended}</span>
+                            <div className="h-0.5 w-6 bg-primary" />
+                            <span className="text-base text-muted-foreground">{ratio.total}</span>
                           </div>
                         ) : null}
-                        <div className={`flex shrink-0 flex-col items-center justify-center rounded-2xl ${badgeBg} px-3 py-1.5 text-white shadow-sm`}>
-                          <span className="whitespace-nowrap text-lg font-black leading-none">{toPercent(row.LTpercantage)}</span>
+                        <div className="flex flex-col items-center justify-center border-2 border-primary/20 p-2 min-w-[70px]">
+                           <span className="text-2xl font-black leading-none text-primary">{toPercent(row.LTpercantage)}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Progress bar */}
-                    <div className="mb-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-                      <div
-                        className={`h-full rounded-full transition-all ${barCls}`}
-                        style={{ width: `${Math.min(100, pct)}%` }}
-                      />
+                    {/* Progress Track */}
+                    <div className="mb-3 space-y-2">
+                      <div className="h-1.5 w-full bg-muted/40 rounded-none overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.min(100, pct)}%` }}
+                          transition={{ duration: 1, ease: "circOut" }}
+                          className="h-full bg-primary"
+                        />
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <p className={cn("text-[10px] font-black uppercase tracking-widest", statusColorCls)}>
+                          {guidance}
+                        </p>
+                        <p className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">
+                          Target: {target}%
+                        </p>
+                      </div>
                     </div>
 
-                    {/* Guidance line */}
-                    <p className={`mb-2 text-xs font-semibold ${guidanceCls}`}>{guidance}</p>
-
-                    {/* L / T / P breakdown */}
-                    <div className="grid grid-cols-3 gap-1 text-center text-[11px] text-muted-foreground">
-                      <div className="rounded-lg border border-border py-1">
-                        <p className="font-semibold text-foreground">{toPercent(row.Lpercentage)}</p>
-                        <p>Lecture</p>
-                      </div>
-                      <div className="rounded-lg border border-border py-1">
-                        <p className="font-semibold text-foreground">{toPercent(row.Tpercentage)}</p>
-                        <p>Tutorial</p>
-                      </div>
-                      <div className="rounded-lg border border-border py-1">
-                        <p className="font-semibold text-foreground">{toPercent(row.Ppercentage)}</p>
-                        <p>Practical</p>
-                      </div>
+                    {/* Component Breakdown */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: 'Lecture', val: row.Lpercentage },
+                        { label: 'Tutorial', val: row.Tpercentage },
+                        { label: 'Practical', val: row.Ppercentage }
+                      ].map((comp) => (
+                        <div key={comp.label} className="border border-border/50 p-2 flex flex-col items-center">
+                          <p className="text-sm font-black text-foreground">{toPercent(comp.val)}</p>
+                          <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{comp.label}</p>
+                        </div>
+                      ))}
                     </div>
                   </>
                 );

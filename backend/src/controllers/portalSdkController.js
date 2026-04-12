@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 const { createOrUpdateSession, getSessionByOwner } = require('../services/ownPortalSdk');
 const env = require('../config/env');
 const { ensureOwnedSession, buildCookieHeader } = require('../services/portalRelayService');
@@ -1855,9 +1856,9 @@ const refreshDatasetRealtime = async (session, req, options = {}) => {
 };
 
 const loginSdk = async (req, res) => {
-  const { userId, password, relaySessionId = null } = req.body || {};
-  if (!userId || !password) {
-    return res.status(400).json({ success: false, message: 'User ID and password are required' });
+  const { userId, relaySessionId = null } = req.body || {};
+  if (!userId) {
+    return res.status(400).json({ success: false, message: 'User ID is required' });
   }
 
   const ownerId = ownerKey(req);

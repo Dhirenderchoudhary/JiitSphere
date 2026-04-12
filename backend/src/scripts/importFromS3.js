@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 /* eslint-disable no-console */
 const { ListObjectsV2Command } = require('@aws-sdk/client-s3');
 const path = require('path');

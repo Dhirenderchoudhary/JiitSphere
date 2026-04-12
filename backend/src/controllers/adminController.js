@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 const Material = require('../models/Material');
 const asyncHandler = require('../middlewares/asyncHandler');
 const { uploadBufferToS3, deleteFromS3 } = require('../services/s3Service');

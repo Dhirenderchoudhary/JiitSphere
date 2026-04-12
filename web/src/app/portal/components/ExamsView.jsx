@@ -73,65 +73,98 @@ export default function ExamsView({ token, semesters = [], onExpired }) {
   }, [filteredExams]);
 
   return (
-    <div className="space-y-3 pb-28 sm:pb-24">
-      <div className={`p-3 ${glassPanel}`}>
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="min-w-[220px] flex-1">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Semester</label>
+    <div className="space-y-4 pb-28 sm:pb-24">
+      <div className={`p-4 ${glassPanel}`}>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1 space-y-1.5">
+            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Target Semester</label>
             <select
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              className="w-full rounded-none border border-border bg-background px-3 py-2 text-sm font-bold appearance-none cursor-pointer hover:border-primary/50 transition-colors"
               value={selectedSem}
               onChange={(e) => setSelectedSem(e.target.value)}
             >
-              <option value="all">All Semesters</option>
+              <option value="all">ALL SEMESTERS</option>
               {(semesters || []).map((sem) => (
                 <option key={sem.registration_id} value={sem.registration_id}>{sem.registration_code}</option>
               ))}
             </select>
           </div>
-          <Button type="button" variant="secondary" onClick={() => loadExams(true)} disabled={loading} className="min-w-[124px]">
-            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Syncing...' : 'Refresh'}
-          </Button>
+          <div className="flex items-end gap-2">
+            <Button 
+                type="button" 
+                variant="secondary" 
+                onClick={() => loadExams(true)} 
+                disabled={loading} 
+                className="rounded-none font-bold uppercase tracking-wider h-10 px-6 border-border/50 active:scale-95"
+            >
+                <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                {loading ? 'SYNCING...' : 'FORCE REFRESH'}
+            </Button>
+          </div>
         </div>
-        {lastSyncAt ? <p className="mt-2 text-[11px] text-muted-foreground">Last synced: {lastSyncAt}</p> : null}
+        {lastSyncAt ? <p className="mt-3 text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest text-right">Data Snapshot: {lastSyncAt}</p> : null}
       </div>
-      {!sortedExams.length ? <p className="text-sm text-muted-foreground">{message || 'No exam schedule available for selected semester.'}</p> : null}
-      {sortedExams.map((exam, idx) => (
-        <Card key={`${exam.subject}-${exam.date}`} className="border-slate-200/80 dark:border-slate-700/80 bg-white/95 dark:bg-slate-900/70">
-          <CardContent className="p-4">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <p className="font-semibold">{exam.subject}</p>
-              {exam.registration_code ? (
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] text-secondary-foreground">
-                  {exam.registration_code}
-                </span>
-              ) : null}
-            </div>
-            <p className="text-sm text-muted-foreground">Date: {toExamDateLabel(exam.date) || 'Schedule pending'}</p>
-            <p className="text-sm text-muted-foreground">Slot: {toExamSlotLabel(exam) || 'Schedule pending'}</p>
-            <p className="text-sm text-muted-foreground">Time: {toExamTimeLabel(exam) || 'Schedule pending'}</p>
-            <p className="text-sm text-muted-foreground">Room: {toExamRoomLabel(exam) || 'Schedule pending'}</p>
-            <p className="text-sm text-muted-foreground">Seat No: {toExamSeatLabel(exam) || 'Not assigned'}</p>
-            {SHOW_TECHNICAL_DETAILS ? (
-              <div className="mt-1 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
-                <p>Registration ID: {exam.registration_id || '-'}</p>
-                <p>Exam Event ID: {exam.exameventid || '-'}</p>
-                <p>Student ID: {exam.studentid || '-'}</p>
-                <p>Subject ID: {exam.subjectid || '-'}</p>
+
+      {!sortedExams.length ? (
+         <div className="p-12 text-center border border-dashed border-border/40">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{message || 'No scheduled exams found.'}</p>
+         </div>
+      ) : null}
+
+      <div className="grid gap-4">
+        {sortedExams.map((exam, idx) => (
+          <Card key={`${exam.subject}-${exam.date}`} className="rounded-none border-border/40 bg-card/40 hover:border-primary/30 transition-all group">
+            <CardContent className="p-6">
+              <div className="flex flex-col sm:grid sm:grid-cols-[2fr_1.5fr] gap-6">
+                <div className="space-y-3">
+                   <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-xl font-black tracking-tight leading-none text-foreground font-[var(--font-instrument-sans)]">
+                        {exam.subject}
+                      </h3>
+                      {exam.registration_code && (
+                        <span className="text-[9px] font-black bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 uppercase tracking-widest">
+                          {exam.registration_code}
+                        </span>
+                      )}
+                   </div>
+                   <div className="grid grid-cols-2 gap-4 border-t border-border/10 pt-4">
+                      <div className="space-y-0.5">
+                         <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.15em]">Exam Date</span>
+                         <p className="text-sm font-bold text-foreground">{toExamDateLabel(exam.date) || 'PENDING'}</p>
+                      </div>
+                      <div className="space-y-0.5">
+                         <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.15em]">Room / Venue</span>
+                         <p className="text-sm font-bold text-foreground">{toExamRoomLabel(exam) || 'TBA'}</p>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="grid grid-cols-3 sm:grid-cols-2 gap-2">
+                   <div className="border border-border/50 p-2 flex flex-col items-center justify-center bg-muted/5">
+                      <span className="text-xs font-black text-foreground">{toExamSlotLabel(exam) || '-'}</span>
+                      <span className="text-[7px] font-black text-muted-foreground/40 uppercase tracking-widest">SLOT</span>
+                   </div>
+                   <div className="border border-border/50 p-2 flex flex-col items-center justify-center bg-muted/5">
+                      <span className="text-xs font-black text-foreground">{toExamTimeLabel(exam) || '-'}</span>
+                      <span className="text-[7px] font-black text-muted-foreground/40 uppercase tracking-widest">TIME</span>
+                   </div>
+                   <div className="border-2 border-primary/20 p-2 flex flex-col items-center justify-center bg-primary/5 sm:col-span-2">
+                      <span className="text-xs font-black text-primary">{toExamSeatLabel(exam) || '-'}</span>
+                      <span className="text-[7px] font-black text-primary/40 uppercase tracking-widest">SEAT NO</span>
+                   </div>
+                </div>
               </div>
-            ) : null}
-            {SHOW_TECHNICAL_DETAILS && pickRenderablePairs(exam.raw || {}, ['subject', 'subjectdesc', 'subjectname', 'date', 'examdate', 'slot', 'time', 'room', 'venue', 'registrationid', 'registrationcode'], 5).length ? (
-              <div className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
-                {pickRenderablePairs(exam.raw || {}, ['subject', 'subjectdesc', 'subjectname', 'date', 'examdate', 'slot', 'time', 'room', 'venue', 'registrationid', 'registrationcode'], 5)
-                  .map(([k, v]) => (
-                    <p key={`${exam.subject}-${idx}-${k}`}>{k}: {v}</p>
-                  ))}
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-      ))}
+              
+              {SHOW_TECHNICAL_DETAILS && (
+                 <div className="mt-4 pt-4 border-t border-border/10 grid grid-cols-2 gap-2 text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest">
+                    <span>Reg ID: {exam.registration_id}</span>
+                    <span>Event ID: {exam.exameventid}</span>
+                 </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 const env = require('../config/env');
 const {
   createRelaySession,
@@ -191,6 +192,23 @@ const extractFailureMessage = (payload) => {
   return fallback;
 };
 
+const extractResponseStatus = (payload) => {
+  if (!payload || typeof payload !== 'object') return '';
+  return String(payload?.status?.responseStatus || payload?.responseStatus || payload?.status || '').trim();
+};
+
+const sanitizeAttempt = (attempt = {}) => ({
+  endpoint: attempt.endpoint,
+  contentType: attempt.contentType,
+  status: attempt.status,
+  ok: Boolean(attempt.ok),
+  strategy: attempt.strategy,
+  phase: attempt.phase,
+  timeZoneVariant: attempt.timeZoneVariant,
+  responseStatus: extractResponseStatus(attempt.response),
+  message: extractFailureMessage(attempt.response)
+});
+
 const applyAuthContextToSession = (session, payload) => {
   const regdata = payload?.response?.regdata;
   const token = payload?.response?.token || regdata?.token;
@@ -349,15 +367,17 @@ const tryRelayLogin = async (req, res, next) => {
       }
     }
 
-    const attemptMessages = attempts
-      .map((attempt) => extractFailureMessage(attempt.response))
+    const sanitizedAttempts = attempts.map((attempt) => sanitizeAttempt(attempt));
+
+    const attemptMessages = sanitizedAttempts
+      .map((attempt) => attempt.message)
       .filter(Boolean);
     const failureMessage = attemptMessages.find((msg) => /invalid|captcha|password|credential/i.test(msg)) || attemptMessages[0] || '';
 
     return res.status(200).json({
       success: true,
       data: {
-        attempts,
+        attempts: sanitizedAttempts,
         authenticated,
         recommendation: authenticated ? 'proceed' : 'captcha-required',
         failureMessage: failureMessage || 'Official portal credentials verification failed'

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 const crypto = require('crypto');
 
 const base64url = (value) => Buffer.from(value).toString('base64url');

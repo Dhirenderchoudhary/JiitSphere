@@ -7,6 +7,8 @@ import TopPanelTools from 'components/TopPanelTools';
 import { Button } from 'components/ui/button';
 import { fetchMe, fetchPortalSdkSession } from 'lib/api';
 import { SessionExpiredError } from 'lib/api';
+import { motion } from 'framer-motion';
+import { cn } from 'lib/utils';
 import {
   tabs,
   adminTabs,
@@ -142,39 +144,40 @@ export default function PortalShell({ token, onLogout }) {
   }, [activeTab, semester, semesters, token, onExpired, refreshKey]);
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl px-4 py-5 pb-36 sm:px-6 sm:pb-32 lg:px-8">
-      <header className={`mb-5 p-4 sm:p-5 ${glassPanel}`}>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Your Jaypee Buddy</p>
-            <h1 className="font-[var(--font-archivo)] text-2xl font-black sm:text-3xl">JPortal</h1>
+    <main className="mx-auto min-h-screen max-w-5xl px-4 py-8 pb-40 sm:px-6 sm:pb-36 lg:px-8">
+      <header className={`mb-8 p-6 sm:p-8 ${glassPanel}`}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">INSTITUTIONAL PORTAL</p>
+            <h1 className="font-[var(--font-instrument-sans)] text-3xl font-bold tracking-tightest sm:text-4xl text-foreground">JPortal</h1>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             <TopPanelTools />
-            <div className="flex flex-col items-end gap-0.5">
+            <div className="h-8 w-px bg-border/40 mx-1" />
+            <div className="flex flex-col items-end gap-1">
               <Button
                 variant="secondary"
                 disabled={isRefreshing}
                 onClick={triggerRefresh}
                 size="sm"
+                className="rounded-none border-border/50 h-9 font-bold"
               >
-                <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                {isRefreshing ? 'Refreshing…' : 'Refresh'}
+                <RefreshCw className={`mr-2 h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'REFRESHING...' : 'REFRESH'}
               </Button>
-              <span className="text-[10px] text-muted-foreground">Updated {agoLabel}</span>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Sync: {agoLabel}</span>
             </div>
-            <Button variant="ghost" onClick={onLogout} size="sm" className="text-muted-foreground">
-              <LogOut className="mr-1.5 h-3.5 w-3.5" /> Logout
-            </Button>
           </div>
         </div>
       </header>
 
       {SHOW_PORTAL_DIAGNOSTICS ? <HydrationStatusPanel diagnostics={sdkSession?.diagnostics} /> : null}
 
-      {content}
+      <div className="relative z-10">
+        {content}
+      </div>
 
-      <nav aria-label="Portal sections" className={`fixed bottom-9 left-1/2 z-30 flex w-[min(980px,96vw)] -translate-x-1/2 items-center justify-between gap-1 p-1.5 sm:bottom-10 sm:w-[min(900px,92vw)] sm:p-2 ${darkPanel}`}>
+      <nav aria-label="Portal sections" className={`fixed bottom-10 left-1/2 z-40 flex w-[min(940px,94vw)] -translate-x-1/2 items-center justify-between gap-1 p-2 ${darkPanel}`}>
         {displayedTabs.map((tab) => {
           const Icon = tab.icon;
           const active = tab.id === activeTab;
@@ -185,12 +188,19 @@ export default function PortalShell({ token, onLogout }) {
               onClick={() => setActiveTab(tab.id)}
               aria-current={active ? 'page' : undefined}
               aria-label={`Open ${tab.label}`}
-              className={`flex flex-1 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-semibold transition-all duration-200 sm:px-2 sm:text-[11px] ${
-                active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              className={`flex flex-1 flex-col items-center gap-1.5 rounded-none py-3 text-[10px] font-bold uppercase tracking-widest transition-all duration-300 relative ${
+                active ? 'text-primary' : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
               }`}
             >
-              <Icon className="h-4 w-4" />
-              <span>{tab.label}</span>
+              <Icon className={cn("h-4 w-4", active ? "scale-110" : "opacity-60")} />
+              <span className="hidden sm:inline">{tab.label}</span>
+              {active && (
+                <motion.div 
+                  layoutId="portal-tab-indicator"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+              )}
             </button>
           );
         })}

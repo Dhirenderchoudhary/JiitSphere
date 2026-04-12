@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 class CustomPortalClient {
   constructor(baseUrl) {
     this.baseUrl = baseUrl;
