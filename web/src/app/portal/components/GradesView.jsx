@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Download } from 'lucide-react';
 import { Button } from 'components/ui/button';
-import { Card, CardContent } from 'components/ui/card';
 import { fetchPortalGrades, downloadPortalMarks, SessionExpiredError } from 'lib/api';
 import { cn } from 'lib/utils';
 import { SHOW_TECHNICAL_DETAILS } from '../constants';
@@ -304,14 +303,14 @@ export default function GradesView({ token, onExpired }) {
       {!sortedSemesters.length && !sortedGrades.length ? <p className="text-sm text-muted-foreground">{message || 'No direct grades data available.'}</p> : null}
 
       {sortedSemesters.length ? (
-        <div className="flex border border-border bg-muted/20 p-1">
+        <div className="flex rounded-xl bg-secondary/50 p-1">
           {['overview', 'semester', 'marks'].map((mode) => (
             <button
               key={mode}
               type="button"
               className={cn(
-                "flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all",
-                gradesMode === mode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                "flex-1 py-2 text-xs font-bold capitalize rounded-lg transition-all",
+                gradesMode === mode ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               )}
               onClick={() => setGradesMode(mode)}
             >
@@ -322,28 +321,27 @@ export default function GradesView({ token, onExpired }) {
       ) : null}
 
       {sortedSemesters.length && gradesMode !== 'marks' ? (
-        <Card className="rounded-none border-border/60 bg-card/60  transition-all duration-300">
-          <CardContent className="space-y-6 p-6">
+        <div className="rounded-2xl border border-border/40 bg-card p-6 space-y-6">
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="border border-border/50 p-4 space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Current Status</p>
+              <div className="rounded-xl border border-border/40 bg-secondary/20 p-4 space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Current Status</p>
                 <div className="flex items-baseline gap-2">
                    <p className="text-xl font-bold tracking-tight text-foreground">{currentSummary?.registration_code || 'Semester'}</p>
-                   <span className="text-xs font-bold text-muted-foreground opacity-60">SGPA: {toFixedSafe(currentSummary?.sgpa, 2)}</span>
+                   <span className="text-xs font-medium text-muted-foreground">SGPA: {toFixedSafe(currentSummary?.sgpa, 2)}</span>
                 </div>
               </div>
-              <div className="border-2 border-primary/20 p-4 flex flex-col items-center justify-center bg-primary/5">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80">Cumulative CGPA</p>
-                <p className="text-4xl font-black tracking-tightest text-primary">{toFixedSafe(currentSummary?.cgpa, 2)}</p>
+              <div className="rounded-xl border-2 border-primary/20 p-4 flex flex-col items-center justify-center bg-primary/5">
+                <p className="text-xs font-medium text-primary/80">Cumulative CGPA</p>
+                <p className="text-4xl font-black tracking-tight text-primary">{toFixedSafe(currentSummary?.cgpa, 2)}</p>
               </div>
             </div>
 
             {gradesMode === 'semester' ? (
               <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end border-t border-border/20 pt-6">
                 <div className="space-y-1.5">
-                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Select Semester</label>
+                  <label className="block text-xs font-medium text-muted-foreground">Select Semester</label>
                   <select
-                    className="w-full rounded-none border border-border bg-background px-3 py-2 text-sm font-bold appearance-none cursor-pointer hover:border-primary/50 transition-colors"
+                    className="w-full rounded-xl border border-border/40 bg-secondary/30 px-3 py-2 text-sm font-medium appearance-none cursor-pointer hover:border-primary/50 transition-colors"
                     value={selectedSem}
                     onChange={(e) => setSelectedSem(e.target.value)}
                   >
@@ -359,21 +357,21 @@ export default function GradesView({ token, onExpired }) {
                     variant="default"
                     onClick={downloadPortalMarksPdf}
                     disabled={downloadingMarks || !currentSummary}
-                    className="rounded-none font-bold uppercase tracking-wider h-10 px-6 active:scale-95"
+                    className="rounded-xl font-bold h-10 px-6"
                   >
-                    <Download className="mr-2 h-4 w-4" /> {downloadingMarks ? 'FETCHING...' : 'PORTAL PDF'}
+                    <Download className="mr-2 h-4 w-4" /> {downloadingMarks ? 'Fetching...' : 'Portal PDF'}
                   </Button>
                 </div>
               </div>
             ) : (
               <div className="space-y-6">
                 {graphSeries ? (
-                  <div className="border border-border/60 bg-muted/10 p-4 relative overflow-hidden group">
+                  <div className="rounded-xl border border-border/40 bg-secondary/20 p-4 relative overflow-hidden">
                     <div className="flex items-center justify-between mb-4">
-                       <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground">Performance Trend</h4>
-                       <div className="flex gap-4 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
-                          <span className="flex items-center gap-1.5"><div className="size-2 bg-emerald-500" /> SGPA</span>
-                          <span className="flex items-center gap-1.5"><div className="size-2 bg-primary" /> CGPA</span>
+                       <h4 className="text-xs font-bold text-foreground">Performance Trend</h4>
+                       <div className="flex gap-4 text-[9px] font-bold text-muted-foreground">
+                          <span className="flex items-center gap-1.5"><div className="size-2 rounded-sm bg-emerald-500" /> SGPA</span>
+                          <span className="flex items-center gap-1.5"><div className="size-2 rounded-sm bg-primary" /> CGPA</span>
                        </div>
                     </div>
                     <div className="overflow-x-auto">
@@ -392,10 +390,10 @@ export default function GradesView({ token, onExpired }) {
                     </div>
                     {selectedGraphRow && (
                       <div className="mt-4 border-t border-border/20 pt-4 flex justify-between items-center">
-                         <span className="text-[10px] font-black text-muted-foreground uppercase">{selectedGraphRow.registration_code}</span>
+                         <span className="text-xs font-bold text-muted-foreground">{selectedGraphRow.registration_code}</span>
                          <div className="flex gap-4">
-                            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-tighter">SGPA: {toFixedSafe(selectedGraphRow.sgpa, 2)}</span>
-                            <span className="text-[10px] font-black text-primary uppercase tracking-tighter">CGPA: {toFixedSafe(selectedGraphRow.cgpa, 2)}</span>
+                            <span className="text-xs font-bold text-emerald-500">SGPA: {toFixedSafe(selectedGraphRow.sgpa, 2)}</span>
+                            <span className="text-xs font-bold text-primary">CGPA: {toFixedSafe(selectedGraphRow.cgpa, 2)}</span>
                          </div>
                       </div>
                     )}
@@ -406,14 +404,14 @@ export default function GradesView({ token, onExpired }) {
                    {sortedSemesters.map((s, idx) => {
                     const gradeRow = sortedGrades.find((g) => String(g.registration_id) === String(s.registration_id));
                     return (
-                      <div key={s.registration_id} className="border border-border/50 p-4 flex justify-between items-center group hover:border-primary/40 transition-colors">
+                      <div key={s.registration_id} className="rounded-xl border border-border/40 p-4 flex justify-between items-center hover:border-primary/30 transition-colors">
                         <div className="space-y-0.5">
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">{s.registration_code}</p>
-                          <p className="text-xs font-bold text-foreground">SGPA: {gradeRow ? toFixedSafe(gradeRow.sgpa, 2) : 'N/A'}</p>
+                          <p className="text-xs font-medium text-muted-foreground">{s.registration_code}</p>
+                          <p className="text-sm font-bold text-foreground">SGPA: {gradeRow ? toFixedSafe(gradeRow.sgpa, 2) : 'N/A'}</p>
                         </div>
                         <div className="text-right">
-                           <p className="text-xl font-black text-primary tracking-tightest">{gradeRow ? toFixedSafe(gradeRow.cgpa, 2) : '-'}</p>
-                           <p className="text-[8px] font-bold text-muted-foreground uppercase opacity-40 whitespace-nowrap">CGPA Snapshot</p>
+                           <p className="text-xl font-black text-primary tracking-tight">{gradeRow ? toFixedSafe(gradeRow.cgpa, 2) : '-'}</p>
+                           <p className="text-[9px] font-medium text-muted-foreground">CGPA</p>
                         </div>
                       </div>
                     );
@@ -421,18 +419,16 @@ export default function GradesView({ token, onExpired }) {
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+        </div>
       ) : null}
 
       {gradesMode === 'marks' && sortedSemesters.length ? (
-        <Card className="rounded-none border-border/60 bg-card/60">
-          <CardContent className="p-6 space-y-6">
+        <div className="rounded-2xl border border-border/40 bg-card p-6 space-y-6">
             <div className="grid gap-4 sm:grid-cols-[1fr_auto] items-end">
                <div className="space-y-1.5 flex-1">
-                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Target Semester</label>
+                <label className="block text-xs font-medium text-muted-foreground">Target Semester</label>
                 <select
-                  className="w-full rounded-none border border-border bg-background px-3 py-2 text-sm font-bold appearance-none cursor-pointer hover:border-primary/50 transition-colors"
+                  className="w-full rounded-xl border border-border/40 bg-secondary/30 px-3 py-2 text-sm font-medium appearance-none cursor-pointer hover:border-primary/50 transition-colors"
                   value={selectedSem}
                   onChange={(e) => setSelectedSem(e.target.value)}
                 >
@@ -444,60 +440,59 @@ export default function GradesView({ token, onExpired }) {
                <Button
                   onClick={downloadPortalMarksPdf}
                   disabled={downloadingMarks || !currentSummary}
-                  className="rounded-none font-bold uppercase tracking-wider h-10 px-8"
+                  className="rounded-xl font-bold h-10 px-8"
                 >
-                  <Download className="mr-2 h-4 w-4" /> {downloadingMarks ? 'FETCHING...' : 'FULL PORTAL PDF'}
+                  <Download className="mr-2 h-4 w-4" /> {downloadingMarks ? 'Fetching...' : 'Full Portal PDF'}
                 </Button>
             </div>
             
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-               <Button variant="outline" size="sm" onClick={downloadMarksPdf} className="rounded-none font-bold text-[10px] uppercase tracking-widest h-10">Marks PDF</Button>
-               <Button variant="outline" size="sm" onClick={downloadGradesPdf} className="rounded-none font-bold text-[10px] uppercase tracking-widest h-10">Grades PDF</Button>
-               <Button variant="outline" size="sm" onClick={downloadMarksCsv} className="rounded-none font-bold text-[10px] uppercase tracking-widest h-10">CSV Data</Button>
+               <Button variant="outline" size="sm" onClick={downloadMarksPdf} className="rounded-xl font-bold text-xs h-10">Marks PDF</Button>
+               <Button variant="outline" size="sm" onClick={downloadGradesPdf} className="rounded-xl font-bold text-xs h-10">Grades PDF</Button>
+               <Button variant="outline" size="sm" onClick={downloadMarksCsv} className="rounded-xl font-bold text-xs h-10">CSV Data</Button>
             </div>
-          </CardContent>
-        </Card>
+        </div>
       ) : null}
 
       {gradesMode === 'marks' && visibleRows.length ? (
         <div className="space-y-4">
-           <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1fr] px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
+           <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1fr] px-6 text-xs font-medium text-muted-foreground">
               <span>Course Title</span>
               <span className="text-center">Credits</span>
               <span className="text-center">Marks</span>
               <span className="text-right">Grade</span>
            </div>
            {visibleRows.map((row, idx) => (
-            <Card key={idx} className="rounded-none border-border/40 bg-card/40 hover:border-primary/30 transition-all group">
-               <CardContent className="p-4 sm:p-6">
+            <div key={idx} className="rounded-2xl border border-border/40 bg-card hover:border-primary/20 transition-all">
+               <div className="p-4 sm:p-6">
                   <div className="flex flex-col sm:grid sm:grid-cols-[2fr_1fr_1fr_1fr] gap-4 sm:items-center">
                      <div className="space-y-1">
                         <h4 className="text-sm font-bold text-foreground font-[var(--font-instrument-sans)] truncate tracking-tight">{row.subjectdesc}</h4>
                         <div className="flex gap-3">
-                           <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{row.subjectcode}</span>
-                           <span className="text-[9px] font-bold text-primary uppercase tracking-widest">{row.registration_code}</span>
+                           <span className="text-xs font-medium text-muted-foreground">{row.subjectcode}</span>
+                           <span className="text-xs font-medium text-primary">{row.registration_code}</span>
                         </div>
                      </div>
                      <div className="hidden sm:flex flex-col items-center">
                          <span className="text-sm font-bold text-foreground">{toDisplayNumber(row.credit, 1)}</span>
-                         <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest opacity-40">CREDITS</span>
+                         <span className="text-[9px] font-medium text-muted-foreground">Credits</span>
                      </div>
                      <div className="hidden sm:flex flex-col items-center">
                          <span className="text-sm font-bold text-foreground">{toDisplayMarks(row.marksobtained, row.totalmarks)}</span>
-                         <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest opacity-40">SCORE</span>
+                         <span className="text-[9px] font-medium text-muted-foreground">Score</span>
                      </div>
                      <div className="flex justify-between sm:justify-end items-center gap-4">
                         <div className="sm:hidden flex flex-wrap gap-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
                            <span>CR: {toDisplayNumber(row.credit, 1)}</span>
                            <span>MK: {toDisplayMarks(row.marksobtained, row.totalmarks)}</span>
                         </div>
-                        <div className="bg-primary/10 border border-primary/20 px-3 py-1 min-w-[50px] text-center">
+                        <div className="rounded-xl bg-primary/10 border border-primary/20 px-3 py-1 min-w-[50px] text-center">
                            <span className="text-lg font-black text-primary">{row.grade || '-'}</span>
                         </div>
                      </div>
                   </div>
-               </CardContent>
-            </Card>
+               </div>
+            </div>
            ))}
         </div>
       ) : null}

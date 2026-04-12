@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Card, CardContent } from 'components/ui/card';
 import { fetchPortalProfile, SessionExpiredError } from 'lib/api';
 import { cn } from 'lib/utils';
 import { LAST_PORTAL_USER_ID, SHOW_TECHNICAL_DETAILS } from '../constants';
@@ -15,7 +14,7 @@ const LanyardBadge = dynamic(() => import('components/LanyardBadge'), {
     <div className="w-full flex items-center justify-center" style={{ height: '600px' }}>
       <div className="flex flex-col items-center gap-3 animate-pulse">
         <div className="size-3 bg-foreground/10 rotate-45" />
-        <p className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground/30">Loading Identity</p>
+        <p className="text-xs font-medium text-muted-foreground/40">Loading identity...</p>
       </div>
     </div>
   )
@@ -69,7 +68,7 @@ export default function ProfileView({ token, onExpired }) {
       <div className="flex items-center justify-center animate-pulse" style={{ height: '600px' }}>
         <div className="flex flex-col items-center gap-3">
           <div className="size-3 bg-foreground/10 rotate-45" />
-          <p className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground/30">Syncing Identity</p>
+          <p className="text-xs font-medium text-muted-foreground/40">Syncing identity...</p>
         </div>
       </div>
     </div>
@@ -309,10 +308,10 @@ export default function ProfileView({ token, onExpired }) {
         enrollment={(profile.enrollmentno && String(profile.enrollmentno).length > 4 ? profile.enrollmentno : '') || fallbackEnrollment}
       />
 
-    <Card className={`rounded-none border-border/60 bg-card/60 pb-28 sm:pb-24 shadow-2xl spotlight-card`}>
-      <CardContent className="space-y-6 p-6 sm:p-8">
+    <div className="rounded-2xl border border-border/40 bg-card pb-28 sm:pb-24 shadow-sm">
+      <div className="space-y-6 p-6 sm:p-8">
         {/* Profile Identity */}
-        <div className={`flex flex-col sm:flex-row items-center gap-6 p-6 border border-border/50 bg-muted/10`}>
+        <div className="flex flex-col sm:flex-row items-center gap-6 p-6 rounded-xl border border-border/30 bg-secondary/10">
           <div className="relative group shrink-0">
              {profilePhotoSrc ? (
                 <Image
@@ -321,36 +320,36 @@ export default function ProfileView({ token, onExpired }) {
                   width={96}
                   height={96}
                   unoptimized
-                  className="size-24 rounded-none border-2 border-primary/20 object-cover shadow-[4px_4px_0px_rgba(0,0,0,0.1)] group-hover:scale-105 transition-transform duration-500"
+                  className="size-24 rounded-xl border-2 border-primary/20 object-cover group-hover:scale-105 transition-transform duration-500"
                 />
               ) : (
-                <div className="size-24 flex items-center justify-center rounded-none border-2 border-primary/20 bg-background text-2xl font-black text-primary shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
+                <div className="size-24 flex items-center justify-center rounded-xl border-2 border-primary/20 bg-background text-2xl font-black text-primary">
                   {String(profileName || 'S').slice(0, 1).toUpperCase()}
                 </div>
               )}
-              <div className="absolute -bottom-1 -right-1 size-4 bg-primary animate-pulse" />
+              <div className="absolute -bottom-1 -right-1 size-3 rounded-full bg-emerald-500" />
           </div>
           
           <div className="text-center sm:text-left space-y-1 flex-1 min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">OFFICIAL IDENTITY</p>
-            <h3 className="text-2xl font-black tracking-tightest text-foreground font-[var(--font-instrument-sans)] truncate uppercase">
+            <p className="text-xs font-medium text-muted-foreground">Student Profile</p>
+            <h3 className="text-2xl font-bold tracking-tight text-foreground font-[var(--font-instrument-sans)] truncate">
               {profileName || 'Student'}
             </h3>
-            <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest break-all">
-              ID // {(profile.enrollmentno && String(profile.enrollmentno).length > 4 ? profile.enrollmentno : '') || fallbackEnrollment}
+            <p className="text-xs font-medium text-muted-foreground break-all">
+              {(profile.enrollmentno && String(profile.enrollmentno).length > 4 ? profile.enrollmentno : '') || fallbackEnrollment}
             </p>
           </div>
         </div>
 
         {/* Navigation */}
-        <div className="flex border border-border bg-muted/20 p-1">
+        <div className="flex rounded-xl bg-secondary/50 p-1">
           {['personal', 'academic', 'contact'].map((tab) => (
             <button
               key={tab}
               type="button"
               className={cn(
-                "flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all",
-                profileTab === tab ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                "flex-1 py-2.5 text-xs font-bold capitalize rounded-lg transition-all",
+                profileTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               )}
               onClick={() => setProfileTab(tab)}
             >
@@ -362,10 +361,10 @@ export default function ProfileView({ token, onExpired }) {
         {/* Data Grid */}
         <div className="grid gap-3 sm:grid-cols-2">
           {visibleRows.map(([k, v]) => (
-            <div key={k} className="border border-border/40 p-4 space-y-1 hover:border-primary/30 transition-colors group">
-              <span className="block text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.2em]">{k}</span>
+            <div key={k} className="rounded-xl border border-border/40 p-4 space-y-1 hover:border-primary/20 transition-colors">
+              <span className="block text-[9px] font-medium text-muted-foreground">{k}</span>
               <p className={cn(
-                "text-sm font-bold tracking-tight uppercase font-[var(--font-archivo)]",
+                "text-sm font-bold tracking-tight font-[var(--font-archivo)]",
                 v ? "text-foreground" : "text-muted-foreground italic"
               )}>
                 {v || 'Not Provided'}
@@ -379,21 +378,21 @@ export default function ProfileView({ token, onExpired }) {
           <div className="mt-8 space-y-4">
              <div className="flex items-center gap-3">
                 <div className="h-px bg-border/20 flex-1" />
-                <span className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.3em]">Extended Parameters</span>
+                <span className="text-xs font-medium text-muted-foreground/40">Extended Parameters</span>
                 <div className="h-px bg-border/20 flex-1" />
              </div>
              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                {extraRows.map(([k, v]) => (
-                 <div key={`extra-${k}`} className="border-l border-primary/20 bg-muted/5 px-3 py-2 text-[10px]">
-                   <span className="block font-black text-muted-foreground/40 uppercase tracking-widest mb-0.5">{k}</span>
+                 <div key={`extra-${k}`} className="rounded-lg border-l-2 border-primary/20 bg-secondary/10 px-3 py-2 text-xs">
+                   <span className="block font-medium text-muted-foreground/50 mb-0.5">{k}</span>
                    <p className="font-bold text-foreground/80 break-all">{v}</p>
                  </div>
                ))}
              </div>
           </div>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
     </div>
   );
 }

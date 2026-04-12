@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Button } from 'components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from 'components/ui/card';
 import { Input } from 'components/ui/input';
 import {
   fetchPortalRelayCaptcha,
@@ -133,37 +132,36 @@ export default function LoginView({ onAuth }) {
         {/* Branding */}
         <div className="space-y-2">
            <div className="flex items-center gap-3">
-              <div className="size-10 bg-primary flex items-center justify-center rounded-none shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
+              <div className="size-10 bg-primary flex items-center justify-center rounded-xl shadow-sm">
                  <span className="text-primary-foreground font-black text-xl tracking-tighter">J</span>
               </div>
               <div>
-                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">SECURE ACCESS</p>
-                 <h2 className="text-2xl font-black tracking-tightest text-foreground font-[var(--font-instrument-sans)] uppercase">JiitSphere Portal</h2>
+                 <p className="text-xs font-bold text-muted-foreground">Secure Access</p>
+                 <h2 className="text-2xl font-bold tracking-tight text-foreground font-[var(--font-instrument-sans)]">JiitSphere Portal</h2>
               </div>
            </div>
-           <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest leading-relaxed">
-             Institutional gateway for the Monumental Student OS.
+           <p className="text-xs text-muted-foreground font-medium leading-relaxed">
+             Sign in with your WebPortal credentials to access your dashboard.
            </p>
         </div>
 
-        {/* Login Form */}
-        <Card className="rounded-none border-border/60 bg-card/60 spotlight-card shadow-2xl">
-          <CardContent className="p-8">
-            <form onSubmit={handleLogin} className="space-y-6">
-              <div className="space-y-2">
-                <label htmlFor="portal-enrollment" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Enrollment Identity</label>
+        <div className="rounded-2xl border border-border/40 bg-card shadow-lg">
+          <div className="p-8">
+            <form onSubmit={handleLogin} className="space-y-5">
+              <div className="space-y-1.5">
+                <label htmlFor="portal-enrollment" className="text-xs font-medium text-muted-foreground">Enrollment Number</label>
                 <Input
                   id="portal-enrollment"
-                  placeholder="ENROLLMENT NO."
+                  placeholder="e.g. 9921103XXX"
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
                   required
                   autoComplete="username"
-                  className="rounded-none border-border/50 bg-background/50 h-12 font-bold focus:border-primary transition-all pr-12"
+                  className="rounded-xl border-border/50 bg-secondary/30 h-12 font-medium focus:border-primary transition-all"
                 />
               </div>
-              <div className="space-y-2">
-                <label htmlFor="portal-password" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Secret Password</label>
+              <div className="space-y-1.5">
+                <label htmlFor="portal-password" className="text-xs font-medium text-muted-foreground">Password</label>
                 <Input
                   id="portal-password"
                   type="password"
@@ -172,17 +170,17 @@ export default function LoginView({ onAuth }) {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoComplete="current-password"
-                  className="rounded-none border-border/50 bg-background/50 h-12 font-bold focus:border-primary transition-all pr-12"
+                  className="rounded-xl border-border/50 bg-secondary/30 h-12 font-medium focus:border-primary transition-all"
                 />
               </div>
 
               {captchaImage ? (
-                <div className="space-y-4 border border-border/40 p-4 bg-muted/10">
+                <div className="space-y-3 rounded-xl border border-border/40 p-4 bg-secondary/20">
                   <div className="flex justify-between items-center">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Relay Challenge</p>
-                    <span className="text-[8px] font-bold text-muted-foreground/40 uppercase">VERIFY BOT STATUS</span>
+                    <p className="text-xs font-bold text-foreground">Captcha Verification</p>
+                    <span className="text-[9px] font-medium text-muted-foreground">Required</span>
                   </div>
-                  <div className="relative border border-border/50 bg-white p-2">
+                  <div className="rounded-lg border border-border/40 bg-white p-2 overflow-hidden">
                     <Image
                       src={captchaImage}
                       alt="Portal captcha"
@@ -194,34 +192,33 @@ export default function LoginView({ onAuth }) {
                   </div>
                   <Input
                     id="portal-captcha"
-                    placeholder="ENTER CAPTCHA"
+                    placeholder="Enter captcha"
                     value={captchaValue}
                     onChange={(e) => setCaptchaValue(e.target.value)}
-                    className="rounded-none border-border/50 bg-background/50 h-10 font-bold focus:border-primary text-center tracking-[0.5em] uppercase"
+                    className="rounded-xl border-border/50 bg-secondary/30 h-10 font-medium focus:border-primary text-center tracking-widest"
                   />
                 </div>
               ) : null}
 
               {error ? (
-                <div aria-live="polite" className="border-l-4 border-red-500 bg-red-500/5 px-4 py-3 text-[10px] font-black text-red-500 uppercase tracking-widest">
+                <div aria-live="polite" className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-xs font-medium text-red-500">
                   {error}
                 </div>
               ) : null}
 
               {SHOW_PORTAL_LOGIN_DIAGNOSTICS && probeMessage && (
-                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-center animate-pulse">{probeMessage}</p>
+                <p className="text-xs font-medium text-muted-foreground text-center animate-pulse">{probeMessage}</p>
               )}
 
-              <Button className="w-full h-14 rounded-none font-black uppercase tracking-[0.2em] shadow-lg active:scale-[0.98] transition-all" disabled={loading}>
-                {loading ? 'AUTHENTICATING...' : captchaImage ? 'VERIFY & GRANT ACCESS' : 'ESTABLISH LINK'}
+              <Button className="w-full h-12 rounded-xl font-bold text-sm shadow-sm" disabled={loading}>
+                {loading ? 'Signing in...' : captchaImage ? 'Verify & Sign In' : 'Sign In'}
               </Button>
             </form>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
         
-        <div className="flex justify-between items-center opacity-40">
-           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">v2.5 // ARCHITECTURAL</span>
-           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">© 2026 JIITSPHERE</span>
+        <div className="flex justify-center">
+           <span className="text-[10px] text-muted-foreground/40">JiitSphere v2.5</span>
         </div>
       </div>
     </main>

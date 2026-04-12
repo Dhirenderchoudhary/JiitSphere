@@ -40,9 +40,9 @@ export default function AnalyticsView({ token }) {
   return (
     <div className="space-y-6 pb-28 sm:pb-24">
       {/* ── Study Material Google Auth Analytics ──────────────────── */}
-      <Card className="rounded-none border-emerald-500/30 bg-emerald-500/5 spotlight-card shadow-xl overflow-hidden">
+      <Card className="rounded-xl border-emerald-500/30 bg-emerald-500/5 spotlight-card shadow-xl overflow-hidden">
         <CardHeader className="pb-4 border-b border-emerald-500/20 bg-emerald-500/5">
-          <CardTitle className="flex items-center gap-3 text-lg font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 font-[var(--font-instrument-sans)]">
+          <CardTitle className="flex items-center gap-3 text-lg font-bold text-emerald-600 dark:text-emerald-400 font-[var(--font-instrument-sans)]">
             <BookOpen className="h-5 w-5" /> REPOSITORY DISCOVERY
           </CardTitle>
           <CardDescription className="text-[10px] font-bold uppercase tracking-widest opacity-60">Verified student access telemetry for Study Vault</CardDescription>
@@ -84,7 +84,7 @@ export default function AnalyticsView({ token }) {
             </div>
           ) : (
             <div className="p-12 text-center border border-dashed border-emerald-500/20">
-               <p className="text-[10px] font-black text-emerald-600/40 uppercase tracking-widest">NO TELEMETRY DISCOVERED</p>
+               <p className="text-xs font-medium text-emerald-600/40 uppercase tracking-widest">NO TELEMETRY DISCOVERED</p>
             </div>
           )}
         </CardContent>
@@ -92,9 +92,9 @@ export default function AnalyticsView({ token }) {
 
       {/* ── API Traffic Metrics ───────────────────────────────── */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-         <Card className="rounded-none border-border/40 bg-card/40 spotlight-card shadow-2xl">
+         <Card className="rounded-xl border-border/40 bg-card spotlight-card shadow-2xl">
             <CardHeader className="pb-4 border-b border-border/10">
-               <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+               <CardTitle className="text-sm font-medium text-primary flex items-center gap-2">
                   <BarChart3 className="h-4 w-4" /> BOT THROUGHPUT
                </CardTitle>
             </CardHeader>
@@ -114,16 +114,16 @@ export default function AnalyticsView({ token }) {
                      <span className="font-bold text-muted-foreground uppercase tracking-tighter">P95 LATENCY</span>
                      <span className="font-black text-primary">{compact(analytics.p95ResponseTimeMs)}ms</span>
                   </div>
-                  <div className="h-1 bg-border/20 w-full rounded-none overflow-hidden">
+                  <div className="h-1 bg-border/20 w-full rounded-xl overflow-hidden">
                      <div className="h-full bg-primary" style={{ width: '85%' }} />
                   </div>
                </div>
             </CardContent>
          </Card>
 
-         <Card className="rounded-none border-border/40 bg-card/40 spotlight-card shadow-2xl">
+         <Card className="rounded-xl border-border/40 bg-card spotlight-card shadow-2xl">
             <CardHeader className="pb-4 border-b border-border/10">
-               <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+               <CardTitle className="text-sm font-medium text-primary flex items-center gap-2">
                   <Activity className="h-4 w-4" /> RUNTIME STATUS
                </CardTitle>
             </CardHeader>
@@ -139,9 +139,9 @@ export default function AnalyticsView({ token }) {
             </CardContent>
          </Card>
 
-         <Card className="rounded-none border-border/40 bg-card/40 spotlight-card shadow-2xl md:col-span-2 lg:col-span-1">
+         <Card className="rounded-xl border-border/40 bg-card spotlight-card shadow-2xl md:col-span-2 lg:col-span-1">
             <CardHeader className="pb-4 border-b border-border/10">
-               <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+               <CardTitle className="text-sm font-medium text-primary flex items-center gap-2">
                   <Laptop2 className="h-4 w-4" /> DEVICE SPECTRUM
                </CardTitle>
             </CardHeader>
@@ -156,9 +156,9 @@ export default function AnalyticsView({ token }) {
                      <div className="flex-1 space-y-1">
                         <div className="flex justify-between items-end">
                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{d.label}</span>
-                           <span className="text-[10px] font-black">{compact(d.val)}</span>
+                           <span className="text-xs font-medium">{compact(d.val)}</span>
                         </div>
-                        <div className="h-1 w-full bg-border/20 rounded-none overflow-hidden">
+                        <div className="h-1 w-full bg-border/20 rounded-xl overflow-hidden">
                            <div 
                               className="h-full bg-primary" 
                               style={{ width: `${(d.val / analytics.totalRequests) * 200}%` }} 
@@ -171,7 +171,7 @@ export default function AnalyticsView({ token }) {
          </Card>
       </div>
 
-      <Card className="rounded-none border-border/40 bg-card/40 spotlight-card shadow-2xl">
+      <Card className="rounded-xl border-border/40 bg-card spotlight-card shadow-2xl">
         <CardHeader className="pb-4 border-b border-border/10">
           <CardTitle className="text-lg font-black uppercase tracking-[0.3em] text-primary font-[var(--font-instrument-sans)]">
              LIVE ACTIVITY FEED
@@ -196,8 +196,8 @@ export default function AnalyticsView({ token }) {
                      </p>
                   </div>
                   <div className="text-right">
-                     <p className="text-[10px] font-black text-foreground">{compact(row.durationMs)}ms</p>
-                     <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{new Date(row.at).toLocaleTimeString([], { hour12: false })}</p>
+                     <p className="text-xs font-medium text-foreground">{compact(row.durationMs)}ms</p>
+                     <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest">{new Date(row.at).toLocaleTimeString([], { hour12: false })}</p>
                   </div>
                </div>
              ))}

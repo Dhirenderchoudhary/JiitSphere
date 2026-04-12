@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion';
 import { 
   ArrowRight, 
   BookOpen, 
@@ -26,7 +26,9 @@ import {
   Search,
   CheckCircle2,
   Orbit,
-  Cpu
+  Cpu,
+  Laptop2,
+  TabletIcon as Tablet
 } from 'lucide-react';
 import Navbar from 'components/Navbar';
 import { Badge } from 'components/ui/badge';
@@ -82,63 +84,118 @@ export default function LandingPage() {
             </div>
           </motion.section>
 
-          {/* ── Refined Primary Flagship Cards ─────────────────── */}
-          <motion.section variants={item} className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 max-w-5xl mx-auto">
+          {/* ── Flagship Product Cards ────────────────────────── */}
+          <motion.section variants={item} className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-5xl mx-auto">
+
+            {/* Student Portal */}
             <Link href="/portal" className="group block">
-              <div className="h-full flex flex-col bg-card rounded-[2rem] border border-border/50 shadow-xl hover:border-primary/20 hover:shadow-2xl transition-all duration-500 spotlight-card overflow-hidden group">
-                <div className="p-8 md:p-10 space-y-6 flex-1 relative z-10">
-                  <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary text-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 shadow-sm border border-border/50 group-hover:border-primary/20">
-                    <LayoutDashboard className="h-7 w-7" />
-                  </div>
-                  <div className="space-y-3">
-                    <h3 className="text-4xl font-bold tracking-tight leading-none group-hover:translate-x-1 transition-transform duration-500 text-foreground font-[var(--font-instrument-sans)]">
-                      Student Portal
-                    </h3>
-                    <p className="text-muted-foreground leading-relaxed max-w-sm text-base font-medium opacity-80">
-                      Clear insights into your attendance, grades, and academic standing.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2 pt-2">
-                     <Badge variant="outline" className="px-3 py-1 bg-muted/40 border-border/50 text-muted-foreground text-[10px] font-bold uppercase tracking-wider">REAL-TIME SYNC</Badge>
-                     <Badge variant="outline" className="px-3 py-1 bg-muted/40 border-border/50 text-muted-foreground text-[10px] font-bold uppercase tracking-wider">ATTENDANCE MARGINS</Badge>
+              <div className="relative h-full rounded-[2rem] border border-border/40 bg-card overflow-hidden transition-all duration-500 hover:border-primary/30 hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)]">
+                
+                {/* Mini dashboard preview */}
+                <div className="px-8 pt-8 md:px-10 md:pt-10">
+                  <div className="rounded-xl border border-border/40 bg-secondary/30 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="size-2 rounded-full bg-green-500" />
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Live Dashboard</span>
+                      </div>
+                      <div className="text-[9px] font-mono text-muted-foreground/40">v2.4</div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="rounded-lg bg-card border border-border/30 p-2.5 text-center">
+                        <div className="text-lg font-black text-foreground font-[var(--font-instrument-sans)] leading-none">81%</div>
+                        <div className="text-[7px] font-bold text-muted-foreground/50 uppercase mt-1 tracking-wider">Attend.</div>
+                      </div>
+                      <div className="rounded-lg bg-card border border-border/30 p-2.5 text-center">
+                        <div className="text-lg font-black text-foreground font-[var(--font-instrument-sans)] leading-none">8.4</div>
+                        <div className="text-[7px] font-bold text-muted-foreground/50 uppercase mt-1 tracking-wider">SGPA</div>
+                      </div>
+                      <div className="rounded-lg bg-card border border-border/30 p-2.5 text-center">
+                        <div className="text-lg font-black text-primary font-[var(--font-instrument-sans)] leading-none">+2</div>
+                        <div className="text-[7px] font-bold text-muted-foreground/50 uppercase mt-1 tracking-wider">Safe</div>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[8px] font-medium text-muted-foreground/60">
+                        <span>Data Structures</span>
+                        <span className="font-black text-foreground/40">92%</span>
+                      </div>
+                      <div className="h-1 bg-muted/50 rounded-full overflow-hidden">
+                        <div className="h-full w-[92%] rounded-full bg-foreground/15" />
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="px-8 pb-8 md:px-10 md:pb-10 relative z-10">
-                  <div className="pro-button rounded-xl h-16 flex items-center justify-center gap-2 group-hover:scale-[1.01] transition-all duration-300 text-lg font-bold group-hover:-translate-y-1">
-                    Enter Portal <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+
+                {/* Content */}
+                <div className="p-8 md:p-10 pt-6 md:pt-6 space-y-4">
+                  <div>
+                    <h3 className="text-3xl font-bold tracking-tight leading-none text-foreground font-[var(--font-instrument-sans)]">
+                      Student Portal
+                    </h3>
+                    <p className="text-sm text-muted-foreground font-medium mt-2 leading-relaxed">
+                      Attendance, grades, exams, and fees in one place.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm font-bold text-primary group-hover:gap-3 transition-all duration-300">
+                    Enter Portal <ArrowRight className="h-4 w-4" />
                   </div>
                 </div>
               </div>
             </Link>
 
+            {/* Material Vault */}
             <Link href="/study-material" className="group block">
-              <div className="h-full flex flex-col bg-card rounded-[2rem] border border-border/50 shadow-xl hover:border-primary/20 hover:shadow-2xl transition-all duration-500 spotlight-card overflow-hidden group">
-                <div className="p-8 md:p-10 space-y-6 flex-1 relative z-10">
-                  <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary text-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 shadow-sm border border-border/50 group-hover:border-primary/20">
-                    <BookOpen className="h-7 w-7" />
-                  </div>
-                  <div className="space-y-3">
-                    <h3 className="text-4xl font-bold tracking-tight leading-none group-hover:translate-x-1 transition-transform duration-500 text-foreground font-[var(--font-instrument-sans)]">
-                      Material Vault
-                    </h3>
-                    <p className="text-muted-foreground leading-relaxed max-w-sm text-base font-medium opacity-80">
-                      The most curated collection of notes, PYQs, and solutions for JIIT.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2 pt-2">
-                     <Badge variant="outline" className="px-3 py-1 bg-muted/40 border-border/50 text-muted-foreground text-[10px] font-bold uppercase tracking-wider">SLIDES</Badge>
-                     <Badge variant="outline" className="px-3 py-1 bg-muted/40 border-border/50 text-muted-foreground text-[10px] font-bold uppercase tracking-wider">PYQS</Badge>
-                     <Badge variant="outline" className="px-3 py-1 bg-muted/40 border-border/50 text-muted-foreground text-[10px] font-bold uppercase tracking-wider">ALL RESOURCES</Badge>
+              <div className="relative h-full rounded-[2rem] border border-border/40 bg-card overflow-hidden transition-all duration-500 hover:border-primary/30 hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)]">
+                
+                {/* Document stack preview */}
+                <div className="px-8 pt-8 md:px-10 md:pt-10">
+                  <div className="relative h-36 flex items-end justify-center">
+                    {/* Back doc */}
+                    <div className="absolute bottom-0 left-4 right-8 h-28 rounded-t-xl bg-secondary/50 border border-border/30 border-b-0 translate-y-1" />
+                    {/* Middle doc */}
+                    <div className="absolute bottom-0 left-2 right-6 h-30 rounded-t-xl bg-secondary/70 border border-border/40 border-b-0" />
+                    {/* Front doc */}
+                    <div className="relative w-full rounded-t-xl bg-card border border-border/50 border-b-0 p-4 space-y-2.5 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-3.5 w-3.5 text-primary" />
+                          <span className="text-[10px] font-black text-foreground tracking-tight">Data Structures — MST-1</span>
+                        </div>
+                        <span className="text-[8px] font-bold text-muted-foreground/40 uppercase">PDF</span>
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="h-1.5 w-full bg-muted/40 rounded-full" />
+                        <div className="h-1.5 w-[85%] bg-muted/40 rounded-full" />
+                        <div className="h-1.5 w-[60%] bg-muted/40 rounded-full" />
+                      </div>
+                      <div className="flex gap-1.5 pt-0.5">
+                        <div className="px-1.5 py-0.5 rounded bg-primary/10 text-[7px] font-bold text-primary uppercase">PYQ</div>
+                        <div className="px-1.5 py-0.5 rounded bg-muted/50 text-[7px] font-bold text-muted-foreground uppercase">CSE</div>
+                        <div className="px-1.5 py-0.5 rounded bg-muted/50 text-[7px] font-bold text-muted-foreground uppercase">Sem 3</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="px-8 pb-8 md:px-10 md:pb-10 relative z-10">
-                  <div className="pro-button rounded-xl h-16 flex items-center justify-center gap-2 group-hover:scale-[1.01] transition-all duration-300 text-lg font-bold group-hover:-translate-y-1">
-                    Browse Library <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+
+                {/* Content */}
+                <div className="p-8 md:p-10 pt-6 md:pt-6 space-y-4">
+                  <div>
+                    <h3 className="text-3xl font-bold tracking-tight leading-none text-foreground font-[var(--font-instrument-sans)]">
+                      Material Vault
+                    </h3>
+                    <p className="text-sm text-muted-foreground font-medium mt-2 leading-relaxed">
+                      1,300+ slides, PYQs, and solutions indexed by course.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm font-bold text-primary group-hover:gap-3 transition-all duration-300">
+                    Browse Library <ArrowRight className="h-4 w-4" />
                   </div>
                 </div>
               </div>
             </Link>
           </motion.section>
+
 
           {/* ── Extreme Fidelity Interactive Bento Features Grid ── */}
           <motion.section variants={item} className="space-y-16">
@@ -149,28 +206,8 @@ export default function LandingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[20rem]">
               
-              {/* Feature 1: Smart Alerts (Exact Notification UI) */}
-              <motion.div whileHover="hover" className="bento-card group p-8 flex flex-col justify-between spotlight-card">
-                 <div className="flex-1 flex items-center justify-center pt-8">
-                    <div className="relative w-full max-w-[180px] space-y-3">
-                       <motion.div variants={{ hover: { x: 8, opacity: 1 } }} initial={{ opacity: 0.4 }} transition={springConfig} className="flex items-center gap-3 p-3 bg-secondary rounded-xl border border-border/50 shadow-sm">
-                          <Bell className="h-4 w-4 text-primary" />
-                          <div className="text-[10px] font-bold tracking-tight opacity-40">MST-1 Datesheet Out</div>
-                       </motion.div>
-                       <motion.div variants={{ hover: { scale: 1.05, x: -8 } }} transition={springConfig} className="flex items-center gap-3 p-3.5 bg-card border border-border shadow-2xl rounded-xl z-20">
-                          <AlertCircle className="h-5 w-5 text-red-500 animate-pulse" />
-                          <div className="space-y-0.5">
-                             <div className="text-[11px] font-black text-foreground">Attendance Alert</div>
-                             <div className="text-[9px] font-bold text-muted-foreground tracking-tight opacity-60">Section B: 74.2%</div>
-                          </div>
-                       </motion.div>
-                    </div>
-                 </div>
-                 <div className="space-y-1">
-                    <h4 className="text-xl font-bold tracking-tight font-[var(--font-instrument-sans)]">Smart Alerts</h4>
-                    <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">Real-time attendance warnings and schedule updates.</p>
-                 </div>
-              </motion.div>
+              {/* Feature 1: Smart Alerts (Notification Inbox) */}
+              <SmartAlertsElite />
 
               {/* Feature 2: Grade Analytics (2x1 WIDE - Exact GPA UI) */}
               <motion.div whileHover="hover" className="bento-card group p-8 flex flex-col md:flex-row justify-between spotlight-card md:col-span-2">
@@ -397,38 +434,77 @@ export default function LandingPage() {
                  </div>
               </motion.div>
 
-              {/* Feature 8: Privacy First (Vault Visual) */}
-              <motion.div whileHover="hover" className="bento-card group p-8 flex flex-col justify-between spotlight-card">
-                 <div className="flex-1 flex items-center justify-center pt-4">
-                    <div className="relative">
-                       <motion.div variants={{ hover: { rotate: 90, scale: 1.1 } }} transition={{ ...springConfig, duration: 1 }} className="size-16 rounded-full border-2 border-dashed border-primary/20 flex flex-col items-center justify-center">
-                          <div className="size-2 bg-primary rounded-full animate-pulse" />
+              {/* Feature 8: PWA App (Multi-Device Visual - Laptop, Tablet, Phone) */}
+              <motion.div whileHover="hover" className="bento-card group p-8 flex flex-col justify-between spotlight-card md:col-span-2 overflow-hidden">
+                 <div className="flex-1 flex items-center justify-center pt-8 relative w-full h-full lg:px-12">
+                    <div className="relative w-full h-full flex items-center justify-center">
+                       {/* Laptop Frame */}
+                       <motion.div 
+                          variants={{ hover: { y: -10, opacity: 1, scale: 1.05 } }}
+                          transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+                          className="relative w-72 h-44 bg-card/40 border-[4px] border-border rounded-xl shadow-2xl flex flex-col overflow-hidden z-0 backdrop-blur-sm"
+                       >
+                          <div className="h-4 bg-muted/50 border-b border-border flex items-center px-2 gap-1">
+                             <div className="size-1 rounded-full bg-red-400" />
+                             <div className="size-1 rounded-full bg-amber-400" />
+                             <div className="size-1 rounded-full bg-green-400" />
+                          </div>
+                          <div className="flex-1 p-3 space-y-2">
+                             <div className="h-2 w-1/3 bg-primary/20 rounded-full" />
+                             <div className="grid grid-cols-3 gap-2">
+                                <div className="h-10 bg-muted/30 rounded-lg" />
+                                <div className="h-10 bg-muted/30 rounded-lg" />
+                                <div className="h-10 bg-muted/30 rounded-lg" />
+                             </div>
+                             <div className="h-12 w-full bg-primary/5 rounded-lg border border-primary/10" />
+                          </div>
+                          {/* Keyboard Base */}
+                          <div className="absolute -bottom-1 left-0 right-0 h-2 bg-border/50" />
                        </motion.div>
-                       <div className="absolute inset-0 flex items-center justify-center">
-                          <Lock className="h-6 w-6 text-foreground group-hover:text-primary transition-colors" />
-                       </div>
+
+                       {/* Tablet Frame */}
+                       <motion.div 
+                          variants={{ hover: { x: -40, y: 15, rotate: -2, scale: 1.05 } }}
+                          transition={{ type: 'spring', stiffness: 250, damping: 25, delay: 0.05 }}
+                          className="absolute bottom-4 left-1/4 w-32 h-44 bg-card border-[3px] border-border rounded-2xl shadow-xl z-20 backdrop-blur-md overflow-hidden"
+                       >
+                          <div className="h-full p-2 flex flex-col gap-2">
+                             <div className="h-1 w-8 bg-muted rounded-full mx-auto" />
+                             <div className="h-10 w-full bg-primary/10 rounded-md" />
+                             <div className="h-10 w-full bg-muted/40 rounded-md" />
+                             <div className="h-10 w-full bg-muted/40 rounded-md" />
+                          </div>
+                       </motion.div>
+
+                       {/* Phone Frame */}
+                       <motion.div 
+                          variants={{ hover: { x: 45, y: 25, rotate: 3, scale: 1.1 } }}
+                          transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.1 }}
+                          className="absolute bottom-2 right-1/4 w-20 h-40 bg-card border-[3px] border-border rounded-2xl shadow-2xl z-30 backdrop-blur-md overflow-hidden"
+                       >
+                          <div className="h-full p-2 flex flex-col gap-2">
+                             <div className="h-0.5 w-6 bg-muted rounded-full mx-auto mb-1" />
+                             <div className="h-24 w-full bg-primary/20 rounded-lg flex items-center justify-center">
+                                <Download className="h-4 w-4 text-primary opacity-50" />
+                             </div>
+                             <div className="h-1.5 w-full bg-muted/50 rounded-full" />
+                             <div className="h-1.5 w-[80%] bg-muted/50 rounded-full" />
+                          </div>
+                       </motion.div>
+
+                       {/* Sync Glow */}
+                       <motion.div 
+                          animate={{ opacity: [0, 0.5, 0] }}
+                          transition={{ repeat: Infinity, duration: 4 }}
+                          className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-primary/10 to-transparent blur-3xl -z-10"
+                       />
                     </div>
                  </div>
-                 <div className="space-y-1">
-                    <h4 className="text-lg font-bold tracking-tight font-[var(--font-instrument-sans)]">On-Device Zero</h4>
-                    <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">No data ever leaves your device.</p>
-                 </div>
-              </motion.div>
-
-              {/* Feature 9: PWA App (Exact Native UI) */}
-              <motion.div whileHover="hover" className="bento-card group p-8 flex flex-col justify-between spotlight-card">
-                 <div className="flex-1 flex items-center justify-center pt-8 overflow-hidden relative">
-                    <motion.div variants={{ hover: { y: -10 } }} transition={springConfig} className="relative h-48 w-32 bg-[#050505] rounded-t-3xl border-x-[4px] border-t-[4px] border-border shadow-2xl p-4 translate-y-8">
-                       <div className="h-1 w-10 bg-[#333] mx-auto rounded-full mb-6" />
-                       <div className="size-10 rounded-xl bg-primary flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(255,255,255,0.05)]">
-                          <Download className="h-5 w-5 text-primary-foreground" />
-                       </div>
-                       <motion.div variants={{ hover: { opacity: 1, y: 0 } }} initial={{ opacity: 0, y: 10 }} className="absolute inset-x-4 bottom-12 h-8 rounded-lg bg-secondary border border-border flex items-center justify-center text-[8px] font-black uppercase tracking-widest text-muted-foreground">INSTALL</motion.div>
-                    </motion.div>
-                 </div>
-                 <div className="space-y-1">
-                    <h4 className="text-lg font-bold tracking-tight font-[var(--font-instrument-sans)]">PWA Ready</h4>
-                    <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">Native-grade cross-platform app.</p>
+                 <div className="space-y-1 relative z-40">
+                    <h4 className="text-xl font-bold tracking-tight font-[var(--font-instrument-sans)]">PWA Ready</h4>
+                    <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">
+                       Install as a native-grade app on <span className="text-foreground font-bold italic">all your devices</span>. Cross-platform sync and lightning-fast offline access enabled.
+                    </p>
                  </div>
               </motion.div>
 
@@ -438,5 +514,110 @@ export default function LandingPage() {
         </motion.div>
       </div>
     </main>
+  );
+}
+
+function SmartAlertsElite() {
+  return (
+    <motion.div
+      whileHover="hover"
+      className="bento-card group p-8 flex flex-col justify-between spotlight-card"
+    >
+      <div className="flex-1 flex items-center justify-center pt-6">
+        <div className="relative w-full max-w-[200px] h-[140px]">
+
+          {/* Card 3 (Bottom) — Fees */}
+          <motion.div
+            variants={{
+              hover: {
+                y: -55, x: 18, rotate: 8, scale: 0.92, opacity: 1,
+                transition: { type: 'spring', stiffness: 280, damping: 22 }
+              }
+            }}
+            initial={{ opacity: 0.3, rotate: 2 }}
+            className="absolute inset-x-0 top-4 h-[52px] rounded-xl border border-amber-500/15 bg-card/60 backdrop-blur-sm shadow-sm p-3 flex items-center gap-3"
+          >
+            <div className="shrink-0 size-7 rounded-lg bg-amber-500/10 flex items-center justify-center">
+              <Wallet className="h-3.5 w-3.5 text-amber-500" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[9px] font-black text-foreground/50 tracking-tight">Fees Due</div>
+              <div className="text-[8px] font-medium text-muted-foreground/40 truncate">₹2,400 pending</div>
+            </div>
+          </motion.div>
+
+          {/* Card 2 (Middle) — Datesheet */}
+          <motion.div
+            variants={{
+              hover: {
+                y: -28, x: -14, rotate: -6, scale: 0.96, opacity: 1,
+                transition: { type: 'spring', stiffness: 280, damping: 22, delay: 0.04 }
+              }
+            }}
+            initial={{ opacity: 0.5, rotate: -1 }}
+            className="absolute inset-x-0 top-4 h-[52px] rounded-xl border border-blue-500/15 bg-card/70 backdrop-blur-sm shadow-md p-3 flex items-center gap-3 z-10"
+          >
+            <div className="shrink-0 size-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <Bell className="h-3.5 w-3.5 text-blue-500" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline justify-between">
+                <span className="text-[9px] font-black text-foreground/60 tracking-tight">Datesheet</span>
+                <span className="text-[7px] font-medium text-muted-foreground/30">18m</span>
+              </div>
+              <div className="text-[8px] font-medium text-muted-foreground/50 truncate">MST-1 schedule released</div>
+            </div>
+          </motion.div>
+
+          {/* Card 1 (Top) — Attendance Alert (hero card) */}
+          <motion.div
+            variants={{
+              hover: {
+                y: 8, scale: 1.04,
+                transition: { type: 'spring', stiffness: 350, damping: 25, delay: 0.06 }
+              }
+            }}
+            className="absolute inset-x-0 top-4 rounded-xl border border-red-500/20 bg-card shadow-[0_8px_30px_-8px_rgba(239,68,68,0.15)] backdrop-blur-md p-3.5 z-20 overflow-hidden"
+          >
+            <div className="flex items-center gap-3">
+              <div className="shrink-0 size-8 rounded-lg bg-red-500/10 flex items-center justify-center">
+                <AlertCircle className="h-4 w-4 text-red-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[10px] font-black text-foreground tracking-tight">Attendance Alert</span>
+                  <span className="text-[7px] font-medium text-red-400/60">2m ago</span>
+                </div>
+                <div className="text-[8px] font-medium text-muted-foreground mt-0.5">
+                  Section B dropped to <span className="text-red-500 font-black">74.2%</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="mt-2.5 h-1 w-full bg-muted/30 rounded-full overflow-hidden">
+              <motion.div
+                variants={{
+                  hover: { width: '74.2%', transition: { duration: 1.2, ease: 'circOut', delay: 0.15 } }
+                }}
+                initial={{ width: '0%' }}
+                className="h-full rounded-full bg-gradient-to-r from-red-500 to-rose-400"
+              />
+            </div>
+          </motion.div>
+
+        </div>
+      </div>
+
+      <div className="space-y-1">
+        <h4 className="text-xl font-bold tracking-tight font-[var(--font-instrument-sans)] flex items-center gap-2">
+          Smart Alerts
+          <div className="size-1.5 rounded-full bg-red-500 animate-pulse" />
+        </h4>
+        <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">
+          Real-time attendance warnings and schedule updates.
+        </p>
+      </div>
+    </motion.div>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { Button } from 'components/ui/button';
-import { Card, CardContent } from 'components/ui/card';
 import { fetchPortalAttendance, fetchPortalAttendanceMeta, fetchPortalSubjectAttendance, SessionExpiredError } from 'lib/api';
 import { motion } from 'framer-motion';
 import { cn } from 'lib/utils';
@@ -137,9 +136,9 @@ export default function AttendanceView({ token, onExpired }) {
       <div className={`sticky top-0 z-20 p-4 ${glassPanel}`}>
         <div className="grid grid-cols-[1fr_auto] gap-4">
           <div className="space-y-1.5">
-            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Semester</label>
+            <label className="block text-xs font-medium text-muted-foreground">Semester</label>
             <select
-              className="w-full rounded-none border border-border bg-background px-3 py-2 text-sm font-bold appearance-none cursor-pointer hover:border-primary/50 transition-colors"
+              className="w-full rounded-xl border border-border/40 bg-secondary/30 px-3 py-2 text-sm font-medium appearance-none cursor-pointer hover:border-primary/50 transition-colors"
               value={selectedSem}
               onChange={(e) => setSelectedSem(e.target.value)}
             >
@@ -151,11 +150,11 @@ export default function AttendanceView({ token, onExpired }) {
             </select>
           </div>
           <div className="w-32 space-y-1.5">
-            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Target %</label>
+            <label className="block text-xs font-medium text-muted-foreground">Target %</label>
             <select
               value={targetAttendancePct}
               onChange={(e) => setTargetAttendancePct(e.target.value)}
-              className="h-10 w-full rounded-none border border-border bg-background px-3 text-sm font-bold appearance-none cursor-pointer hover:border-primary/50 transition-colors"
+              className="h-10 w-full rounded-xl border border-border/40 bg-secondary/30 px-3 text-sm font-medium appearance-none cursor-pointer hover:border-primary/50 transition-colors"
             >
               <option value="">Select</option>
               {[60, 65, 70, 75, 80, 85, 90].map(val => (
@@ -164,12 +163,12 @@ export default function AttendanceView({ token, onExpired }) {
             </select>
           </div>
         </div>
-        <div className="mt-6 flex border border-border bg-muted/20 p-1">
+        <div className="mt-4 flex rounded-xl bg-secondary/50 p-1">
           <button
             type="button"
             className={cn(
-              "flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all",
-              attendanceMode === 'overview' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
+              attendanceMode === 'overview' ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             )}
             onClick={() => setAttendanceMode('overview')}
           >
@@ -178,8 +177,8 @@ export default function AttendanceView({ token, onExpired }) {
           <button
             type="button"
             className={cn(
-              "flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all",
-              attendanceMode === 'day' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
+              attendanceMode === 'day' ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             )}
             onClick={() => setAttendanceMode('day')}
           >
@@ -189,10 +188,9 @@ export default function AttendanceView({ token, onExpired }) {
       </div>
 
       <div className="space-y-4">
-        {!attendance.length ? <p className="text-sm text-muted-foreground font-bold uppercase tracking-tight">{message || 'No records found.'}</p> : null}
+        {!attendance.length ? <p className="text-sm text-muted-foreground font-medium">{message || 'No records found.'}</p> : null}
         {attendance.map((row) => (
-          <Card key={row.subjectcode} className="rounded-none border-border/60 bg-card/60 spotlight-card hover:border-primary/30 transition-all duration-300">
-            <CardContent className="p-6">
+          <div key={row.subjectcode} className="rounded-2xl border border-border/40 bg-card p-6 hover:border-primary/20 transition-all duration-300">
               {(() => {
                 const pct = Number(row.LTpercantage || 0);
                 const target = Number(targetAttendancePct || 75);
@@ -214,10 +212,10 @@ export default function AttendanceView({ token, onExpired }) {
                   <>
                     <div className="mb-4 flex items-start justify-between gap-4">
                       <div className="min-w-0 flex-1 space-y-1">
-                        <h3 className="text-lg font-bold leading-none tracking-tight text-foreground font-[var(--font-instrument-sans)] truncate group-hover:text-primary transition-colors">
+                        <h3 className="text-lg font-bold leading-none tracking-tight text-foreground font-[var(--font-instrument-sans)] truncate">
                           {row.subjectdesc || row.subjectcode}
                         </h3>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] opacity-60">
+                        <p className="text-xs font-medium text-muted-foreground">
                           {row.subjectcode}
                         </p>
                       </div>
@@ -229,42 +227,40 @@ export default function AttendanceView({ token, onExpired }) {
                             <span className="text-base text-muted-foreground">{ratio.total}</span>
                           </div>
                         ) : null}
-                        <div className="flex flex-col items-center justify-center border-2 border-primary/20 p-2 min-w-[70px]">
+                        <div className="flex flex-col items-center justify-center rounded-xl border-2 border-primary/20 p-2 min-w-[70px] bg-primary/5">
                            <span className="text-2xl font-black leading-none text-primary">{toPercent(row.LTpercantage)}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Progress Track */}
                     <div className="mb-3 space-y-2">
-                      <div className="h-1.5 w-full bg-muted/40 rounded-none overflow-hidden">
+                      <div className="h-1.5 w-full bg-muted/40 rounded-full overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${Math.min(100, pct)}%` }}
                           transition={{ duration: 1, ease: "circOut" }}
-                          className="h-full bg-primary"
+                          className="h-full rounded-full bg-primary"
                         />
                       </div>
                       <div className="flex justify-between items-center">
-                        <p className={cn("text-[10px] font-black uppercase tracking-widest", statusColorCls)}>
+                        <p className={cn("text-xs font-bold", statusColorCls)}>
                           {guidance}
                         </p>
-                        <p className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">
+                        <p className="text-xs font-medium text-muted-foreground/50">
                           Target: {target}%
                         </p>
                       </div>
                     </div>
 
-                    {/* Component Breakdown */}
                     <div className="grid grid-cols-3 gap-2">
                       {[
                         { label: 'Lecture', val: row.Lpercentage },
                         { label: 'Tutorial', val: row.Tpercentage },
                         { label: 'Practical', val: row.Ppercentage }
                       ].map((comp) => (
-                        <div key={comp.label} className="border border-border/50 p-2 flex flex-col items-center">
-                          <p className="text-sm font-black text-foreground">{toPercent(comp.val)}</p>
-                          <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{comp.label}</p>
+                        <div key={comp.label} className="rounded-xl border border-border/40 bg-secondary/20 p-2 flex flex-col items-center">
+                          <p className="text-sm font-bold text-foreground">{toPercent(comp.val)}</p>
+                          <p className="text-[9px] font-medium text-muted-foreground">{comp.label}</p>
                         </div>
                       ))}
                     </div>
@@ -323,12 +319,12 @@ export default function AttendanceView({ token, onExpired }) {
                 ) : null}
               </div>
               {attendanceMode === 'day' && (subjectDetails[row.subjectcode]?.rows || []).length ? (
-                <div className="mt-3 space-y-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/55 p-3 text-xs">
-                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                <div className="mt-3 space-y-2 rounded-xl border border-border/40 bg-secondary/20 p-3 text-xs">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs">
                     <label className="flex items-center gap-2 text-muted-foreground">
                       Status
                       <select
-                        className="rounded border border-border bg-background px-2 py-1 text-[11px]"
+                        className="rounded-lg border border-border/40 bg-card px-2 py-1 text-xs"
                         value={dayFilters[row.subjectcode] || 'all'}
                         onChange={(e) => setDayFilters((prev) => ({ ...prev, [row.subjectcode]: e.target.value }))}
                       >
@@ -340,7 +336,7 @@ export default function AttendanceView({ token, onExpired }) {
                     <label className="flex items-center gap-2 text-muted-foreground">
                       Month
                       <select
-                        className="rounded border border-border bg-background px-2 py-1 text-[11px]"
+                        className="rounded-lg border border-border/40 bg-card px-2 py-1 text-xs"
                         value={monthFilters[row.subjectcode] || 'all'}
                         onChange={(e) => setMonthFilters((prev) => ({ ...prev, [row.subjectcode]: e.target.value }))}
                       >
@@ -404,7 +400,7 @@ export default function AttendanceView({ token, onExpired }) {
 
                         <div className="mb-2 flex flex-wrap gap-2">
                           {monthlyStats.map((m) => (
-                            <span key={`${row.subjectcode}-${m.key}-stat`} className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+                      <span key={`${row.subjectcode}-${m.key}-stat`} className="rounded-lg border border-border/40 px-2 py-0.5 text-[10px] text-muted-foreground">
                               {monthLabelFromKey(m.key)}: {attendanceRatioText(m.present, m.total)}
                             </span>
                           ))}
@@ -416,21 +412,21 @@ export default function AttendanceView({ token, onExpired }) {
                           const monthTotal = monthRows.length;
 
                           return (
-                            <div key={`${row.subjectcode}-${monthKey}`} className="mb-2 rounded-lg border border-slate-300/70 dark:border-slate-600/70 bg-white/80 dark:bg-slate-900/65 p-2">
-                              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-1">
-                                <p className="text-[11px] font-semibold text-foreground">{monthLabelFromKey(monthKey)}</p>
-                                <p className="text-[11px] text-muted-foreground">Attended / Total: {attendanceRatioText(monthPresent, monthTotal)}</p>
+                            <div key={`${row.subjectcode}-${monthKey}`} className="mb-2 rounded-xl border border-border/30 bg-card p-2">
+                              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-border/30 pb-1">
+                                <p className="text-xs font-semibold text-foreground">{monthLabelFromKey(monthKey)}</p>
+                                <p className="text-xs text-muted-foreground">Attended / Total: {attendanceRatioText(monthPresent, monthTotal)}</p>
                               </div>
 
                               <div className="space-y-2">
                                 {monthRows.map((entry, idx) => (
-                                  <div key={`${row.subjectcode}-${monthKey}-${idx}`} className="rounded-lg border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-900 px-2 py-1.5">
+                                  <div key={`${row.subjectcode}-${monthKey}-${idx}`} className="rounded-lg border border-border/30 bg-card px-2 py-1.5">
                                     <div className="flex items-start justify-between gap-3">
                                       <div>
                                         <span className="text-[11px] leading-5 sm:text-xs">{entry.datetime || '-'}</span>
                                         {entry.topic ? <p className="text-[10px] text-muted-foreground">{entry.topic}</p> : null}
                                       </div>
-                                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${entry.present === 'Present' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                      <span className={`rounded-lg px-2 py-0.5 text-[10px] font-semibold ${entry.present === 'Present' ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-500'}`}>
                                         {entry.present}
                                       </span>
                                     </div>
@@ -465,8 +461,7 @@ export default function AttendanceView({ token, onExpired }) {
                   {subjectDetails[row.subjectcode]?.message || 'Day-to-day attendance is not available for this subject right now.'}
                 </p>
               ) : null}
-            </CardContent>
-          </Card>
+          </div>
         ))}
       </div>
     </div>

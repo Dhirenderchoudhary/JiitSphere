@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Button } from 'components/ui/button';
-import { Card, CardContent } from 'components/ui/card';
 import { fetchPortalExams, SessionExpiredError } from 'lib/api';
 import { glassPanel, SHOW_TECHNICAL_DETAILS } from '../constants';
 import {
@@ -77,13 +76,13 @@ export default function ExamsView({ token, semesters = [], onExpired }) {
       <div className={`p-4 ${glassPanel}`}>
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 space-y-1.5">
-            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Target Semester</label>
+            <label className="block text-xs font-medium text-muted-foreground">Target Semester</label>
             <select
-              className="w-full rounded-none border border-border bg-background px-3 py-2 text-sm font-bold appearance-none cursor-pointer hover:border-primary/50 transition-colors"
+              className="w-full rounded-xl border border-border/40 bg-secondary/30 px-3 py-2 text-sm font-medium appearance-none cursor-pointer hover:border-primary/50 transition-colors"
               value={selectedSem}
               onChange={(e) => setSelectedSem(e.target.value)}
             >
-              <option value="all">ALL SEMESTERS</option>
+              <option value="all">All Semesters</option>
               {(semesters || []).map((sem) => (
                 <option key={sem.registration_id} value={sem.registration_id}>{sem.registration_code}</option>
               ))}
@@ -95,74 +94,74 @@ export default function ExamsView({ token, semesters = [], onExpired }) {
                 variant="secondary" 
                 onClick={() => loadExams(true)} 
                 disabled={loading} 
-                className="rounded-none font-bold uppercase tracking-wider h-10 px-6 border-border/50 active:scale-95"
+                className="rounded-xl font-bold h-10 px-6"
             >
                 <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                {loading ? 'SYNCING...' : 'FORCE REFRESH'}
+                {loading ? 'Syncing...' : 'Force Refresh'}
             </Button>
           </div>
         </div>
-        {lastSyncAt ? <p className="mt-3 text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest text-right">Data Snapshot: {lastSyncAt}</p> : null}
+        {lastSyncAt ? <p className="mt-3 text-xs font-medium text-muted-foreground/50 text-right">Synced at {lastSyncAt}</p> : null}
       </div>
 
       {!sortedExams.length ? (
-         <div className="p-12 text-center border border-dashed border-border/40">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{message || 'No scheduled exams found.'}</p>
+         <div className="rounded-2xl p-12 text-center border border-dashed border-border/30">
+            <p className="text-sm font-medium text-muted-foreground">{message || 'No scheduled exams found.'}</p>
          </div>
       ) : null}
 
       <div className="grid gap-4">
         {sortedExams.map((exam, idx) => (
-          <Card key={`${exam.subject}-${exam.date}`} className="rounded-none border-border/40 bg-card/40 hover:border-primary/30 transition-all group">
-            <CardContent className="p-6">
+          <div key={`${exam.subject}-${exam.date}`} className="rounded-2xl border border-border/40 bg-card hover:border-primary/20 transition-all">
+            <div className="p-6">
               <div className="flex flex-col sm:grid sm:grid-cols-[2fr_1.5fr] gap-6">
                 <div className="space-y-3">
                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="text-xl font-black tracking-tight leading-none text-foreground font-[var(--font-instrument-sans)]">
+                      <h3 className="text-xl font-bold tracking-tight leading-none text-foreground font-[var(--font-instrument-sans)]">
                         {exam.subject}
                       </h3>
                       {exam.registration_code && (
-                        <span className="text-[9px] font-black bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 uppercase tracking-widest">
+                        <span className="text-xs font-bold bg-primary/10 text-primary rounded-lg px-2 py-0.5">
                           {exam.registration_code}
                         </span>
                       )}
                    </div>
-                   <div className="grid grid-cols-2 gap-4 border-t border-border/10 pt-4">
+                   <div className="grid grid-cols-2 gap-4 border-t border-border/20 pt-4">
                       <div className="space-y-0.5">
-                         <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.15em]">Exam Date</span>
-                         <p className="text-sm font-bold text-foreground">{toExamDateLabel(exam.date) || 'PENDING'}</p>
+                         <span className="text-[9px] font-medium text-muted-foreground">Exam Date</span>
+                         <p className="text-sm font-bold text-foreground">{toExamDateLabel(exam.date) || 'Pending'}</p>
                       </div>
                       <div className="space-y-0.5">
-                         <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.15em]">Room / Venue</span>
+                         <span className="text-[9px] font-medium text-muted-foreground">Room / Venue</span>
                          <p className="text-sm font-bold text-foreground">{toExamRoomLabel(exam) || 'TBA'}</p>
                       </div>
                    </div>
                 </div>
 
                 <div className="grid grid-cols-3 sm:grid-cols-2 gap-2">
-                   <div className="border border-border/50 p-2 flex flex-col items-center justify-center bg-muted/5">
-                      <span className="text-xs font-black text-foreground">{toExamSlotLabel(exam) || '-'}</span>
-                      <span className="text-[7px] font-black text-muted-foreground/40 uppercase tracking-widest">SLOT</span>
+                   <div className="rounded-xl border border-border/40 bg-secondary/20 p-2 flex flex-col items-center justify-center">
+                      <span className="text-xs font-bold text-foreground">{toExamSlotLabel(exam) || '-'}</span>
+                      <span className="text-[8px] font-medium text-muted-foreground">Slot</span>
                    </div>
-                   <div className="border border-border/50 p-2 flex flex-col items-center justify-center bg-muted/5">
-                      <span className="text-xs font-black text-foreground">{toExamTimeLabel(exam) || '-'}</span>
-                      <span className="text-[7px] font-black text-muted-foreground/40 uppercase tracking-widest">TIME</span>
+                   <div className="rounded-xl border border-border/40 bg-secondary/20 p-2 flex flex-col items-center justify-center">
+                      <span className="text-xs font-bold text-foreground">{toExamTimeLabel(exam) || '-'}</span>
+                      <span className="text-[8px] font-medium text-muted-foreground">Time</span>
                    </div>
-                   <div className="border-2 border-primary/20 p-2 flex flex-col items-center justify-center bg-primary/5 sm:col-span-2">
-                      <span className="text-xs font-black text-primary">{toExamSeatLabel(exam) || '-'}</span>
-                      <span className="text-[7px] font-black text-primary/40 uppercase tracking-widest">SEAT NO</span>
+                   <div className="rounded-xl border-2 border-primary/20 p-2 flex flex-col items-center justify-center bg-primary/5 sm:col-span-2">
+                      <span className="text-xs font-bold text-primary">{toExamSeatLabel(exam) || '-'}</span>
+                      <span className="text-[8px] font-medium text-primary/60">Seat No</span>
                    </div>
                 </div>
               </div>
               
               {SHOW_TECHNICAL_DETAILS && (
-                 <div className="mt-4 pt-4 border-t border-border/10 grid grid-cols-2 gap-2 text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest">
+                 <div className="mt-4 pt-4 border-t border-border/20 grid grid-cols-2 gap-2 text-xs font-medium text-muted-foreground/40">
                     <span>Reg ID: {exam.registration_id}</span>
                     <span>Event ID: {exam.exameventid}</span>
                  </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ))}
       </div>
     </div>
