@@ -53,5 +53,5 @@ export const adminTabs: PortalTab[] = [
   { id: 'analytics', label: 'Analytics', icon: CalendarClock }
 ];
 
-export const glassPanel = 'rounded-none border border-border bg-card/90 shadow-sm backdrop-blur-md';
-export const darkPanel = 'rounded-none border border-border bg-card/95 shadow-2xl backdrop-blur-lg';
+export const glassPanel = 'rounded-2xl border border-border/40 bg-card shadow-sm';
+export const darkPanel = 'rounded-2xl border border-border/40 bg-card/95 shadow-xl backdrop-blur-lg';

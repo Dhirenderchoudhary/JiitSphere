@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Button } from 'components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from 'components/ui/card';
 import { fetchPortalFees, SessionExpiredError } from 'lib/api';
 import { cn } from 'lib/utils';
 import { formatCurrency, deriveFeeStatus, feeStatusBadgeClass, semesterSortScore } from '../utils';
@@ -130,67 +129,67 @@ export default function FeesView({ token, semesters = [], onExpired }) {
 
   return (
     <div className="space-y-6 pb-24 sm:pb-20">
-      <Card className="rounded-none border-border/40 bg-card/40 spotlight-card shadow-2xl">
-        <CardHeader className="pb-4 border-b border-border/10">
-          <CardTitle className="text-xl font-black uppercase tracking-[0.3em] text-primary font-[var(--font-instrument-sans)]">WALLET SUMMARY</CardTitle>
-          <CardDescription className="text-[10px] font-bold uppercase tracking-widest opacity-60">Consolidated financial standing across all terms</CardDescription>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="border border-border/40 p-4 bg-muted/5 space-y-1">
-              <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-widest">GROSS DEMAND</span>
-              <p className="text-2xl font-black text-foreground font-[var(--font-instrument-sans)]">{formatCurrency(summary.total)}</p>
+      <div className="rounded-2xl border border-border/40 bg-card shadow-sm">
+        <div className="p-6 pb-4 border-b border-border/20">
+          <h3 className="text-lg font-bold text-foreground font-[var(--font-instrument-sans)]">Wallet Summary</h3>
+          <p className="text-xs font-medium text-muted-foreground">Consolidated financial standing across all terms</p>
+        </div>
+        <div className="p-6">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-border/40 p-4 bg-secondary/10 space-y-1">
+              <span className="text-[9px] font-medium text-muted-foreground">Gross Demand</span>
+              <p className="text-2xl font-black text-foreground">{formatCurrency(summary.total)}</p>
             </div>
-            <div className="border border-emerald-500/20 p-4 bg-emerald-500/5 space-y-1">
-              <span className="text-[8px] font-black text-emerald-600/60 uppercase tracking-widest">TOTAL ACQUITTED</span>
-              <p className="text-2xl font-black text-emerald-600 font-[var(--font-instrument-sans)]">{formatCurrency(summary.paid)}</p>
+            <div className="rounded-xl border border-emerald-500/20 p-4 bg-emerald-500/5 space-y-1">
+              <span className="text-[9px] font-medium text-emerald-600/80">Total Paid</span>
+              <p className="text-2xl font-black text-emerald-600">{formatCurrency(summary.paid)}</p>
             </div>
-            <div className="border border-amber-500/20 p-4 bg-amber-500/5 space-y-1">
-              <span className="text-[8px] font-black text-amber-600/60 uppercase tracking-widest">OUTSTANDING DEBT</span>
-              <p className="text-2xl font-black text-amber-600 font-[var(--font-instrument-sans)]">{formatCurrency(summary.due)}</p>
+            <div className="rounded-xl border border-amber-500/20 p-4 bg-amber-500/5 space-y-1">
+              <span className="text-[9px] font-medium text-amber-600/80">Outstanding</span>
+              <p className="text-2xl font-black text-amber-600">{formatCurrency(summary.due)}</p>
             </div>
-            <div className="border border-red-500/20 p-4 bg-red-500/5 space-y-1">
-              <span className="text-[8px] font-black text-red-600/60 uppercase tracking-widest">PENALTY // FINES</span>
-              <p className="text-2xl font-black text-red-600 font-[var(--font-instrument-sans)]">{formatCurrency(summary.fine)}</p>
+            <div className="rounded-xl border border-red-500/20 p-4 bg-red-500/5 space-y-1">
+              <span className="text-[9px] font-medium text-red-600/80">Fines</span>
+              <p className="text-2xl font-black text-red-600">{formatCurrency(summary.fine)}</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <div className="space-y-4">
         <div className="flex items-center justify-between px-2">
-           <h3 className="text-xs font-black uppercase tracking-[0.3em] text-muted-foreground">Term Breakdown</h3>
+           <h3 className="text-xs font-bold text-muted-foreground">Term Breakdown</h3>
            <div className="flex items-center gap-4">
-              {lastSyncAt && <span className="text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest">SYNC: {lastSyncAt}</span>}
-              <Button type="button" variant="link" size="sm" onClick={() => loadFees(true)} disabled={loading} className="h-auto p-0 text-[10px] font-black uppercase tracking-widest text-primary hover:no-underline">
+              {lastSyncAt && <span className="text-[9px] font-medium text-muted-foreground/50">Synced {lastSyncAt}</span>}
+              <Button type="button" variant="link" size="sm" onClick={() => loadFees(true)} disabled={loading} className="h-auto p-0 text-xs font-bold text-primary hover:no-underline">
                 <RefreshCw className={cn("mr-2 h-3 w-3", loading && "animate-spin")} />
-                {loading ? 'SYNCING...' : 'FORCE REFRESH'}
+                {loading ? 'Syncing...' : 'Force Refresh'}
               </Button>
            </div>
         </div>
 
         {!groupedFees.length ? (
-           <div className="p-12 text-center border border-dashed border-border/40">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-pre-line">{message || debugHint || 'No financial records discovered.'}</p>
+           <div className="rounded-2xl p-12 text-center border border-dashed border-border/30">
+              <p className="text-sm font-medium text-muted-foreground whitespace-pre-line">{message || debugHint || 'No financial records found.'}</p>
            </div>
         ) : (
-          <div className="grid gap-4">
+         <div className="grid gap-4">
             {groupedFees.map((item, idx) => (
-              <Card key={`${item.registration_code || item.semester_label || 'fee'}-${idx}`} className="rounded-none border-border/40 bg-card/40 hover:border-primary/30 transition-all group">
-                <CardContent className="p-6">
+              <div key={`${item.registration_code || item.semester_label || 'fee'}-${idx}`} className="rounded-2xl border border-border/40 bg-card hover:border-primary/20 transition-all">
+                <div className="p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                     <div className="space-y-1">
-                      <h4 className="text-lg font-black tracking-tightest text-foreground font-[var(--font-instrument-sans)] uppercase">
-                        {item.semester_label || item.registration_code || `TERM ${idx + 1}`}
+                      <h4 className="text-lg font-bold tracking-tight text-foreground font-[var(--font-instrument-sans)]">
+                        {item.semester_label || item.registration_code || `Term ${idx + 1}`}
                       </h4>
                       {item.record_count > 1 && (
-                         <span className="text-[8px] font-black bg-primary/10 text-primary px-2 py-0.5 uppercase tracking-widest">
-                           {item.record_count} ENTRIES AGGREGATED
+                         <span className="text-xs font-medium bg-primary/10 text-primary rounded-lg px-2 py-0.5">
+                           {item.record_count} entries aggregated
                          </span>
                       )}
                     </div>
                     <div className={cn(
-                       "px-4 py-1.5 text-[10px] font-black uppercase tracking-widest border",
+                       "px-4 py-1.5 text-xs font-bold rounded-lg border",
                        deriveFeeStatus(item) === 'PAID' ? "border-emerald-500/40 bg-emerald-500/5 text-emerald-500" : "border-amber-500/40 bg-amber-500/5 text-amber-500"
                     )}>
                       {deriveFeeStatus(item)}
@@ -198,32 +197,32 @@ export default function FeesView({ token, semesters = [], onExpired }) {
                   </div>
 
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div className="border border-border/40 p-3 space-y-1">
-                      <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">DEMAND</span>
-                      <p className="text-sm font-black text-foreground">{formatCurrency(item.total_demand)}</p>
+                    <div className="rounded-xl border border-border/40 p-3 space-y-1">
+                      <span className="text-[8px] font-medium text-muted-foreground">Demand</span>
+                      <p className="text-sm font-bold text-foreground">{formatCurrency(item.total_demand)}</p>
                     </div>
-                    <div className="border border-border/40 p-3 space-y-1 bg-emerald-500/[0.02]">
-                      <span className="text-[7px] font-black text-emerald-600/60 uppercase tracking-widest">PAID</span>
-                      <p className="text-sm font-black text-emerald-600">{formatCurrency(item.paid_amount)}</p>
+                    <div className="rounded-xl border border-border/40 p-3 space-y-1 bg-emerald-500/[0.02]">
+                      <span className="text-[8px] font-medium text-emerald-600/80">Paid</span>
+                      <p className="text-sm font-bold text-emerald-600">{formatCurrency(item.paid_amount)}</p>
                     </div>
-                    <div className="border border-border/40 p-3 space-y-1 bg-amber-500/[0.02]">
-                      <span className="text-[7px] font-black text-amber-600/60 uppercase tracking-widest">OUTSTANDING</span>
-                      <p className="text-sm font-black text-amber-600">{formatCurrency(item.due_amount)}</p>
+                    <div className="rounded-xl border border-border/40 p-3 space-y-1 bg-amber-500/[0.02]">
+                      <span className="text-[8px] font-medium text-amber-600/80">Outstanding</span>
+                      <p className="text-sm font-bold text-amber-600">{formatCurrency(item.due_amount)}</p>
                     </div>
-                    <div className="border border-border/40 p-3 space-y-1 bg-red-500/[0.02]">
-                      <span className="text-[7px] font-black text-red-600/60 uppercase tracking-widest">PENALTY</span>
-                      <p className="text-sm font-black text-red-600">{formatCurrency(item.fine_amount)}</p>
+                    <div className="rounded-xl border border-border/40 p-3 space-y-1 bg-red-500/[0.02]">
+                      <span className="text-[8px] font-medium text-red-600/80">Penalty</span>
+                      <p className="text-sm font-bold text-red-600">{formatCurrency(item.fine_amount)}</p>
                     </div>
                   </div>
 
                   {item.latest_payment_date && (
-                    <div className="mt-4 pt-4 border-t border-border/10 flex items-center justify-between">
-                       <span className="text-[8px] font-black text-muted-foreground/40 uppercase tracking-widest">LATEST TRANSACTION RECORDED</span>
-                       <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{item.latest_payment_date}</span>
+                    <div className="mt-4 pt-4 border-t border-border/20 flex items-center justify-between">
+                       <span className="text-[9px] font-medium text-muted-foreground/50">Latest transaction</span>
+                       <span className="text-xs font-medium text-muted-foreground">{item.latest_payment_date}</span>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ))}
           </div>
         )}

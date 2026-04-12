@@ -148,24 +148,24 @@ export default function PortalShell({ token, onLogout }) {
       <header className={`mb-8 p-6 sm:p-8 ${glassPanel}`}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">INSTITUTIONAL PORTAL</p>
-            <h1 className="font-[var(--font-instrument-sans)] text-3xl font-bold tracking-tightest sm:text-4xl text-foreground">JPortal</h1>
+            <p className="text-xs font-bold text-muted-foreground">Student Portal</p>
+            <h1 className="font-[var(--font-instrument-sans)] text-3xl font-bold tracking-tight sm:text-4xl text-foreground">JPortal</h1>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <TopPanelTools />
-            <div className="h-8 w-px bg-border/40 mx-1" />
+            <div className="h-8 w-px bg-border/30 mx-1" />
             <div className="flex flex-col items-end gap-1">
               <Button
                 variant="secondary"
                 disabled={isRefreshing}
                 onClick={triggerRefresh}
                 size="sm"
-                className="rounded-none border-border/50 h-9 font-bold"
+                className="rounded-lg h-9 font-bold text-xs"
               >
                 <RefreshCw className={`mr-2 h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                {isRefreshing ? 'REFRESHING...' : 'REFRESH'}
+                {isRefreshing ? 'Refreshing...' : 'Refresh'}
               </Button>
-              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Sync: {agoLabel}</span>
+              <span className="text-[9px] font-medium text-muted-foreground">Synced {agoLabel}</span>
             </div>
           </div>
         </div>
@@ -177,7 +177,7 @@ export default function PortalShell({ token, onLogout }) {
         {content}
       </div>
 
-      <nav aria-label="Portal sections" className={`fixed bottom-10 left-1/2 z-40 flex w-[min(940px,94vw)] -translate-x-1/2 items-center justify-between gap-1 p-2 ${darkPanel}`}>
+      <nav aria-label="Portal sections" className={`fixed bottom-6 left-1/2 z-40 flex w-[min(720px,92vw)] -translate-x-1/2 items-center gap-1 p-1.5 ${darkPanel}`}>
         {displayedTabs.map((tab) => {
           const Icon = tab.icon;
           const active = tab.id === activeTab;
@@ -188,16 +188,16 @@ export default function PortalShell({ token, onLogout }) {
               onClick={() => setActiveTab(tab.id)}
               aria-current={active ? 'page' : undefined}
               aria-label={`Open ${tab.label}`}
-              className={`flex flex-1 flex-col items-center gap-1.5 rounded-none py-3 text-[10px] font-bold uppercase tracking-widest transition-all duration-300 relative ${
-                active ? 'text-primary' : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+              className={`flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-[10px] font-bold transition-all duration-300 relative ${
+                active ? 'text-primary' : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'
               }`}
             >
-              <Icon className={cn("h-4 w-4", active ? "scale-110" : "opacity-60")} />
-              <span className="hidden sm:inline">{tab.label}</span>
+              <Icon className={cn("h-4 w-4 transition-transform", active ? "scale-110" : "opacity-50")} />
+              <span className="hidden sm:inline text-[9px]">{tab.label}</span>
               {active && (
                 <motion.div 
                   layoutId="portal-tab-indicator"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
+                  className="absolute inset-0 bg-primary/10 rounded-xl -z-10"
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
