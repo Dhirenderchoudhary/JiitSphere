@@ -35,6 +35,15 @@ export default function LoginView({ onAuth }) {
   const [loading, setLoading] = useState(false);
   const [attemptDiagnostics, setAttemptDiagnostics] = useState([]);
 
+  const normalizeUiError = (message) => {
+    const text = String(message || '').trim();
+    if (!text) return 'Try again.';
+    if (/official portal credentials verification failed/i.test(text)) {
+      return 'Invalid portal credentials or captcha. Please try again.';
+    }
+    return text;
+  };
+
   const fetchCaptchaChallenge = async (activeToken, activeRelaySessionId) => {
     const captchaResponse = await fetchPortalRelayCaptcha(activeToken, {
       sessionId: activeRelaySessionId
@@ -79,6 +88,10 @@ export default function LoginView({ onAuth }) {
           .replace(/[^a-z0-9]/gi, '')
           .slice(0, 10);
 
+        if (captchaImage && !sanitizedCaptcha) {
+          throw new Error('Please enter the captcha shown above.');
+        }
+
         const probe = await tryPortalRelayLogin(activeToken, {
           sessionId: activeRelaySessionId,
           userId,
@@ -93,19 +106,25 @@ export default function LoginView({ onAuth }) {
             phase: attempt?.phase || '-',
             endpoint: attempt?.endpoint || '-',
             status: attempt?.status,
-            message: extractRelayMessage(attempt?.response) || ''
+            message: String(attempt?.message || extractRelayMessage(attempt?.response) || '')
           }))
         );
+        const relayFailure =
+          String(probe?.data?.failureMessage || '').trim() ||
+          attempts
+            .map((attempt) => String(attempt?.message || extractRelayMessage(attempt?.response) || '').trim())
+            .find(Boolean) ||
+          '';
         const anyOk = Boolean(probe?.data?.authenticated) || attempts.some(relayAttemptLooksAuthenticated);
-        setProbeMessage(anyOk ? 'Verifying credentials...' : 'Try again.');
+        setProbeMessage(anyOk ? 'Verifying credentials...' : normalizeUiError(relayFailure));
 
         if (!anyOk) {
           await fetchCaptchaChallenge(activeToken, activeRelaySessionId);
           setCaptchaValue('');
           if (ALLOW_UNVERIFIED_PORTAL_LOGIN) {
-            setProbeMessage('Try again.');
+            setProbeMessage(normalizeUiError(relayFailure));
           } else {
-            throw new Error('Try again.');
+            throw new Error(normalizeUiError(relayFailure));
           }
         }
       }
@@ -115,8 +134,8 @@ export default function LoginView({ onAuth }) {
       window.localStorage.setItem(LAST_PORTAL_USER_ID, userId);
       window.localStorage.setItem(PORTAL_VERIFIED_KEY, 'true');
       onAuth(activeToken);
-    } catch (_err) {
-      setError('Try again.');
+    } catch (err) {
+      setError(normalizeUiError(err?.message));
     } finally {
       setLoading(false);
     }
@@ -195,6 +214,7 @@ export default function LoginView({ onAuth }) {
                     placeholder="Enter captcha"
                     value={captchaValue}
                     onChange={(e) => setCaptchaValue(e.target.value)}
+                    required={Boolean(captchaImage)}
                     className="rounded-xl border-border/50 bg-secondary/30 h-10 font-medium focus:border-primary text-center tracking-widest"
                   />
                 </div>
@@ -210,7 +230,10 @@ export default function LoginView({ onAuth }) {
                 <p className="text-xs font-medium text-muted-foreground text-center animate-pulse">{probeMessage}</p>
               )}
 
-              <Button className="w-full h-12 rounded-xl font-bold text-sm shadow-sm" disabled={loading}>
+              <Button
+                className="w-full h-12 rounded-xl font-bold text-sm shadow-sm"
+                disabled={loading || (Boolean(captchaImage) && !String(captchaValue || '').trim())}
+              >
                 {loading ? 'Signing in...' : captchaImage ? 'Verify & Sign In' : 'Sign In'}
               </Button>
             </form>

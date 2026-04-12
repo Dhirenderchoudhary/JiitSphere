@@ -4,6 +4,8 @@ const env = require('../config/env');
 const { ensureOwnedSession, buildCookieHeader } = require('../services/portalRelayService');
 const { encryptPortalPayload } = require('../utils/portalCrypto');
 
+const PORTAL_TIME_ZONE = 'Asia/Kolkata';
+
 const ownerKey = (req) => req.user?.userId || req.user?.email || 'unknown';
 
 const portalOrigin = new URL(env.portalRelayBaseUrl).origin;
@@ -33,18 +35,32 @@ const parseRelayBody = async (response) => {
   return text;
 };
 
-const dateCode = (date = new Date()) => {
-  const dd = String(date.getDate()).padStart(2, '0');
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const yy = String(date.getFullYear()).slice(2);
-  const dow = String(date.getDay());
+const dateCode = (date = new Date(), timeZone = PORTAL_TIME_ZONE) => {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short'
+  });
+
+  const parts = formatter.formatToParts(date);
+  const partValue = (type) => parts.find((item) => item.type === type)?.value || '';
+  const weekdayLabel = partValue('weekday').toLowerCase();
+  const weekdayMap = { sun: '0', mon: '1', tue: '2', wed: '3', thu: '4', fri: '5', sat: '6' };
+
+  const dd = String(partValue('day')).padStart(2, '0');
+  const mm = String(partValue('month')).padStart(2, '0');
+  const yy = String(partValue('year')).slice(2);
+  const dow = weekdayMap[weekdayLabel] || String(date.getDay());
+
   return `${dd.charAt(0)}${mm.charAt(0)}${yy.charAt(0)}${dow}${dd.charAt(1)}${mm.charAt(1)}${yy.charAt(1)}`;
 };
 
 const buildLocalNameHeader = (tokenDate = new Date().toString()) => {
   const head = String(tokenDate).substring(0, 4);
   const tail = String(tokenDate).substring(4, 9);
-  return encryptPortalPayload(`${head}${dateCode()}${tail}`);
+  return encryptPortalPayload(`${head}${dateCode(new Date(), PORTAL_TIME_ZONE)}${tail}`, new Date(), PORTAL_TIME_ZONE);
 };
 
 const looksLikeJsonParseError = (payload) => {

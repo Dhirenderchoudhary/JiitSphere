@@ -3,6 +3,7 @@ const crypto = require('crypto');
 
 const PORTAL_AES_IV = 'dcek9wb8frty1pnm';
 const LOCAL_NAME_CHARSET = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const PORTAL_TIME_ZONE = 'Asia/Kolkata';
 
 const toTwoDigits = (value) => String(value).padStart(2, '0');
 
@@ -75,17 +76,14 @@ const randomChars = (length) => {
   return out;
 };
 
-const generateDateSeq = (date = new Date()) => {
-  const dd = toTwoDigits(date.getDate());
-  const mm = toTwoDigits(date.getMonth() + 1);
-  const yy = String(date.getFullYear()).slice(2);
-  const ww = String(date.getDay());
-  return `${dd.charAt(0)}${mm.charAt(0)}${yy.charAt(0)}${ww}${dd.charAt(1)}${mm.charAt(1)}${yy.charAt(1)}`;
+const generateDateSeq = (date = new Date(), timeZone = PORTAL_TIME_ZONE) => {
+  const { dayOfMonth, dayOfWeek, month, yearShort } = datePartsForTimeZone(date, timeZone);
+  return `${dayOfMonth.charAt(0)}${month.charAt(0)}${yearShort.charAt(0)}${dayOfWeek}${dayOfMonth.charAt(1)}${month.charAt(1)}${yearShort.charAt(1)}`;
 };
 
-const generatePortalLocalName = (date = new Date()) => {
-  const plain = `${randomChars(4)}${generateDateSeq(date)}${randomChars(5)}`;
-  return encryptPortalPayload(plain, date);
+const generatePortalLocalName = (date = new Date(), timeZone = PORTAL_TIME_ZONE) => {
+  const plain = `${randomChars(4)}${generateDateSeq(date, timeZone)}${randomChars(5)}`;
+  return encryptPortalPayload(plain, date, timeZone);
 };
 
 module.exports = {
