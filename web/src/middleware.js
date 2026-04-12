@@ -12,7 +12,11 @@ export function middleware(request) {
     const host = request.headers.get('host');
     if (origin) {
       let originHost;
-      try { originHost = new URL(origin).host; } catch { originHost = ''; }
+      try {
+        originHost = new URL(origin).host;
+      } catch {
+        originHost = '';
+      }
       if (originHost !== host) {
         return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
       }
@@ -27,7 +31,13 @@ export function middleware(request) {
     pathname.startsWith('/api') ||
     pathname === '/favicon.ico' ||
     pathname === '/robots.txt' ||
-    pathname === '/sitemap.xml'
+    pathname === '/sitemap.xml' ||
+    pathname === '/manifest.webmanifest' ||
+    pathname === '/sw.js' ||
+    pathname === '/icon-192.png' ||
+    pathname === '/icon-512.png' ||
+    pathname === '/apple-touch-icon.png' ||
+    /\.[a-zA-Z0-9]+$/.test(pathname)
   ) {
     return NextResponse.next();
   }
@@ -36,8 +46,6 @@ export function middleware(request) {
   if (pathname.startsWith('/admin')) {
     const isAdminAuth = request.cookies.get(ADMIN_AUTH_COOKIE)?.value === '1';
     if (!isAdminAuth) {
-      // Let the page render — it will show the login form client-side
-      // But set a header so the page knows auth is missing
       return NextResponse.next();
     }
     return NextResponse.next();
