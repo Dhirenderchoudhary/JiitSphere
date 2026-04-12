@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 /* eslint-disable no-console */
 const mongoose = require('mongoose');
 const connectDb = require('../config/db');

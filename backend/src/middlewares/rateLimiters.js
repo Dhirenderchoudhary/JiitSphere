@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 const rateLimit = require('express-rate-limit');
 const env = require('../config/env');
 

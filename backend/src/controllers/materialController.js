@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 const Material = require('../models/Material');
 const mongoose = require('mongoose');
 const asyncHandler = require('../middlewares/asyncHandler');

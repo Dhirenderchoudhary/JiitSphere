@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 const env = require('../config/env');
 
 const errorHandler = (err, _req, res, _next) => {

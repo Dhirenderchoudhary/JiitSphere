@@ -4,8 +4,22 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Card, CardContent } from 'components/ui/card';
 import { fetchPortalProfile, SessionExpiredError } from 'lib/api';
+import { cn } from 'lib/utils';
 import { LAST_PORTAL_USER_ID, SHOW_TECHNICAL_DETAILS } from '../constants';
 import { toPrettyValue, toLabel, flattenScalarPairs } from '../utils';
+import dynamic from 'next/dynamic';
+
+const LanyardBadge = dynamic(() => import('components/LanyardBadge'), { 
+  ssr: false,
+  loading: () => (
+    <div className="w-full flex items-center justify-center" style={{ height: '600px' }}>
+      <div className="flex flex-col items-center gap-3 animate-pulse">
+        <div className="size-3 bg-foreground/10 rotate-45" />
+        <p className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground/30">Loading Identity</p>
+      </div>
+    </div>
+  )
+});
 
 export default function ProfileView({ token, onExpired }) {
   const [profile, setProfile] = useState(null);
@@ -50,7 +64,16 @@ export default function ProfileView({ token, onExpired }) {
     };
   }, [token, onExpired]);
 
-  if (!profile) return <p className="pb-24 text-sm text-muted-foreground">Loading profile...</p>;
+  if (!profile) return (
+    <div className="pb-28 sm:pb-24">
+      <div className="flex items-center justify-center animate-pulse" style={{ height: '600px' }}>
+        <div className="flex flex-col items-center gap-3">
+          <div className="size-3 bg-foreground/10 rotate-45" />
+          <p className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground/30">Syncing Identity</p>
+        </div>
+      </div>
+    </div>
+  );
 
   if (profile?.realData === false) {
     return <p className="pb-24 text-sm text-muted-foreground">{profile.message || message || 'No direct profile data available.'}</p>;
@@ -278,86 +301,99 @@ export default function ProfileView({ token, onExpired }) {
   ];
 
   return (
-    <Card className="border-slate-200/80 dark:border-slate-700/80 bg-white/95 dark:bg-slate-900/70 pb-28 sm:pb-24">
-      <CardContent className="space-y-3 p-4">
-        <div className="mb-1 flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 p-3">
-          {profilePhotoSrc ? (
-            <Image
-              src={profilePhotoSrc}
-              alt="Student"
-              width={64}
-              height={64}
-              unoptimized
-              className="h-16 w-16 rounded-full border border-slate-200 dark:border-slate-700 object-cover"
-            />
-          ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-lg font-bold text-slate-600 dark:text-slate-300">
-              {String(profileName || 'S').slice(0, 1).toUpperCase()}
-            </div>
-          )}
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Student Profile</p>
-            <p className="text-base font-bold text-slate-900 dark:text-slate-100">{profileName || 'Student'}</p>
-            <p className="text-xs text-muted-foreground">{(profile.enrollmentno && String(profile.enrollmentno).length > 4 ? profile.enrollmentno : '') || fallbackEnrollment || 'Enrollment unavailable'}</p>
+    <div className="space-y-0">
+      {/* Interactive 3D Identity Lanyard — rendered outside Card to avoid overflow:hidden clipping */}
+      <LanyardBadge 
+        profilePhotoSrc={profilePhotoSrc}
+        profileName={profileName}
+        enrollment={(profile.enrollmentno && String(profile.enrollmentno).length > 4 ? profile.enrollmentno : '') || fallbackEnrollment}
+      />
+
+    <Card className={`rounded-none border-border/60 bg-card/60 pb-28 sm:pb-24 shadow-2xl spotlight-card`}>
+      <CardContent className="space-y-6 p-6 sm:p-8">
+        {/* Profile Identity */}
+        <div className={`flex flex-col sm:flex-row items-center gap-6 p-6 border border-border/50 bg-muted/10`}>
+          <div className="relative group shrink-0">
+             {profilePhotoSrc ? (
+                <Image
+                  src={profilePhotoSrc}
+                  alt="Student Identity"
+                  width={96}
+                  height={96}
+                  unoptimized
+                  className="size-24 rounded-none border-2 border-primary/20 object-cover shadow-[4px_4px_0px_rgba(0,0,0,0.1)] group-hover:scale-105 transition-transform duration-500"
+                />
+              ) : (
+                <div className="size-24 flex items-center justify-center rounded-none border-2 border-primary/20 bg-background text-2xl font-black text-primary shadow-[4px_4px_0px_rgba(0,0,0,0.1)]">
+                  {String(profileName || 'S').slice(0, 1).toUpperCase()}
+                </div>
+              )}
+              <div className="absolute -bottom-1 -right-1 size-4 bg-primary animate-pulse" />
+          </div>
+          
+          <div className="text-center sm:text-left space-y-1 flex-1 min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">OFFICIAL IDENTITY</p>
+            <h3 className="text-2xl font-black tracking-tightest text-foreground font-[var(--font-instrument-sans)] truncate uppercase">
+              {profileName || 'Student'}
+            </h3>
+            <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest break-all">
+              ID // {(profile.enrollmentno && String(profile.enrollmentno).length > 4 ? profile.enrollmentno : '') || fallbackEnrollment}
+            </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 p-1 text-xs">
-          <button
-            type="button"
-            className={`rounded-lg px-2 py-1.5 font-semibold ${profileTab === 'personal' ? 'bg-cyan-700 text-white' : 'text-slate-500 dark:text-slate-400'}`}
-            onClick={() => setProfileTab('personal')}
-          >
-            Personal
-          </button>
-          <button
-            type="button"
-            className={`rounded-lg px-2 py-1.5 font-semibold ${profileTab === 'academic' ? 'bg-cyan-700 text-white' : 'text-slate-500 dark:text-slate-400'}`}
-            onClick={() => setProfileTab('academic')}
-          >
-            Academic
-          </button>
-          <button
-            type="button"
-            className={`rounded-lg px-2 py-1.5 font-semibold ${profileTab === 'contact' ? 'bg-cyan-700 text-white' : 'text-slate-500 dark:text-slate-400'}`}
-            onClick={() => setProfileTab('contact')}
-          >
-            Contact
-          </button>
+        {/* Navigation */}
+        <div className="flex border border-border bg-muted/20 p-1">
+          {['personal', 'academic', 'contact'].map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              className={cn(
+                "flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all",
+                profileTab === tab ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => setProfileTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-2">
+        {/* Data Grid */}
+        <div className="grid gap-3 sm:grid-cols-2">
           {visibleRows.map(([k, v]) => (
-            <div key={k} className="rounded-lg border border-border/70 bg-background/45 p-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{k}</p>
-              <p className={`mt-1 text-sm ${v ? 'font-semibold' : 'font-medium text-muted-foreground'}`}>{v || 'Not Available'}</p>
+            <div key={k} className="border border-border/40 p-4 space-y-1 hover:border-primary/30 transition-colors group">
+              <span className="block text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.2em]">{k}</span>
+              <p className={cn(
+                "text-sm font-bold tracking-tight uppercase font-[var(--font-archivo)]",
+                v ? "text-foreground" : "text-muted-foreground italic"
+              )}>
+                {v || 'Not Provided'}
+              </p>
             </div>
           ))}
         </div>
-        {SHOW_TECHNICAL_DETAILS ? (
-          <>
-            {rows.map(([k, v]) => (
-              <div key={`tech-${k}`} className="flex flex-col gap-1 border-b border-border/60 pb-2 text-sm sm:flex-row sm:items-center sm:justify-between">
-                <span className="text-muted-foreground">{k}</span>
-                <span className="font-semibold break-all sm:break-normal">{v || 'Not Available'}</span>
-              </div>
-            ))}
-          </>
-        ) : null}
-        {extraRows.length ? (
-          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/55 p-3">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Additional Details</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {extraRows.map(([k, v]) => (
-                <div key={`extra-${k}`} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs">
-                  <p className="text-muted-foreground">{k}</p>
-                  <p className="font-semibold text-slate-700 dark:text-slate-200 break-all">{v}</p>
-                </div>
-              ))}
-            </div>
+
+        {/* Metadata section (Technical) */}
+        {SHOW_TECHNICAL_DETAILS && extraRows.length ? (
+          <div className="mt-8 space-y-4">
+             <div className="flex items-center gap-3">
+                <div className="h-px bg-border/20 flex-1" />
+                <span className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.3em]">Extended Parameters</span>
+                <div className="h-px bg-border/20 flex-1" />
+             </div>
+             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+               {extraRows.map(([k, v]) => (
+                 <div key={`extra-${k}`} className="border-l border-primary/20 bg-muted/5 px-3 py-2 text-[10px]">
+                   <span className="block font-black text-muted-foreground/40 uppercase tracking-widest mb-0.5">{k}</span>
+                   <p className="font-bold text-foreground/80 break-all">{v}</p>
+                 </div>
+               ))}
+             </div>
           </div>
         ) : null}
       </CardContent>
     </Card>
+    </div>
   );
 }

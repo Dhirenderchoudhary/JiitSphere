@@ -1,12 +1,12 @@
 import InstallAppButton from 'components/InstallAppButton';
-import ThemeToggleButton from 'components/ThemeToggleButton';
+import AccentPicker from 'components/AccentPicker';
 import { cn } from 'lib/utils';
 
 export default function TopPanelTools({ className = '' }) {
   return (
-    <div className={cn('flex items-center gap-2', className)}>
+    <div className={cn('flex items-center gap-4', className)}>
+      <AccentPicker />
       <InstallAppButton />
-      <ThemeToggleButton />
     </div>
   );
 }
