@@ -18,6 +18,15 @@ const nextConfig = {
       config.cache = { type: 'memory' };
     }
     return config;
+  },
+  async redirects() {
+    return [
+      {
+        source: '/superamin',
+        destination: '/superadmin',
+        permanent: true
+      }
+    ];
   }
 };
 

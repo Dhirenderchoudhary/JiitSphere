@@ -3,11 +3,13 @@ import { trackStudySignIn } from './studyAnalyticsStore';
 
 const JIIT_DOMAIN = '@mail.jiit.ac.in';
 const ADMIN_EMAIL = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+const googleProviderFactory =
+  typeof GoogleProvider === 'function' ? GoogleProvider : GoogleProvider?.default;
 
 /** @type {import('next-auth').AuthOptions} */
 export const authOptions = {
   providers: [
-    GoogleProvider({
+    googleProviderFactory({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET
     })
