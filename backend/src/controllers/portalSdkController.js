@@ -157,7 +157,7 @@ const postPortal = async (relaySession, authContext, path, payload, options = {}
     return postPlainJson();
   }
 
-  const encryptedBody = encryptPortalPayload(JSON.stringify(payload || {}));
+  const encryptedBody = encryptPortalPayload(JSON.stringify(payload || {}), new Date(), PORTAL_TIME_ZONE);
 
   const encryptedAttempts = [
     {
