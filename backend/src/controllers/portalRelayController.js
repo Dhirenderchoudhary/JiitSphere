@@ -380,7 +380,7 @@ const tryRelayLogin = async (req, res, next) => {
         attempts: sanitizedAttempts,
         authenticated,
         recommendation: authenticated ? 'proceed' : 'captcha-required',
-        failureMessage: failureMessage || 'Official portal credentials verification failed'
+        failureMessage: authenticated ? '' : failureMessage || 'Official portal credentials verification failed'
       }
     });
   } catch (error) {
