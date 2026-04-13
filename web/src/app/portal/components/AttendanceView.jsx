@@ -1,8 +1,14 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Button } from 'components/ui/button';
-import { fetchPortalAttendance, fetchPortalAttendanceMeta, fetchPortalSubjectAttendance, SessionExpiredError } from 'lib/api';
+import {
+  fetchPortalAttendance,
+  fetchPortalAttendanceCounts,
+  fetchPortalAttendanceMeta,
+  fetchPortalSubjectAttendance,
+  SessionExpiredError
+} from 'lib/api';
 import { motion } from 'framer-motion';
 import { cn } from 'lib/utils';
 import { glassPanel, SHOW_TECHNICAL_DETAILS } from '../constants';
@@ -30,7 +36,9 @@ export default function AttendanceView({ token, onExpired }) {
   const [dayFilters, setDayFilters] = useState({});
   const [monthFilters, setMonthFilters] = useState({});
   const [showAllRows, setShowAllRows] = useState({});
+  const [subjectCounts, setSubjectCounts] = useState({});
   const [message, setMessage] = useState('');
+  const initialSemesterFallbackDone = useRef(false);
 
   useEffect(() => {
     try {
@@ -61,6 +69,7 @@ export default function AttendanceView({ token, onExpired }) {
       setMeta(payload);
       setMessage(payload?.latest_header?.message || '');
       const latest = payload?.latest_semester?.registration_id || '';
+      initialSemesterFallbackDone.current = false;
       setSelectedSem(latest);
     }).catch((err) => {
       if (err instanceof SessionExpiredError) { onExpired?.(); return; }
@@ -72,87 +81,169 @@ export default function AttendanceView({ token, onExpired }) {
 
   useEffect(() => {
     if (!selectedSem) return;
-    fetchPortalAttendance(token, selectedSem).then((response) => {
-      setAttendance(response?.data?.studentattendancelist || []);
+    let cancelled = false;
+
+    const resetAttendanceUiState = () => {
       setSubjectDetails({});
       setDayFilters({});
       setMonthFilters({});
       setShowAllRows({});
-      if (!response?.data?.studentattendancelist?.length && response?.data?.message) {
-        setMessage(response.data.message);
+      setSubjectCounts({});
+    };
+
+    const loadAttendance = async () => {
+      try {
+        const response = await fetchPortalAttendance(token, selectedSem);
+        if (cancelled) return;
+
+        const rows = response?.data?.studentattendancelist || [];
+        setAttendance(rows);
+        resetAttendanceUiState();
+
+        const initialCounts = {};
+        for (const row of rows) {
+          const subjectCode = String(row?.subjectcode || row?.individualsubjectcode || '').trim();
+          if (!subjectCode) continue;
+          const trustedRatio = resolveAttendanceCounts(row, '', { allowDerived: false });
+          if (trustedRatio?.total) {
+            initialCounts[subjectCode] = {
+              attended: Number(trustedRatio.attended || 0),
+              total: Number(trustedRatio.total || 0),
+              loading: false,
+              source: trustedRatio.source || 'direct'
+            };
+          } else {
+            initialCounts[subjectCode] = {
+              attended: 0,
+              total: 0,
+              loading: true,
+              source: 'pending'
+            };
+          }
+        }
+        setSubjectCounts(initialCounts);
+
+        if (rows.length) {
+          initialSemesterFallbackDone.current = true;
+          setMessage('');
+          return;
+        }
+
+        const canAutoFallback = !initialSemesterFallbackDone.current;
+        initialSemesterFallbackDone.current = true;
+
+        if (canAutoFallback) {
+          const semRows = Array.isArray(meta?.semesters) ? meta.semesters : [];
+          const alternatives = semRows.filter((sem) => {
+            const semId = String(sem?.registration_id || '').trim();
+            return semId && semId !== String(selectedSem);
+          });
+
+          if (alternatives.length) {
+            const altResponses = await Promise.all(
+              alternatives.map(async (sem) => {
+                try {
+                  const alt = await fetchPortalAttendance(token, sem.registration_id);
+                  return {
+                    sem,
+                    rows: alt?.data?.studentattendancelist || []
+                  };
+                } catch (err) {
+                  if (err instanceof SessionExpiredError) throw err;
+                  return { sem, rows: [] };
+                }
+              })
+            );
+
+            if (cancelled) return;
+
+            const firstWithRows = altResponses.find((item) => item.rows.length > 0);
+            if (firstWithRows?.sem?.registration_id) {
+              const semLabel = firstWithRows.sem?.registration_code || firstWithRows.sem.registration_id;
+              setMessage(`No attendance rows for selected semester yet. Showing ${semLabel}.`);
+              setSelectedSem(firstWithRows.sem.registration_id);
+              return;
+            }
+          }
+        }
+
+        setMessage(response?.data?.message || 'No attendance rows were returned by current portal session.');
+      } catch (err) {
+        if (err instanceof SessionExpiredError) { onExpired?.(); return; }
+        if (cancelled) return;
+        setAttendance([]);
+        resetAttendanceUiState();
+        setMessage(err?.message || 'Unable to load attendance data');
       }
-    }).catch((err) => {
-      if (err instanceof SessionExpiredError) { onExpired?.(); return; }
-      setAttendance([]);
-      setMessage(err?.message || 'Unable to load attendance data');
-    });
-  }, [token, selectedSem, onExpired]);
+    };
+
+    loadAttendance();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, selectedSem, onExpired, meta]);
 
   useEffect(() => {
     if (!selectedSem || !attendance.length) return;
 
     let cancelled = false;
-    const subjectCodes = Array.from(
-      new Set(
-        attendance
-          .map((row) => String(row?.subjectcode || '').trim())
-          .filter(Boolean)
-      )
-    );
+    const subjectCodes = Array.from(new Set(
+      attendance
+        .map((row) => String(row?.subjectcode || row?.individualsubjectcode || '').trim())
+        .filter(Boolean)
+    ));
 
-    // Preload daily rows so overview can show exact attended/total counts.
-    const preloadExactCounts = async () => {
-      setSubjectDetails((prev) => {
-        const next = { ...prev };
-        for (const code of subjectCodes) {
-          if (next[code]?.loaded || next[code]?.loading) continue;
-          next[code] = {
-            loaded: false,
-            loading: true,
-            rows: [],
-            message: ''
-          };
-        }
-        return next;
-      });
+    const loadAttendanceCounts = async () => {
+      try {
+        const response = await fetchPortalAttendanceCounts(token, selectedSem, false);
+        if (cancelled) return;
 
-      for (const subjectCode of subjectCodes) {
-        if (cancelled) break;
-
-        try {
-          const response = await fetchPortalSubjectAttendance(token, selectedSem, subjectCode, false);
-          if (cancelled) break;
-
-          setSubjectDetails((prev) => ({
-            ...prev,
-            [subjectCode]: {
-              loaded: true,
-              loading: false,
-              rows: response?.data?.studentAttdsummarylist || [],
-              message: response?.data?.message || ''
+        const counts = response?.data?.counts || {};
+        setSubjectCounts((prev) => {
+          const next = { ...prev };
+          for (const code of subjectCodes) {
+            const countRow = counts?.[code];
+            if (countRow) {
+              next[code] = {
+                attended: Number(countRow?.attended || 0),
+                total: Number(countRow?.total || 0),
+                loading: false,
+                source: countRow?.source || 'daily',
+                message: String(countRow?.message || '')
+              };
+            } else if (next[code]) {
+              next[code] = {
+                ...next[code],
+                loading: false
+              };
             }
-          }));
-        } catch (err) {
-          if (err instanceof SessionExpiredError) {
-            onExpired?.();
-            return;
           }
-
-          if (cancelled) break;
-          setSubjectDetails((prev) => ({
-            ...prev,
-            [subjectCode]: {
-              loaded: true,
-              loading: false,
-              rows: [],
-              message: err?.message || 'Unable to load subject attendance'
-            }
-          }));
+          return next;
+        });
+      } catch (err) {
+        if (err instanceof SessionExpiredError) {
+          onExpired?.();
+          return;
         }
+        if (cancelled) return;
+
+        setSubjectCounts((prev) => {
+          const next = { ...prev };
+          for (const code of subjectCodes) {
+            if (!next[code]) continue;
+            next[code] = {
+              ...next[code],
+              loading: false,
+              message: err?.message || 'Unable to load attendance counts'
+            };
+          }
+          return next;
+        });
       }
     };
 
-    preloadExactCounts();
+    loadAttendanceCounts();
 
     return () => {
       cancelled = true;
@@ -264,19 +355,36 @@ export default function AttendanceView({ token, onExpired }) {
           <div key={row.subjectcode} className="rounded-2xl border border-border/40 bg-card p-6 hover:border-primary/20 transition-all duration-300">
               {(() => {
                 const pct = Number(row.LTpercantage || 0);
-                const target = Number(targetAttendancePct || 75);
-                const detailRows = subjectDetails[row.subjectcode]?.rows || [];
-                const exactTotal = detailRows.length;
-                const exactAttended = detailRows.filter((entry) => String(entry?.present || '').toLowerCase() === 'present').length;
-                const ratio = exactTotal
-                  ? { attended: exactAttended, total: exactTotal, source: 'daily' }
-                  : resolveAttendanceCounts(row, targetAttendancePct, { allowDerived: false });
-                const exactCountLoading = Boolean(subjectDetails[row.subjectcode]?.loading && !(ratio?.total));
-                const ratioMessage = String(subjectDetails[row.subjectcode]?.message || '').trim();
+                const effectiveTargetPct = String(targetAttendancePct || '75');
+                const target = Number(effectiveTargetPct || 75);
+                const subjectCode = String(row?.subjectcode || row?.individualsubjectcode || '').trim();
+                const countState = subjectCounts[subjectCode];
+                const trustedRatio = resolveAttendanceCounts(row, effectiveTargetPct, { allowDerived: false });
+                const fallbackRatio = trustedRatio || resolveAttendanceCounts(row, effectiveTargetPct, { allowDerived: true });
+
+                const countTotal = Number(countState?.total || 0);
+                const hasReliableCount = countTotal > 0;
+
+                const ratio = hasReliableCount
+                  ? {
+                      attended: Number(countState?.attended || 0),
+                      total: countTotal,
+                      source: countState?.source || 'daily'
+                    }
+                  : fallbackRatio;
+
+                const exactCountLoading = Boolean(countState?.loading && !(ratio?.total));
+                const ratioMessage = String(countState?.message || '').trim();
                 const ratioFetchFailed = /unable|failed|error|timeout|network/i.test(ratioMessage);
-                const noClassesYet = Boolean(subjectDetails[row.subjectcode]?.loaded && !(ratio?.total) && !ratioFetchFailed);
+                const noClassesYet = Boolean(
+                  countState && !countState?.loading && !(ratio?.total) && !ratioFetchFailed && pct <= 0
+                );
                 
-                const guidance = buildAttendanceGuidance(row, targetAttendancePct);
+                const guidance = buildAttendanceGuidance(
+                  row,
+                  effectiveTargetPct,
+                  ratio ? { attended: ratio.attended, total: ratio.total } : undefined
+                );
                 
                 // Color logic based on target
                 const statusColorCls = pct >= target 
@@ -296,19 +404,17 @@ export default function AttendanceView({ token, onExpired }) {
                       </div>
                       <div className="flex shrink-0 items-center gap-4">
                         {ratio?.total ? (
-                          <div className="flex flex-col items-end gap-0.5 font-black leading-none">
-                            <span className="text-xl text-foreground">{ratio.attended}</span>
-                            <div className="h-0.5 w-6 bg-primary" />
-                            <span className="text-base text-muted-foreground">{ratio.total}</span>
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Attended / Total</span>
+                            <span className="text-lg font-black leading-none text-foreground">{ratio.attended}/{ratio.total}</span>
                           </div>
                         ) : noClassesYet ? (
-                          <div className="flex flex-col items-end gap-0.5 font-black leading-none">
-                            <span className="text-xl text-foreground">0</span>
-                            <div className="h-0.5 w-6 bg-primary" />
-                            <span className="text-base text-muted-foreground">0</span>
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Attended / Total</span>
+                            <span className="text-lg font-black leading-none text-foreground">0/0</span>
                           </div>
                         ) : exactCountLoading ? (
-                          <div className="text-[10px] font-medium text-muted-foreground/70">Loading count...</div>
+                          <div className="text-[10px] font-medium text-muted-foreground/70">Attended / Total: Loading...</div>
                         ) : null}
                         <div className="flex flex-col items-center justify-center rounded-xl border-2 border-primary/20 p-2 min-w-[70px] bg-primary/5">
                            <span className="text-2xl font-black leading-none text-primary">{toPercent(row.LTpercantage)}</span>

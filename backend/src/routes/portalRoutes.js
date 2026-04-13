@@ -15,6 +15,7 @@ const {
 	getSdkSession,
 	getAttendanceMeta,
 	getAttendance,
+	getAttendanceCounts,
 	getSubjectAttendance,
 	getProfile,
 	getGrades,
@@ -36,6 +37,7 @@ router.post('/sdk/login', authUser, relayLimiter, loginSdk);
 router.get('/sdk/session', authUser, relayLimiter, getSdkSession);
 router.get('/sdk/attendance/meta', authUser, relayLimiter, getAttendanceMeta);
 router.get('/sdk/attendance', authUser, relayLimiter, getAttendance);
+router.get('/sdk/attendance/counts', authUser, relayLimiter, getAttendanceCounts);
 router.get('/sdk/attendance/subject', authUser, relayLimiter, getSubjectAttendance);
 router.get('/sdk/profile', authUser, relayLimiter, getProfile);
 router.get('/sdk/grades', authUser, relayLimiter, getGrades);

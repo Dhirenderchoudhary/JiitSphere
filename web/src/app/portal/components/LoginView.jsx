@@ -49,10 +49,19 @@ export default function LoginView({ onAuth }) {
       sessionId: activeRelaySessionId
     });
 
-    const image = captchaResponse?.data?.response?.response?.captcha?.image || '';
+    const image =
+      captchaResponse?.data?.response?.response?.captcha?.image ||
+      captchaResponse?.data?.response?.captcha?.image ||
+      captchaResponse?.data?.captcha?.image ||
+      '';
     if (image) {
-      setCaptchaImage(`data:image/png;base64,${image}`);
+      const normalizedImage = String(image).startsWith('data:image')
+        ? String(image)
+        : `data:image/png;base64,${image}`;
+      setCaptchaImage(normalizedImage);
       setProbeMessage('Try again.');
+    } else {
+      setProbeMessage('Portal requested captcha. Please retry once in a few seconds.');
     }
   };
 
@@ -68,11 +77,14 @@ export default function LoginView({ onAuth }) {
     setAttemptDiagnostics([]);
 
     try {
+      const normalizedUserId = String(userId || '').trim();
+      const effectiveUserType = /^p/i.test(normalizedUserId) ? 'P' : 'S';
+
       let activeToken = token;
       let activeRelaySessionId = relaySessionId;
 
       if (!activeToken) {
-        const auth = await loginUser({ userId, password, portalMode: true });
+        const auth = await loginUser({ userId: normalizedUserId, password, portalMode: true });
         activeToken = auth?.data?.token;
         if (!activeToken) throw new Error('Authentication token missing');
 
@@ -94,10 +106,10 @@ export default function LoginView({ onAuth }) {
 
         const probe = await tryPortalRelayLogin(activeToken, {
           sessionId: activeRelaySessionId,
-          userId,
+          userId: normalizedUserId,
           password,
           captcha: sanitizedCaptcha || undefined,
-          usertype: 'S'
+          usertype: effectiveUserType
         });
         const attempts = probe?.data?.attempts || [];
         setAttemptDiagnostics(
@@ -129,9 +141,9 @@ export default function LoginView({ onAuth }) {
         }
       }
 
-      await portalSdkLogin(activeToken, { userId, password, relaySessionId: activeRelaySessionId });
+      await portalSdkLogin(activeToken, { userId: normalizedUserId, relaySessionId: activeRelaySessionId });
       window.localStorage.setItem(TOKEN_KEY, activeToken);
-      window.localStorage.setItem(LAST_PORTAL_USER_ID, userId);
+      window.localStorage.setItem(LAST_PORTAL_USER_ID, normalizedUserId);
       window.localStorage.setItem(PORTAL_VERIFIED_KEY, 'true');
       onAuth(activeToken);
     } catch (err) {

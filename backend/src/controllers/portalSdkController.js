@@ -505,13 +505,22 @@ const normalizeAttendanceRows = (rows = []) => {
     });
 
     return {
-      subjectcode: row?.subjectcode || row?.individualsubjectcode || row?.subjectdesc || 'SUBJECT',
-      subjectdesc: row?.subjectdesc || row?.subjectname || row?.subjectcode || 'Subject',
-      subjectid: row?.subjectid || null,
-      individualsubjectcode: row?.individualsubjectcode || row?.subjectcode || null,
-      Lsubjectcomponentid: row?.Lsubjectcomponentid || row?.lsubjectcomponentid || null,
-      Tsubjectcomponentid: row?.Tsubjectcomponentid || row?.tsubjectcomponentid || null,
-      Psubjectcomponentid: row?.Psubjectcomponentid || row?.psubjectcomponentid || null,
+      subjectcode:
+        pickFirst(row, ['subjectcode', 'subject_code', 'individualsubjectcode', 'individual_subject_code', 'subcode']) ||
+        row?.subjectdesc ||
+        'SUBJECT',
+      subjectdesc:
+        pickFirst(row, ['subjectdesc', 'subjectdescription', 'subjectname', 'coursename', 'subjecttitle', 'name', 'subjectcode']) ||
+        'Subject',
+      subjectid: pickFirst(row, ['subjectid', 'subject_id', 'subjectId', 'subid', 'subjectmasterid']) || null,
+      individualsubjectcode:
+        pickFirst(row, ['individualsubjectcode', 'individual_subject_code', 'subjectcode', 'subject_code', 'subcode']) || null,
+      Lsubjectcomponentid:
+        pickFirst(row, ['Lsubjectcomponentid', 'lsubjectcomponentid', 'lsubjectcomponent_id', 'lecturecomponentid', 'lcomponentid']) || null,
+      Tsubjectcomponentid:
+        pickFirst(row, ['Tsubjectcomponentid', 'tsubjectcomponentid', 'tsubjectcomponent_id', 'tutorialcomponentid', 'tcomponentid']) || null,
+      Psubjectcomponentid:
+        pickFirst(row, ['Psubjectcomponentid', 'psubjectcomponentid', 'psubjectcomponent_id', 'practicalcomponentid', 'labcomponentid', 'pcomponentid']) || null,
       Lpercentage: numberOr(row?.Lpercentage ?? row?.lpercentage ?? row?.lecturepercentage, 0),
       Tpercentage: numberOr(row?.Tpercentage ?? row?.tpercentage ?? row?.tutorialpercentage, 0),
       Ppercentage: numberOr(row?.Ppercentage ?? row?.ppercentage ?? row?.practicalpercentage, 0),
@@ -1543,7 +1552,8 @@ const shouldUsePlainFeePayload = (endpoint) =>
     '/StudentPortalAPI/studentfeemgmt/getsemesterwisefeedetails'
   ].includes(endpoint);
 
-const bootstrapDatasetFromPortal = async (relaySession, authContext) => {
+const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {}) => {
+  const { includeExamHydration = true } = options;
   const diagnostics = {
     overall: 'not-started',
     reason: '',
@@ -1682,7 +1692,11 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext) => {
     // ── Process exam semesters ──
     const examSemesters = semEventRes?.ok && statusSuccess(semEventRes.data) ? normalizeSemesters(semEventRes.data?.response?.semesterCodeinfo?.semestercode || []) : [];
     const semestersToProcess = examSemesters.length ? examSemesters : (semEventRes?.data ? normalizeSemesters([firstRegistration(semEventRes.data)]) : []);
-    setStep('examSemesters', { status: semEventRes?.ok && statusSuccess(semEventRes.data) ? 'ok' : 'failed', endpoint: '/StudentPortalAPI/studentcommonsontroller/getsemestercode-withstudentexamevents', httpStatus: semEventRes?.status, responseStatus: semEventRes?.data?.status?.responseStatus || '' });
+    if (includeExamHydration) {
+      setStep('examSemesters', { status: semEventRes?.ok && statusSuccess(semEventRes.data) ? 'ok' : 'failed', endpoint: '/StudentPortalAPI/studentcommonsontroller/getsemestercode-withstudentexamevents', httpStatus: semEventRes?.status, responseStatus: semEventRes?.data?.status?.responseStatus || '' });
+    } else {
+      setStep('examSemesters', { status: 'skipped', endpoint: '/StudentPortalAPI/studentcommonsontroller/getsemestercode-withstudentexamevents', httpStatus: semEventRes?.status, responseStatus: semEventRes?.data?.status?.responseStatus || '', message: 'Deferred to on-demand exams loading' });
+    }
 
     // ── PHASE 2: Parallel per-semester work + exam events ──
     const latestHeader = Array.isArray(attendanceHeaderRows) && attendanceHeaderRows.length ? attendanceHeaderRows[0] : null;
@@ -1707,12 +1721,14 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext) => {
       ]).then(([attRes, subRes]) => ({ sem, attRes, subRes })));
     }).filter(Boolean) : [];
 
-    const examEventPromises = semestersToProcess.filter((s) => s?.registration_id).map((semReg) =>
-      safe(postPortal(relaySession, authContext,
-        '/StudentPortalAPI/studentcommonsontroller/getstudentexamevents',
-        { instituteid: authContext.instituteid, registationid: semReg.registration_id }
-      ).then((res) => ({ semReg, res })))
-    );
+    const examEventPromises = includeExamHydration
+      ? semestersToProcess.filter((s) => s?.registration_id).map((semReg) =>
+        safe(postPortal(relaySession, authContext,
+          '/StudentPortalAPI/studentcommonsontroller/getstudentexamevents',
+          { instituteid: authContext.instituteid, registationid: semReg.registration_id }
+        ).then((res) => ({ semReg, res })))
+      )
+      : [];
 
     const sgpaPromise = safe((async () => {
       const semesterCheckRes = await postPortal(relaySession, authContext,
@@ -1785,54 +1801,56 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext) => {
       }
     }
 
-    // ── PHASE 3: Exam schedules in parallel ──
-    const allExamRows = [];
-    const schedulePromises = [];
-    for (const result of examEventResults) {
-      if (!result?.res) continue;
-      const semReg = result.semReg;
-      const examEvents = normalizeExamEvents(result.res.data).map((row) => ({
-        ...row, registration_id: semReg.registration_id, registration_code: semReg.registration_code
-      }));
-      const events = result.res.data?.response?.eventcode?.examevent || [];
-      if (Array.isArray(events) && events.length) {
-        for (const eventRow of events) {
-          if (!eventRow?.exameventid) continue;
-          schedulePromises.push(
-            safe(postPortal(relaySession, authContext,
-              '/StudentPortalAPI/studentsttattview/getstudent-examschedule',
-              { instituteid: authContext.instituteid, exameventid: eventRow.exameventid, registrationid: semReg.registration_id }
-            ).then((scheduleRes) => ({ semReg, scheduleRes, examEvents })))
-          );
-        }
-      } else {
-        allExamRows.push(...examEvents);
-      }
-    }
-
-    const scheduleResults = await Promise.all(schedulePromises);
-    const scheduledSems = new Set();
-    for (const result of scheduleResults) {
-      if (!result) continue;
-      const semReg = result.semReg;
-      if (result.scheduleRes?.ok && statusSuccess(result.scheduleRes.data)) {
-        const rows = normalizeExamRows(result.scheduleRes.data).map((row) => ({
+    if (includeExamHydration) {
+      // ── PHASE 3: Exam schedules in parallel ──
+      const allExamRows = [];
+      const schedulePromises = [];
+      for (const result of examEventResults) {
+        if (!result?.res) continue;
+        const semReg = result.semReg;
+        const examEvents = normalizeExamEvents(result.res.data).map((row) => ({
           ...row, registration_id: semReg.registration_id, registration_code: semReg.registration_code
         }));
-        if (rows.length) {
-          allExamRows.push(...rows);
+        const events = result.res.data?.response?.eventcode?.examevent || [];
+        if (Array.isArray(events) && events.length) {
+          for (const eventRow of events) {
+            if (!eventRow?.exameventid) continue;
+            schedulePromises.push(
+              safe(postPortal(relaySession, authContext,
+                '/StudentPortalAPI/studentsttattview/getstudent-examschedule',
+                { instituteid: authContext.instituteid, exameventid: eventRow.exameventid, registrationid: semReg.registration_id }
+              ).then((scheduleRes) => ({ semReg, scheduleRes, examEvents })))
+            );
+          }
+        } else {
+          allExamRows.push(...examEvents);
+        }
+      }
+
+      const scheduleResults = await Promise.all(schedulePromises);
+      const scheduledSems = new Set();
+      for (const result of scheduleResults) {
+        if (!result) continue;
+        const semReg = result.semReg;
+        if (result.scheduleRes?.ok && statusSuccess(result.scheduleRes.data)) {
+          const rows = normalizeExamRows(result.scheduleRes.data).map((row) => ({
+            ...row, registration_id: semReg.registration_id, registration_code: semReg.registration_code
+          }));
+          if (rows.length) {
+            allExamRows.push(...rows);
+            scheduledSems.add(String(semReg.registration_id));
+          }
+        }
+        // If no schedule rows came back for this semester, use event-level rows
+        if (!scheduledSems.has(String(semReg.registration_id)) && result.examEvents?.length) {
+          allExamRows.push(...result.examEvents);
           scheduledSems.add(String(semReg.registration_id));
         }
       }
-      // If no schedule rows came back for this semester, use event-level rows
-      if (!scheduledSems.has(String(semReg.registration_id)) && result.examEvents?.length) {
-        allExamRows.push(...result.examEvents);
-        scheduledSems.add(String(semReg.registration_id));
-      }
-    }
 
-    dataset.exams = allExamRows;
-    dataset.realData = dataset.realData || allExamRows.length > 0;
+      dataset.exams = allExamRows;
+      dataset.realData = dataset.realData || allExamRows.length > 0;
+    }
 
     // ── Finalize grade summaries ──
     const gradeCardSummaries = normalizeGradeCardSummaries(dataset.semesters, dataset.gradeCards);
@@ -1937,7 +1955,7 @@ const loginSdk = async (req, res) => {
   const authContext = buildAuthContextFromRelaySession(relaySession);
 
   const hydratedDataset = {
-    ...(await bootstrapDatasetFromPortal(relaySession, authContext)),
+    ...(await bootstrapDatasetFromPortal(relaySession, authContext, { includeExamHydration: false })),
     lastRealtimeSyncAt: Date.now()
   };
 
@@ -1947,6 +1965,11 @@ const loginSdk = async (req, res) => {
     relaySessionId,
     dataset: hydratedDataset
   });
+
+  const latestSemesterId = session?.dataset?.semesters?.[0]?.registration_id;
+  if (latestSemesterId) {
+    warmSubjectDailyCountsForSemester(session, req, latestSemesterId).catch(() => null);
+  }
 
   return res.status(200).json({
     success: true,
@@ -1996,6 +2019,328 @@ const getAttendanceMeta = async (req, res) => {
   });
 };
 
+const hydrateAttendanceForSemester = async (session, req, sem) => {
+  const semesterRow = (session.dataset.semesters || []).find(
+    (row) => String(row?.registration_id) === String(sem)
+  );
+  const stynumber = semesterRow?.stynumber || session.dataset?.profile?.stynumber;
+  if (!semesterRow?.registration_id || !semesterRow?.registration_code || !stynumber) {
+    return null;
+  }
+
+  const relaySessionId = session.dataset.relaySessionId;
+  const ownerId = ownerKey(req);
+  const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
+  const authContext = buildAuthContextFromRelaySession(relaySession);
+  if (!(relaySession && authContext?.instituteid && authContext?.memberid)) {
+    return null;
+  }
+
+  const [attRes, subRes] = await Promise.all([
+    postPortal(relaySession, authContext,
+      '/StudentPortalAPI/StudentClassAttendance/getstudentattendancedetail',
+      {
+        clientid: authContext.clientid,
+        instituteid: authContext.instituteid,
+        registrationcode: semesterRow.registration_code,
+        registrationid: semesterRow.registration_id,
+        stynumber
+      }
+    ),
+    postPortal(relaySession, authContext,
+      '/StudentPortalAPI/reqsubfaculty/getfaculties',
+      {
+        instituteid: authContext.instituteid,
+        studentid: authContext.memberid,
+        registrationid: semesterRow.registration_id
+      }
+    )
+  ]);
+
+  let hydrated = null;
+  if (attRes?.ok && statusSuccess(attRes.data)) {
+    hydrated = {
+      studentattendancelist: normalizeAttendanceRows(attRes.data?.response?.studentattendancelist || [])
+    };
+    session.dataset.attendanceData[sem] = hydrated;
+    session.dataset.realData = session.dataset.realData || hydrated.studentattendancelist.length > 0;
+  }
+
+  if (subRes?.ok && statusSuccess(subRes.data)) {
+    session.dataset.subjects[sem] = normalizeRegisteredSubjects(subRes.data);
+  }
+
+  return hydrated;
+};
+
+const subjectDailyFetchInFlightByOwnerKey = new Map();
+const subjectDailyWarmupInFlightByOwnerSem = new Map();
+
+const mapWithConcurrency = async (items = [], concurrency = 1, mapper) => {
+  if (!Array.isArray(items) || !items.length) return [];
+
+  const safeConcurrency = Math.max(1, Math.min(Number(concurrency || 1), items.length));
+  const results = new Array(items.length);
+  let cursor = 0;
+
+  const workers = Array.from({ length: safeConcurrency }, async () => {
+    while (true) {
+      const index = cursor;
+      cursor += 1;
+      if (index >= items.length) break;
+      results[index] = await mapper(items[index], index);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+};
+
+const computeDailyCountSummary = (rows = []) => {
+  const list = Array.isArray(rows) ? rows : [];
+  const total = list.length;
+  const attended = list.filter((entry) => String(entry?.present || '').toLowerCase() === 'present').length;
+  return { attended, total };
+};
+
+const findSubjectAttendanceRow = (attendanceRows = [], subject = '') => {
+  const target = String(subject || '').trim().toLowerCase();
+  if (!target) return null;
+  return attendanceRows.find((row) => (
+    String(row?.subjectcode || '').trim().toLowerCase() === target ||
+    String(row?.individualsubjectcode || '').trim().toLowerCase() === target ||
+    String(row?.subjectdesc || '').trim().toLowerCase() === target ||
+    String(row?.subjectdesc || '').trim().toLowerCase().includes(target)
+  ));
+};
+
+const findSubjectDetailRow = (subjectDetails = [], subject = '') => {
+  const target = String(subject || '').trim().toLowerCase();
+  if (!target || !Array.isArray(subjectDetails)) return null;
+
+  return subjectDetails.find((row) => {
+    const code = String(row?.subjectcode || row?.individualsubjectcode || '').trim().toLowerCase();
+    const desc = String(row?.subjectdesc || row?.subjectname || '').trim().toLowerCase();
+    return (
+      code === target ||
+      desc === target ||
+      (code && target.includes(code)) ||
+      (desc && desc.includes(target))
+    );
+  });
+};
+
+const findGradeSubjectRow = (gradeRows = [], subject = '') => {
+  const target = String(subject || '').trim().toLowerCase();
+  if (!target || !Array.isArray(gradeRows)) return null;
+
+  return gradeRows.find((row) => {
+    const code = String(row?.subjectcode || '').trim().toLowerCase();
+    const desc = String(row?.subjectdesc || row?.subjectname || '').trim().toLowerCase();
+    return (
+      code === target ||
+      desc === target ||
+      (code && target.includes(code)) ||
+      (desc && desc.includes(target))
+    );
+  });
+};
+
+const resolveSubjectContext = (session, sem, attendanceRows = [], subject = '') => {
+  const attendanceRow = findSubjectAttendanceRow(attendanceRows, subject);
+  const subjectDetails = session?.dataset?.subjects?.[sem]?.details || [];
+  const detailRow = findSubjectDetailRow(subjectDetails, subject);
+  const gradeRows = Array.isArray(session?.dataset?.gradeCards?.[sem]) ? session.dataset.gradeCards[sem] : [];
+  const gradeRow = findGradeSubjectRow(gradeRows, subject);
+
+  const detailRaw = detailRow?.raw || {};
+  const attendanceRaw = attendanceRow?.raw || {};
+  const gradeRaw = gradeRow?.raw || {};
+
+  const subjectid =
+    attendanceRow?.subjectid ||
+    detailRow?.subjectid ||
+    gradeRow?.subjectid ||
+    pickFirst(detailRaw, ['subjectid', 'subject_id', 'subjectId', 'subid']) ||
+    pickFirst(attendanceRaw, ['subjectid', 'subject_id', 'subjectId', 'subid']) ||
+    pickFirst(gradeRaw, ['subjectid', 'subject_id', 'subjectId', 'subid']) ||
+    null;
+
+  const subjectcode =
+    attendanceRow?.subjectcode ||
+    attendanceRow?.individualsubjectcode ||
+    detailRow?.subjectcode ||
+    gradeRow?.subjectcode ||
+    String(subject || '').trim();
+
+  const individualsubjectcode =
+    attendanceRow?.individualsubjectcode ||
+    detailRow?.subjectcode ||
+    gradeRow?.subjectcode ||
+    subjectcode;
+
+  const Lsubjectcomponentid =
+    attendanceRow?.Lsubjectcomponentid ||
+    pickFirst(detailRaw, ['Lsubjectcomponentid', 'lsubjectcomponentid', 'lsubjectcomponent_id', 'lecturecomponentid', 'lcomponentid']) ||
+    pickFirst(attendanceRaw, ['Lsubjectcomponentid', 'lsubjectcomponentid', 'lsubjectcomponent_id', 'lecturecomponentid', 'lcomponentid']) ||
+    null;
+
+  const Tsubjectcomponentid =
+    attendanceRow?.Tsubjectcomponentid ||
+    pickFirst(detailRaw, ['Tsubjectcomponentid', 'tsubjectcomponentid', 'tsubjectcomponent_id', 'tutorialcomponentid', 'tcomponentid']) ||
+    pickFirst(attendanceRaw, ['Tsubjectcomponentid', 'tsubjectcomponentid', 'tsubjectcomponent_id', 'tutorialcomponentid', 'tcomponentid']) ||
+    null;
+
+  const Psubjectcomponentid =
+    attendanceRow?.Psubjectcomponentid ||
+    pickFirst(detailRaw, ['Psubjectcomponentid', 'psubjectcomponentid', 'psubjectcomponent_id', 'practicalcomponentid', 'labcomponentid', 'pcomponentid']) ||
+    pickFirst(attendanceRaw, ['Psubjectcomponentid', 'psubjectcomponentid', 'psubjectcomponent_id', 'practicalcomponentid', 'labcomponentid', 'pcomponentid']) ||
+    null;
+
+  return {
+    subjectcode,
+    individualsubjectcode,
+    subjectid,
+    Lsubjectcomponentid,
+    Tsubjectcomponentid,
+    Psubjectcomponentid
+  };
+};
+
+const resolveSubjectDailyPayload = async (session, req, sem, subject) => {
+  const subjectCode = String(subject || '').trim();
+  const key = `${sem}:${subjectCode}`;
+
+  if (!subjectCode) {
+    return {
+      studentAttdsummarylist: [],
+      message: 'Subject code is required.'
+    };
+  }
+
+  const cached = session.dataset.subjectDailyData[key];
+  if (cached && Array.isArray(cached.studentAttdsummarylist)) {
+    return cached;
+  }
+
+  const ownerId = ownerKey(req);
+  const inFlightKey = `${ownerId}:${key}`;
+  const inFlight = subjectDailyFetchInFlightByOwnerKey.get(inFlightKey);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const fetchPromise = (async () => {
+    const relaySessionId = session.dataset.relaySessionId;
+    const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
+    const authContext = buildAuthContextFromRelaySession(relaySession);
+
+    let attendanceRows = session.dataset.attendanceData?.[sem]?.studentattendancelist || [];
+    if (!attendanceRows.length) {
+      await hydrateAttendanceForSemester(session, req, sem);
+      attendanceRows = session.dataset.attendanceData?.[sem]?.studentattendancelist || [];
+    }
+
+    const subjectContext = resolveSubjectContext(session, sem, attendanceRows, subjectCode);
+    const semesterRow = (session.dataset.semesters || []).find(
+      (row) => String(row?.registration_id) === String(sem)
+    );
+
+    const hasFetchContext =
+      relaySession &&
+      authContext?.instituteid &&
+      authContext?.memberid &&
+      semesterRow?.registration_code &&
+      (subjectContext?.subjectid || subjectContext?.subjectcode);
+
+    if (hasFetchContext) {
+      const cmpidkey = [
+        subjectContext?.Lsubjectcomponentid,
+        subjectContext?.Tsubjectcomponentid,
+        subjectContext?.Psubjectcomponentid
+      ]
+        .filter(Boolean)
+        .map((subjectcomponentid) => ({ subjectcomponentid }));
+
+      const dayRes = await postPortal(
+        relaySession,
+        authContext,
+        '/StudentPortalAPI/StudentClassAttendance/getstudentsubjectpersentage',
+        {
+          cmpidkey,
+          clientid: authContext.clientid,
+          instituteid: authContext.instituteid,
+          registrationcode: semesterRow.registration_code,
+          registrationid: semesterRow.registration_id,
+          studentid: authContext.memberid,
+          subjectcode: subjectContext?.individualsubjectcode || subjectContext?.subjectcode || subjectCode,
+          subjectid: subjectContext?.subjectid || ''
+        }
+      );
+
+      if (dayRes.ok && statusSuccess(dayRes.data)) {
+        const rows = dayRes.data?.response?.studentAttdsummarylist || [];
+        const payload = {
+          studentAttdsummarylist: normalizeSubjectDailyRows(rows),
+          message: dayRes.data?.message || (rows.length ? '' : 'No day-to-day attendance is available for this subject yet.')
+        };
+        session.dataset.subjectDailyData[key] = payload;
+        return payload;
+      }
+    }
+
+    const emptyPayload = {
+      studentAttdsummarylist: [],
+      message: 'No day-to-day attendance was returned for this subject in the current portal session.'
+    };
+    session.dataset.subjectDailyData[key] = emptyPayload;
+    return emptyPayload;
+  })();
+
+  subjectDailyFetchInFlightByOwnerKey.set(inFlightKey, fetchPromise);
+  try {
+    return await fetchPromise;
+  } finally {
+    subjectDailyFetchInFlightByOwnerKey.delete(inFlightKey);
+  }
+};
+
+const warmSubjectDailyCountsForSemester = async (session, req, sem) => {
+  const ownerId = ownerKey(req);
+  const warmKey = `${ownerId}:${sem}`;
+  const existing = subjectDailyWarmupInFlightByOwnerSem.get(warmKey);
+  if (existing) return existing;
+
+  const warmPromise = (async () => {
+    let attendanceRows = session.dataset.attendanceData?.[sem]?.studentattendancelist || [];
+    if (!attendanceRows.length) {
+      await hydrateAttendanceForSemester(session, req, sem);
+      attendanceRows = session.dataset.attendanceData?.[sem]?.studentattendancelist || [];
+    }
+
+    const pending = attendanceRows
+      .filter((row) => String(row?.subjectcode || '').trim())
+      .filter((row) => Number(row?.totalclasses || 0) <= 0);
+
+    await mapWithConcurrency(pending, 4, async (row) => {
+      const subjectCode = row?.subjectcode || row?.individualsubjectcode || row?.subjectdesc;
+      try {
+        await resolveSubjectDailyPayload(session, req, sem, subjectCode);
+      } catch (_error) {
+        return false;
+      }
+      return true;
+    });
+  })();
+
+  subjectDailyWarmupInFlightByOwnerSem.set(warmKey, warmPromise);
+  try {
+    await warmPromise;
+  } finally {
+    subjectDailyWarmupInFlightByOwnerSem.delete(warmKey);
+  }
+};
+
 const getAttendance = async (req, res) => {
   const session = ensureSession(req, res);
   if (!session) return undefined;
@@ -2013,16 +2358,13 @@ const getAttendance = async (req, res) => {
   }
 
   const direct = session.dataset.attendanceData[sem];
-  if (direct?.studentattendancelist?.length) {
+  if (direct && Array.isArray(direct.studentattendancelist)) {
     return res.status(200).json({ success: true, data: direct });
   }
 
-  const firstNonEmpty = Object.values(session.dataset.attendanceData || {}).find(
-    (item) => Array.isArray(item?.studentattendancelist) && item.studentattendancelist.length > 0
-  );
-
-  if (firstNonEmpty) {
-    return res.status(200).json({ success: true, data: firstNonEmpty });
+  const hydrated = await hydrateAttendanceForSemester(session, req, sem);
+  if (hydrated && Array.isArray(hydrated.studentattendancelist)) {
+    return res.status(200).json({ success: true, data: hydrated });
   }
 
   return res.status(200).json({
@@ -2034,13 +2376,85 @@ const getAttendance = async (req, res) => {
   });
 };
 
+const getAttendanceCounts = async (req, res) => {
+  const session = ensureSession(req, res);
+  if (!session) return undefined;
+
+  const sem = req.query.semester || session.dataset.semesters[0]?.registration_id;
+  if (!session.dataset.realData) {
+    return res.status(200).json({
+      success: true,
+      data: {
+        semester: sem,
+        counts: {}
+      }
+    });
+  }
+
+  let attendanceRows = session.dataset.attendanceData?.[sem]?.studentattendancelist || [];
+  if (!attendanceRows.length) {
+    await hydrateAttendanceForSemester(session, req, sem);
+    attendanceRows = session.dataset.attendanceData?.[sem]?.studentattendancelist || [];
+  }
+
+  const counts = {};
+  const pendingRows = [];
+
+  for (const row of attendanceRows) {
+    const subjectCode = String(row?.subjectcode || row?.individualsubjectcode || '').trim();
+    if (!subjectCode) continue;
+
+    const directTotal = Number(row?.totalclasses || 0);
+    const directAttendedRaw = Number(row?.attendedclasses || 0);
+    const directAttended = Number.isFinite(directAttendedRaw) ? directAttendedRaw : 0;
+    if (directTotal > 0) {
+      counts[subjectCode] = {
+        attended: Math.max(0, Math.min(directAttended, directTotal)),
+        total: directTotal,
+        source: 'direct'
+      };
+      continue;
+    }
+
+    pendingRows.push({ subjectCode });
+  }
+
+  await mapWithConcurrency(pendingRows, 4, async ({ subjectCode }) => {
+    try {
+      const payload = await resolveSubjectDailyPayload(session, req, sem, subjectCode);
+      const summary = computeDailyCountSummary(payload?.studentAttdsummarylist || []);
+      counts[subjectCode] = {
+        attended: summary.attended,
+        total: summary.total,
+        source: 'daily',
+        message: payload?.message || ''
+      };
+    } catch (error) {
+      counts[subjectCode] = {
+        attended: 0,
+        total: 0,
+        source: 'daily',
+        message: error?.message || 'Unable to load day-to-day attendance for this subject.'
+      };
+    }
+    return true;
+  });
+
+  return res.status(200).json({
+    success: true,
+    data: {
+      semester: sem,
+      counts
+    }
+  });
+};
+
 const getSubjectAttendance = async (req, res) => {
   const session = ensureSession(req, res);
   if (!session) return undefined;
 
   const sem = req.query.semester || session.dataset.semesters[0]?.registration_id;
   const subject = req.query.subject || '';
-  const key = `${sem}:${subject}`;
 
   if (!session.dataset.realData) {
     return res.status(200).json({
@@ -2053,78 +2467,10 @@ const getSubjectAttendance = async (req, res) => {
     });
   }
 
-  const cached = session.dataset.subjectDailyData[key];
-  if (cached?.studentAttdsummarylist?.length) {
-    return res.status(200).json({ success: true, data: cached });
-  }
-
-  const relaySessionId = session.dataset.relaySessionId;
-  const ownerId = ownerKey(req);
-  const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
-  const authContext = buildAuthContextFromRelaySession(relaySession);
-  const attendanceRows = session.dataset.attendanceData?.[sem]?.studentattendancelist || [];
-  const subjectRow = attendanceRows.find((row) => {
-    const target = String(subject || '').toLowerCase();
-    return (
-      String(row?.subjectcode || '').toLowerCase() === target ||
-      String(row?.individualsubjectcode || '').toLowerCase() === target ||
-      String(row?.subjectdesc || '').toLowerCase().includes(target)
-    );
-  });
-
-  const semesterRow = (session.dataset.semesters || []).find(
-    (row) => String(row.registration_id) === String(sem)
-  );
-
-  const hasFetchContext =
-    relaySession &&
-    authContext?.instituteid &&
-    authContext?.memberid &&
-    semesterRow?.registration_code &&
-    subjectRow?.subjectid;
-
-  if (hasFetchContext) {
-    const cmpidkey = [
-      subjectRow?.Lsubjectcomponentid,
-      subjectRow?.Tsubjectcomponentid,
-      subjectRow?.Psubjectcomponentid
-    ]
-      .filter(Boolean)
-      .map((subjectcomponentid) => ({ subjectcomponentid }));
-
-    const dayRes = await postPortal(
-      relaySession,
-      authContext,
-      '/StudentPortalAPI/StudentClassAttendance/getstudentsubjectpersentage',
-      {
-        cmpidkey,
-        clientid: authContext.clientid,
-        instituteid: authContext.instituteid,
-        registrationcode: semesterRow.registration_code,
-        registrationid: semesterRow.registration_id,
-        studentid: authContext.memberid,
-        subjectcode: subjectRow.individualsubjectcode || subjectRow.subjectcode,
-        subjectid: subjectRow.subjectid
-      }
-    );
-
-    if (dayRes.ok && statusSuccess(dayRes.data)) {
-      const rows = dayRes.data?.response?.studentAttdsummarylist || [];
-      const payload = {
-        studentAttdsummarylist: normalizeSubjectDailyRows(rows)
-      };
-      session.dataset.subjectDailyData[key] = payload;
-
-      return res.status(200).json({ success: true, data: payload });
-    }
-  }
-
+  const payload = await resolveSubjectDailyPayload(session, req, sem, subject);
   return res.status(200).json({
     success: true,
-    data: {
-      studentAttdsummarylist: [],
-      message: 'No day-to-day attendance was returned for this subject in the current portal session.'
-    }
+    data: payload
   });
 };
 
@@ -2545,6 +2891,16 @@ const getSubjects = async (req, res) => {
     return res.status(200).json({ success: true, data: direct });
   }
 
+  await hydrateAttendanceForSemester(session, req, sem);
+  const hydratedSubjects = session.dataset.subjects[sem] || { registered: [], faculties: [], details: [] };
+  const hasHydratedRows =
+    (Array.isArray(hydratedSubjects?.details) && hydratedSubjects.details.length > 0) ||
+    (Array.isArray(hydratedSubjects?.registered) && hydratedSubjects.registered.length > 0);
+
+  if (hasHydratedRows) {
+    return res.status(200).json({ success: true, data: hydratedSubjects });
+  }
+
   const gradeRows = Array.isArray(session.dataset.gradeCards?.[sem]) ? session.dataset.gradeCards[sem] : [];
   const fallbackDetails = gradeRows
     .map((row) => ({
@@ -2787,6 +3143,7 @@ module.exports = {
   getSdkSession,
   getAttendanceMeta,
   getAttendance,
+  getAttendanceCounts,
   getSubjectAttendance,
   getProfile,
   getGrades,

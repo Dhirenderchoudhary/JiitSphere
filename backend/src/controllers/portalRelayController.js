@@ -45,6 +45,8 @@ const portalHeaders = {
   'X-Requested-With': 'XMLHttpRequest'
 };
 
+const RELAY_ATTEMPT_TIMEOUT_MS = Number(env.portalRequestTimeoutMs || 12000);
+
 const startRelaySession = (req, res) => {
   const ownerId = req.user.userId || req.user.email || 'unknown';
   const sessionId = createRelaySession(ownerId);
@@ -149,16 +151,50 @@ const executeRelayAttempt = async (session, candidate) => {
   const cookieHeader = buildCookieHeader(session);
   if (cookieHeader) headers.Cookie = cookieHeader;
 
-  const response = await fetch(url, {
-    method: candidate.method || 'POST',
-    headers,
-    body:
-      candidate.rawBody !== undefined
-        ? String(candidate.rawBody)
-        : candidate.body
-          ? JSON.stringify(candidate.body)
-          : undefined
-  });
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), RELAY_ATTEMPT_TIMEOUT_MS);
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method: candidate.method || 'POST',
+      headers,
+      body:
+        candidate.rawBody !== undefined
+          ? String(candidate.rawBody)
+          : candidate.body
+            ? JSON.stringify(candidate.body)
+            : undefined,
+      signal: controller.signal
+    });
+  } catch (error) {
+    clearTimeout(timeoutHandle);
+    const code = error?.cause?.code || error?.code || error?.name || 'PORTAL_FETCH_ERROR';
+    const isAbort = String(error?.name || '').toLowerCase() === 'aborterror' || String(code) === 'ABORT_ERR';
+    const message = isAbort
+      ? `Portal request timed out after ${RELAY_ATTEMPT_TIMEOUT_MS}ms`
+      : error?.cause?.message || error?.message || 'Portal request failed';
+
+    return {
+      endpoint: candidate.path,
+      contentType: headers['Content-Type'],
+      status: 0,
+      ok: false,
+      response: {
+        status: {
+          responseStatus: 'FAILED',
+          errors: [message]
+        },
+        meta: {
+          networkError: true,
+          code: String(code),
+          path: candidate.path
+        }
+      }
+    };
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
 
   updateCookiesFromResponse(session, response);
   const data = await parseBody(response);
@@ -229,7 +265,8 @@ const runEncryptedLoginFlow = async ({
   normalizedUserType,
   password,
   captchaPayload,
-  strategy
+  strategy,
+  maxCombos = 6
 }) => {
   const preloginPayload = JSON.stringify({
     username: portalUsername,
@@ -238,57 +275,73 @@ const runEncryptedLoginFlow = async ({
   });
 
   const variants = encryptPortalPayloadVariants(preloginPayload);
-  const contentTypes = ['application/json', 'text/plain;charset=UTF-8'];
-
+  const variantByZone = new Map();
   for (const variant of variants) {
-    for (const contentType of contentTypes) {
-      const pretokenAttempt = await executeRelayAttempt(session, {
-        path: '/StudentPortalAPI/token/pretoken-check',
-        method: 'POST',
-        contentType,
-        rawBody: variant.encrypted
-      });
-      pretokenAttempt.strategy = strategy;
-      pretokenAttempt.phase = 'pretoken-check';
-      pretokenAttempt.timeZoneVariant = variant.timeZone;
-      attempts.push(pretokenAttempt);
+    if (!variantByZone.has(variant.timeZone)) {
+      variantByZone.set(variant.timeZone, variant);
+    }
+  }
 
-      const pretokenPayload = pretokenAttempt.response;
-      const random = pretokenPayload?.response?.random;
-      const otppwd = pretokenPayload?.response?.otppwd;
-      if (!responseLooksSuccessful(pretokenPayload) || !random || !otppwd || !password) {
-        continue;
-      }
+  const orderedVariants = ['Asia/Kolkata', 'local', 'UTC']
+    .map((zone) => variantByZone.get(zone))
+    .filter(Boolean);
 
-      const tokenPayload = JSON.stringify({
-        otppwd,
-        username: portalUsername,
-        passwordotpvalue: password,
-        Modulename: 'STUDENTMODULE',
-        random
-      });
+  const matrix = [];
+  for (const contentType of ['text/plain;charset=UTF-8', 'application/json']) {
+    for (const variant of orderedVariants) {
+      matrix.push({ contentType, variant });
+    }
+  }
 
-      const encryptedGenerateToken = encryptPortalPayload(
-        tokenPayload,
-        new Date(),
-        variant.timeZone === 'local' ? undefined : variant.timeZone
-      );
+  const cappedMatrix = matrix.slice(0, Math.max(1, Number(maxCombos || 1)));
 
-      const tokenAttempt = await executeRelayAttempt(session, {
-        path: '/StudentPortalAPI/token/generatetoken',
-        method: 'POST',
-        contentType,
-        rawBody: encryptedGenerateToken
-      });
-      tokenAttempt.strategy = strategy;
-      tokenAttempt.phase = 'generatetoken';
-      tokenAttempt.timeZoneVariant = variant.timeZone;
-      attempts.push(tokenAttempt);
+  for (const { contentType, variant } of cappedMatrix) {
+    const pretokenAttempt = await executeRelayAttempt(session, {
+      path: '/StudentPortalAPI/token/pretoken-check',
+      method: 'POST',
+      contentType,
+      rawBody: variant.encrypted
+    });
+    pretokenAttempt.strategy = strategy;
+    pretokenAttempt.phase = 'pretoken-check';
+    pretokenAttempt.timeZoneVariant = variant.timeZone;
+    attempts.push(pretokenAttempt);
 
-      const authenticated = responseLooksSuccessful(tokenAttempt.response) && applyAuthContextToSession(session, tokenAttempt.response);
-      if (authenticated) {
-        return true;
-      }
+    const pretokenPayload = pretokenAttempt.response;
+    const random = pretokenPayload?.response?.random;
+    const otppwd = pretokenPayload?.response?.otppwd;
+    if (!responseLooksSuccessful(pretokenPayload) || !random || !otppwd || !password) {
+      continue;
+    }
+
+    const tokenPayload = JSON.stringify({
+      otppwd,
+      username: portalUsername,
+      passwordotpvalue: password,
+      Modulename: 'STUDENTMODULE',
+      random
+    });
+
+    const encryptedGenerateToken = encryptPortalPayload(
+      tokenPayload,
+      new Date(),
+      variant.timeZone === 'local' ? undefined : variant.timeZone
+    );
+
+    const tokenAttempt = await executeRelayAttempt(session, {
+      path: '/StudentPortalAPI/token/generatetoken',
+      method: 'POST',
+      contentType,
+      rawBody: encryptedGenerateToken
+    });
+    tokenAttempt.strategy = strategy;
+    tokenAttempt.phase = 'generatetoken';
+    tokenAttempt.timeZoneVariant = variant.timeZone;
+    attempts.push(tokenAttempt);
+
+    const authenticated = responseLooksSuccessful(tokenAttempt.response) && applyAuthContextToSession(session, tokenAttempt.response);
+    if (authenticated) {
+      return true;
     }
   }
 
@@ -318,6 +371,7 @@ const tryRelayLogin = async (req, res, next) => {
       .trim()
       .replace(/[^a-z0-9]/gi, '')
       .slice(0, 10);
+    const maxAttemptBudget = normalizedCaptcha ? 40 : 30;
 
     const loginIdentities = [];
     const seenIdentities = new Set();
@@ -341,6 +395,10 @@ const tryRelayLogin = async (req, res, next) => {
         : normalizedUserId;
 
     pushIdentity(primaryUsername, normalizedUserType, 'primary');
+    if (normalizedUserId.includes('@')) {
+      const localUser = normalizedUserId.split('@')[0];
+      pushIdentity(localUser, normalizedUserType, 'email-local');
+    }
     if (normalizedUserType === 'S') {
       if (baseUserId && baseUserId !== normalizedUserId) {
         pushIdentity(baseUserId, 'S', 'strip-prefix');
@@ -364,17 +422,24 @@ const tryRelayLogin = async (req, res, next) => {
     }
 
     if (!encryptedPayload && loginIdentities.length) {
-      for (const identity of loginIdentities) {
-        if (authenticated) break;
+      const fastIdentityLimit = normalizedCaptcha
+        ? loginIdentities.length
+        : Math.min(loginIdentities.length, 2);
+      const effectiveIdentities = loginIdentities.slice(0, fastIdentityLimit);
+      const deferredIdentities = loginIdentities.slice(fastIdentityLimit);
+
+      for (const identity of effectiveIdentities) {
+        if (authenticated || attempts.length >= maxAttemptBudget) break;
 
         authenticated = await runEncryptedLoginFlow({
           session,
           attempts,
           portalUsername: identity.username,
           normalizedUserType: identity.usertype,
-          password,
+          password: normalizedPassword,
           captchaPayload: DEFAULT_PORTAL_CAPTCHA,
-          strategy: `encrypted-default-captcha:${identity.label}`
+          strategy: `encrypted-default-captcha:${identity.label}`,
+          maxCombos: normalizedCaptcha ? 4 : 3
         });
 
         if (!authenticated && normalizedCaptcha) {
@@ -388,16 +453,17 @@ const tryRelayLogin = async (req, res, next) => {
             attempts,
             portalUsername: identity.username,
             normalizedUserType: identity.usertype,
-            password,
+            password: normalizedPassword,
             captchaPayload: captchaEnvelope,
-            strategy: `encrypted-user-captcha:${identity.label}`
+            strategy: `encrypted-user-captcha:${identity.label}`,
+            maxCombos: 6
           });
         }
 
         if (!authenticated) {
           const identityCandidates = portalClient.makeLoginCandidates({
             userId: identity.username,
-            password,
+            password: normalizedPassword,
             captcha: normalizedCaptcha,
             usertype: identity.usertype
           });
@@ -406,15 +472,60 @@ const tryRelayLogin = async (req, res, next) => {
           });
         }
       }
+
+      if (!authenticated && !normalizedCaptcha && deferredIdentities.length && attempts.length < maxAttemptBudget) {
+        for (const identity of deferredIdentities) {
+          if (authenticated || attempts.length >= maxAttemptBudget) break;
+
+          authenticated = await runEncryptedLoginFlow({
+            session,
+            attempts,
+            portalUsername: identity.username,
+            normalizedUserType: identity.usertype,
+            password: normalizedPassword,
+            captchaPayload: DEFAULT_PORTAL_CAPTCHA,
+            strategy: `encrypted-default-captcha-deep:${identity.label}`,
+            maxCombos: 4
+          });
+
+          if (!authenticated) {
+            const identityCandidates = portalClient.makeLoginCandidates({
+              userId: identity.username,
+              password: normalizedPassword,
+              captcha: normalizedCaptcha,
+              usertype: identity.usertype
+            });
+            identityCandidates.forEach((candidate) => {
+              candidates.push({ ...candidate, strategyLabel: `${identity.label}-deep` });
+            });
+          }
+        }
+      }
     }
 
     if (!authenticated) {
-      for (const candidate of candidates) {
+      const fastFallbackLimit = normalizedCaptcha ? candidates.length : Math.min(candidates.length, 4);
+      const fastFallbackCandidates = candidates.slice(0, fastFallbackLimit);
+      for (const candidate of fastFallbackCandidates) {
+        if (attempts.length >= maxAttemptBudget) break;
         const attempt = await executeRelayAttempt(session, candidate);
         attempt.strategy = candidate.strategyLabel ? `legacy-fallback:${candidate.strategyLabel}` : 'legacy-fallback';
         attempts.push(attempt);
         if (!authenticated && responseLooksSuccessful(attempt.response) && applyAuthContextToSession(session, attempt.response)) {
           authenticated = true;
+        }
+      }
+
+      if (!authenticated && !normalizedCaptcha && fastFallbackLimit < candidates.length && attempts.length < maxAttemptBudget) {
+        const deepFallbackCandidates = candidates.slice(fastFallbackLimit);
+        for (const candidate of deepFallbackCandidates) {
+          if (authenticated || attempts.length >= maxAttemptBudget) break;
+          const attempt = await executeRelayAttempt(session, candidate);
+          attempt.strategy = candidate.strategyLabel ? `legacy-fallback-deep:${candidate.strategyLabel}` : 'legacy-fallback-deep';
+          attempts.push(attempt);
+          if (responseLooksSuccessful(attempt.response) && applyAuthContextToSession(session, attempt.response)) {
+            authenticated = true;
+          }
         }
       }
     }

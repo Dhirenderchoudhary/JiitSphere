@@ -218,9 +218,8 @@ export const monthLabelFromKey = (key) => {
 };
 
 export const attendanceRatioText = (presentCount, totalCount) => {
-  if (!Number(totalCount)) return '0/0 (0%)';
-  const pct = ((Number(presentCount) / Number(totalCount)) * 100).toFixed(1);
-  return `${presentCount}/${totalCount} (${pct}%)`;
+  if (!Number(totalCount)) return '0/0';
+  return `${presentCount}/${totalCount}`;
 };
 
 export const missOrNeedText = (attended, total, targetPercent) => {
@@ -229,11 +228,19 @@ export const missOrNeedText = (attended, total, targetPercent) => {
   const p = Number(targetPercent || 0);
   if (!p) return 'Select target %';
   if (!t) return 'Need class counts';
+  if (p >= 100) {
+    return a >= t ? 'Can miss 0' : `Need attend ${Math.max(t - a, 0)}`;
+  }
 
-  const canMiss = Math.floor((a * 100) / p - t);
-  if (canMiss >= 0) return `Can miss ${canMiss}`;
+  const currentPct = (a * 100) / t;
+  if (currentPct >= p) {
+    const canMiss = Math.floor((a * 100) / p - t);
+    return `Can miss ${Math.max(canMiss, 0)}`;
+  }
 
-  const needed = Math.ceil((t * p) / 100 - a);
+  // Extra classes that must be attended (assuming all upcoming classes are attended):
+  // (a + x) / (t + x) >= p / 100  =>  x >= (p*t - 100*a) / (100 - p)
+  const needed = Math.ceil((p * t - 100 * a) / (100 - p));
   return `Need attend ${Math.max(needed, 0)}`;
 };
 
@@ -315,13 +322,18 @@ export const resolveAttendanceCounts = (row, targetPct, options = {}) => {
   return deriveCountsFromPercent(row, targetPct);
 };
 
-export const buildAttendanceGuidance = (row, targetPct) => {
+export const buildAttendanceGuidance = (row, targetPct, options = {}) => {
   const target = Number(targetPct || 0);
   if (!target) return 'Select target %';
 
   const resolved = resolveAttendanceCounts(row, targetPct, { allowDerived: false });
-  const attended = Number(resolved?.attended || row?.attendedclasses || 0);
-  const total = Number(resolved?.total || row?.totalclasses || 0);
+  const hasOverride = options?.attended !== undefined && options?.total !== undefined;
+  const attended = hasOverride
+    ? Number(options?.attended || 0)
+    : Number(resolved?.attended || row?.attendedclasses || 0);
+  const total = hasOverride
+    ? Number(options?.total || 0)
+    : Number(resolved?.total || row?.totalclasses || 0);
   if (total > 0) return missOrNeedText(attended, total, target);
 
   const canMiss = Number(row?.canmissclasses || 0);

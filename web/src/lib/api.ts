@@ -214,6 +214,8 @@ export const fetchPortalAttendanceMeta = async (token: string, refresh = PORTAL_
   sdkGet(token, '/portal/sdk/attendance/meta', withRealtime({}, refresh));
 export const fetchPortalAttendance = async (token: string, semester: string, refresh = PORTAL_REALTIME_DEFAULT) =>
   sdkGet(token, '/portal/sdk/attendance', withRealtime({ semester }, refresh));
+export const fetchPortalAttendanceCounts = async (token: string, semester: string, refresh = false) =>
+  sdkGet(token, '/portal/sdk/attendance/counts', withRealtime({ semester }, refresh));
 export const fetchPortalSubjectAttendance = async (
   token: string,
   semester: string,
