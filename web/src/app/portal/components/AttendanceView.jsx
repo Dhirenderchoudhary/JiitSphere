@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { Button } from 'components/ui/button';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import {
   fetchPortalAttendance,
   fetchPortalAttendanceCounts,
@@ -9,33 +8,77 @@ import {
   fetchPortalSubjectAttendance,
   SessionExpiredError
 } from 'lib/api';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from 'lib/utils';
-import { glassPanel, SHOW_TECHNICAL_DETAILS } from '../constants';
 import {
   getAttendanceTargetStorageKey,
   toPercent,
   resolveAttendanceCounts,
   buildAttendanceGuidance,
-  pickRenderablePairs,
-  pickIdPairs,
-  dateScore,
-  monthKeyFromDate,
-  monthLabelFromKey,
-  attendanceRatioText,
-  monthStatsFromRows
+  dateScore
 } from '../utils';
+import { Clock, Filter, ArrowUpRight, ArrowDownRight, FolderOpen, AlertCircle, CheckCircle2, Activity, Settings } from 'lucide-react';
 
-export default function AttendanceView({ token, onExpired }) {
+const SegmentedArch = ({ pct }) => {
+    const segments = 22;
+    const radius = 80;
+    const center = 100;
+    const safe = pct >= 75; // Using 75 default logic for color
+    const activeColor = safe ? '#10b981' : '#f43f5e';
+    const inactiveColor = 'rgba(150, 150, 150, 0.2)';
+
+    return (
+        <div className="relative flex flex-col items-center">
+            <svg viewBox="0 0 200 110" className="w-full max-w-[200px]">
+                {Array.from({length: segments}).map((_, i) => {
+                    const theta = Math.PI - (i * (Math.PI / (segments - 1)));
+                    const activePctHit = (i / segments) * 100 <= pct;
+                    const x1 = center + (radius - 20) * Math.cos(theta);
+                    const y1 = center - (radius - 20) * Math.sin(theta);
+                    const x2 = center + radius * Math.cos(theta);
+                    const y2 = center - radius * Math.sin(theta);
+                    
+                    return (
+                        <motion.line 
+                            key={i} x1={x1} y1={y1} x2={x2} y2={y2} 
+                            stroke={activePctHit ? activeColor : inactiveColor} 
+                            strokeWidth="8" strokeLinecap="round"
+                            initial={{ opacity: 0, pathLength: 0 }}
+                            animate={{ opacity: 1, pathLength: 1 }}
+                            transition={{ delay: i * 0.02, duration: 0.3 }}
+                        />
+                    );
+                })}
+            </svg>
+            <div className="absolute top-[50%] flex flex-col items-center">
+                <span className="text-2xl font-black font-[var(--font-instrument-sans)] tracking-tighter text-foreground">{Math.round(pct)}%</span>
+                <span className="text-[9px] font-bold text-muted-foreground mt-0.5">{safe ? "It's already great!" : "Needs attention!"}</span>
+            </div>
+            
+            <div className="w-full flex items-center justify-between mt-4 px-2">
+                <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Average</span>
+                    <span className="text-sm font-bold text-foreground">{(pct).toFixed(1)}%</span>
+                </div>
+                <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Status Lock</span>
+                    <span className="text-sm font-bold text-foreground">{safe ? 'Secure' : 'Alert'}</span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
   const [meta, setMeta] = useState(null);
   const [selectedSem, setSelectedSem] = useState('');
-  const [attendanceMode, setAttendanceMode] = useState('overview');
   const [targetAttendancePct, setTargetAttendancePct] = useState('');
   const [attendance, setAttendance] = useState([]);
-  const [subjectDetails, setSubjectDetails] = useState({});
-  const [dayFilters, setDayFilters] = useState({});
-  const [monthFilters, setMonthFilters] = useState({});
-  const [showAllRows, setShowAllRows] = useState({});
+  
+  // Master-Detail State
+  const [activeSubject, setActiveSubject] = useState(null);
+  const [historyDetail, setHistoryDetail] = useState(null);
+  
   const [subjectCounts, setSubjectCounts] = useState({});
   const [message, setMessage] = useState('');
   const initialSemesterFallbackDone = useRef(false);
@@ -45,22 +88,18 @@ export default function AttendanceView({ token, onExpired }) {
       const key = getAttendanceTargetStorageKey();
       const stored = window.localStorage.getItem(key);
       if (stored) setTargetAttendancePct(stored);
+      else setTargetAttendancePct('75');
     } catch (_error) {
-      setTargetAttendancePct('');
+      setTargetAttendancePct('75');
     }
   }, []);
 
   useEffect(() => {
     try {
-      const key = getAttendanceTargetStorageKey();
       if (targetAttendancePct) {
-        window.localStorage.setItem(key, String(targetAttendancePct));
-      } else {
-        window.localStorage.removeItem(key);
+        window.localStorage.setItem(getAttendanceTargetStorageKey(), String(targetAttendancePct));
       }
-    } catch (_error) {
-      // Ignore localStorage write failures in restricted browser contexts.
-    }
+    } catch (_error) {}
   }, [targetAttendancePct]);
 
   useEffect(() => {
@@ -68,37 +107,27 @@ export default function AttendanceView({ token, onExpired }) {
       const payload = response?.data || null;
       setMeta(payload);
       setMessage(payload?.latest_header?.message || '');
-      const latest = payload?.latest_semester?.registration_id || '';
-      initialSemesterFallbackDone.current = false;
-      setSelectedSem(latest);
+      setSelectedSem(payload?.latest_semester?.registration_id || '');
     }).catch((err) => {
       if (err instanceof SessionExpiredError) { onExpired?.(); return; }
       setMeta({ semesters: [] });
       setAttendance([]);
-      setMessage(err?.message || 'Unable to load attendance metadata');
+      setMessage(err?.message || 'Failed to sync metadata');
     });
   }, [token, onExpired]);
 
   useEffect(() => {
     if (!selectedSem) return;
     let cancelled = false;
-
-    const resetAttendanceUiState = () => {
-      setSubjectDetails({});
-      setDayFilters({});
-      setMonthFilters({});
-      setShowAllRows({});
-      setSubjectCounts({});
-    };
+    const resetUI = () => { setActiveSubject(null); setHistoryDetail(null); setSubjectCounts({}); };
 
     const loadAttendance = async () => {
       try {
         const response = await fetchPortalAttendance(token, selectedSem);
         if (cancelled) return;
-
         const rows = response?.data?.studentattendancelist || [];
         setAttendance(rows);
-        resetAttendanceUiState();
+        resetUI();
 
         const initialCounts = {};
         for (const row of rows) {
@@ -106,552 +135,408 @@ export default function AttendanceView({ token, onExpired }) {
           if (!subjectCode) continue;
           const trustedRatio = resolveAttendanceCounts(row, '', { allowDerived: false });
           if (trustedRatio?.total) {
-            initialCounts[subjectCode] = {
-              attended: Number(trustedRatio.attended || 0),
-              total: Number(trustedRatio.total || 0),
-              loading: false,
-              source: trustedRatio.source || 'direct'
-            };
+            initialCounts[subjectCode] = { attended: Number(trustedRatio.attended), total: Number(trustedRatio.total), loading: false, source: trustedRatio.source };
           } else {
-            initialCounts[subjectCode] = {
-              attended: 0,
-              total: 0,
-              loading: true,
-              source: 'pending'
-            };
+            initialCounts[subjectCode] = { attended: 0, total: 0, loading: true, source: 'pending' };
           }
         }
         setSubjectCounts(initialCounts);
 
-        if (rows.length) {
+        if (rows.length) { initialSemesterFallbackDone.current = true; setMessage(''); return; }
+
+        if (!initialSemesterFallbackDone.current) {
           initialSemesterFallbackDone.current = true;
-          setMessage('');
-          return;
-        }
-
-        const canAutoFallback = !initialSemesterFallbackDone.current;
-        initialSemesterFallbackDone.current = true;
-
-        if (canAutoFallback) {
           const semRows = Array.isArray(meta?.semesters) ? meta.semesters : [];
-          const alternatives = semRows.filter((sem) => {
-            const semId = String(sem?.registration_id || '').trim();
-            return semId && semId !== String(selectedSem);
-          });
-
+          const alternatives = semRows.filter(sem => sem?.registration_id && sem.registration_id !== selectedSem);
           if (alternatives.length) {
-            const altResponses = await Promise.all(
-              alternatives.map(async (sem) => {
-                try {
-                  const alt = await fetchPortalAttendance(token, sem.registration_id);
-                  return {
-                    sem,
-                    rows: alt?.data?.studentattendancelist || []
-                  };
-                } catch (err) {
-                  if (err instanceof SessionExpiredError) throw err;
-                  return { sem, rows: [] };
-                }
-              })
-            );
-
+            const altResponses = await Promise.all(alternatives.map(async (s) => ({ sem: s, rows: (await fetchPortalAttendance(token, s.registration_id).catch(()=>({})))?.data?.studentattendancelist || []})));
             if (cancelled) return;
-
-            const firstWithRows = altResponses.find((item) => item.rows.length > 0);
-            if (firstWithRows?.sem?.registration_id) {
-              const semLabel = firstWithRows.sem?.registration_code || firstWithRows.sem.registration_id;
-              setMessage(`No attendance rows for selected semester yet. Showing ${semLabel}.`);
-              setSelectedSem(firstWithRows.sem.registration_id);
+            const first = altResponses.find(item => item.rows.length > 0);
+            if (first?.sem?.registration_id) {
+              setMessage(`Fallback to ${first.sem.registration_code}.`);
+              setSelectedSem(first.sem.registration_id);
               return;
             }
           }
         }
-
-        setMessage(response?.data?.message || 'No attendance rows were returned by current portal session.');
+        setMessage(response?.data?.message || 'No subject telemetry found.');
       } catch (err) {
         if (err instanceof SessionExpiredError) { onExpired?.(); return; }
         if (cancelled) return;
-        setAttendance([]);
-        resetAttendanceUiState();
-        setMessage(err?.message || 'Unable to load attendance data');
+        resetUI(); setAttendance([]); setMessage(err?.message || 'Data sync error.');
       }
     };
-
     loadAttendance();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [token, selectedSem, onExpired, meta]);
 
   useEffect(() => {
     if (!selectedSem || !attendance.length) return;
-
     let cancelled = false;
-    const subjectCodes = Array.from(new Set(
-      attendance
-        .map((row) => String(row?.subjectcode || row?.individualsubjectcode || '').trim())
-        .filter(Boolean)
-    ));
-
     const loadAttendanceCounts = async () => {
       try {
         const response = await fetchPortalAttendanceCounts(token, selectedSem, false);
         if (cancelled) return;
-
         const counts = response?.data?.counts || {};
-        setSubjectCounts((prev) => {
+        setSubjectCounts(prev => {
           const next = { ...prev };
-          for (const code of subjectCodes) {
-            const countRow = counts?.[code];
-            if (countRow) {
-              next[code] = {
-                attended: Number(countRow?.attended || 0),
-                total: Number(countRow?.total || 0),
-                loading: false,
-                source: countRow?.source || 'daily',
-                message: String(countRow?.message || '')
-              };
-            } else if (next[code]) {
-              next[code] = {
-                ...next[code],
-                loading: false
-              };
-            }
-          }
+          Object.keys(next).forEach(code => {
+            if (counts[code]) next[code] = { attended: Number(counts[code].attended), total: Number(counts[code].total), loading: false, source: counts[code].source };
+            else next[code].loading = false;
+          });
           return next;
         });
       } catch (err) {
-        if (err instanceof SessionExpiredError) {
-          onExpired?.();
-          return;
-        }
+        if (err instanceof SessionExpiredError) { onExpired?.(); return; }
         if (cancelled) return;
-
-        setSubjectCounts((prev) => {
+        setSubjectCounts(prev => {
           const next = { ...prev };
-          for (const code of subjectCodes) {
-            if (!next[code]) continue;
-            next[code] = {
-              ...next[code],
-              loading: false,
-              message: err?.message || 'Unable to load attendance counts'
-            };
-          }
+          Object.keys(next).forEach(code => { next[code].loading = false; });
           return next;
         });
       }
     };
-
     loadAttendanceCounts();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [attendance, selectedSem, token, onExpired]);
 
-  const loadSubject = async (subjectCode) => {
-    const current = subjectDetails[subjectCode];
-    if (!subjectCode || !selectedSem || current?.loading || current?.loaded) return;
+  const selectSubject = async (row) => {
+      const activeCode = String(row?.subjectcode || row?.individualsubjectcode || '').trim();
+      setActiveSubject(row);
+      setHistoryDetail({ loading: true, rows: [] });
 
-    setSubjectDetails((prev) => ({
-      ...prev,
-      [subjectCode]: {
-        loaded: false,
-        loading: true,
-        rows: [],
-        message: ''
+      try {
+        const response = await fetchPortalSubjectAttendance(token, selectedSem, activeCode, false);
+        setHistoryDetail({ loading: false, rows: response?.data?.studentAttdsummarylist || [] });
+      } catch (err) {
+        if (err instanceof SessionExpiredError) { onExpired?.(); return; }
+        setHistoryDetail({ loading: false, rows: [], error: 'Failed to fetch' });
       }
-    }));
+  }
 
-    try {
-      const response = await fetchPortalSubjectAttendance(token, selectedSem, subjectCode, false);
-      setSubjectDetails((prev) => ({
-        ...prev,
-        [subjectCode]: {
-          loaded: true,
-          loading: false,
-          rows: response?.data?.studentAttdsummarylist || [],
-          message: response?.data?.message || ''
+  // --- Aggregate Math Logic --- 
+  const aggregateMetrics = useMemo(() => {
+    if (!attendance.length) return null;
+    let tC = 0; let tA = 0;
+    
+    attendance.forEach(row => {
+        const code = String(row?.subjectcode || row?.individualsubjectcode || '').trim();
+        if (subjectCounts[code] && subjectCounts[code].total > 0) {
+            tC += subjectCounts[code].total; tA += subjectCounts[code].attended;
         }
-      }));
-    } catch (err) {
-      if (err instanceof SessionExpiredError) {
-        onExpired?.();
-        return;
-      }
+    });
 
-      setSubjectDetails((prev) => ({
-        ...prev,
-        [subjectCode]: {
-          loaded: true,
-          loading: false,
-          rows: [],
-          message: err?.message || 'Unable to load subject attendance'
-        }
-      }));
-    }
-  };
+    if (tC === 0) return null;
+    return { attended: tA, total: tC, pct: (tA / tC) * 100 };
+  }, [attendance, subjectCounts]);
+
+  const targetVal = Number(targetAttendancePct || 75);
+
+  // Derive State variables depending on if we are in Master or Global view.
+  const isDetailView = activeSubject !== null;
+  const activeCode = isDetailView ? String(activeSubject?.subjectcode || activeSubject?.individualsubjectcode || '').trim() : null;
+  const [mobileView, setMobileView] = useState('dashboard');
+  
+  let layoutGuidance = "";
+  let layoutPct = 0;
+  let layoutAttended = 0;
+  let layoutTotal = 0;
+  let layoutSafe = true;
+
+  useEffect(() => {
+      if (!setCustomSidebar) return;
+      const sidebarJsx = (
+          <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar mt-6 w-full">
+              <div className="px-6 py-2 mb-2">
+                 <span className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-[0.2em]">Attendance Roster</span>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-1">
+                  <button 
+                     onClick={() => { setActiveSubject(null); setHistoryDetail(null); }}
+                     className={cn("w-full text-left px-4 py-3.5 rounded-xl flex items-center gap-3.5", !isDetailView ? "bg-primary/10 text-primary border border-primary/20" : "text-muted-foreground border border-transparent")}
+                  >
+                      <Activity className={cn("w-4 h-4", !isDetailView ? "opacity-100" : "opacity-60")} />
+                      <span className="text-sm font-bold">Global Dashboard</span>
+                  </button>
+
+                  {attendance.map((row) => {
+                      const subjectCode = String(row?.subjectcode || row?.individualsubjectcode || '').trim();
+                      const pct = Number(row.LTpercantage || 0);
+                      const isSelected = isDetailView && activeCode === subjectCode;
+                      const countState = subjectCounts[subjectCode];
+                      
+                      return (
+                          <button 
+                              key={subjectCode} onClick={() => selectSubject(row)}
+                              className={cn("w-full text-left py-3.5 px-4 rounded-xl transition-all mb-1 mt-1", isSelected ? "bg-primary/5 text-primary border border-primary/10" : "bg-transparent hover:bg-muted/50 text-muted-foreground border border-transparent")}
+                          >
+                              <div className="flex items-start justify-between gap-3 mb-1.5">
+                                  <span className={cn("text-[13px] font-semibold leading-relaxed", isSelected ? "text-primary font-bold" : "text-foreground")}>{row.subjectdesc || subjectCode}</span>
+                                  <span className={cn("text-[11px] font-black shrink-0 mt-0.5", pct >= targetVal ? "text-emerald-500" : "text-rose-500")}>{Math.round(pct)}%</span>
+                              </div>
+                              
+                              <div className="flex items-center justify-between mt-2">
+                                  <span className="text-[9px] font-mono tracking-wider opacity-60 bg-foreground/5 px-1.5 py-0.5 rounded uppercase">{subjectCode}</span>
+                                  <span className="text-[10px] font-bold text-muted-foreground">
+                                      {countState?.total ? `${countState.attended} / ${countState.total}` : '...'}
+                                  </span>
+                              </div>
+                          </button>
+                      )
+                  })}
+              </div>
+          </div>
+      );
+      setCustomSidebar(sidebarJsx);
+
+      return () => setCustomSidebar(null);
+  }, [attendance, subjectCounts, activeCode, isDetailView, targetVal, setCustomSidebar]);
+
+  if (isDetailView) {
+      const cState = subjectCounts[activeCode];
+      layoutPct = Number(activeSubject.LTpercantage || 0);
+      layoutTotal = Number(cState?.total || 0);
+      layoutAttended = Number(cState?.attended || 0);
+      const ratioParam = layoutTotal > 0 ? { attended: layoutAttended, total: layoutTotal } : undefined;
+      layoutGuidance = buildAttendanceGuidance(activeSubject, targetVal, ratioParam);
+      layoutSafe = layoutPct >= targetVal;
+  } else if (aggregateMetrics) {
+      layoutPct = aggregateMetrics.pct;
+      layoutTotal = aggregateMetrics.total;
+      layoutAttended = aggregateMetrics.attended;
+      layoutSafe = layoutPct >= targetVal;
+      layoutGuidance = layoutSafe ? "Global aggregate safe" : "Global aggregate at risk";
+  }
 
   return (
-    <div className="space-y-4 pb-28 sm:pb-24">
-      <div className={`sticky top-0 z-20 p-4 ${glassPanel}`}>
-        <div className="grid grid-cols-[1fr_auto] gap-4">
-          <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-muted-foreground">Semester</label>
-            <select
-              className="w-full rounded-xl border border-border/40 bg-secondary/30 px-3 py-2 text-sm font-medium appearance-none cursor-pointer hover:border-primary/50 transition-colors"
-              value={selectedSem}
-              onChange={(e) => setSelectedSem(e.target.value)}
-            >
-              {(meta?.semesters || []).map((sem) => (
-                <option key={sem.registration_id} value={sem.registration_id}>
-                  {sem.registration_code}
-                </option>
-              ))}
-            </select>
+    <div className="flex flex-col lg:flex-row gap-6 w-full h-full min-h-0 overflow-hidden pb-24 lg:pb-0">
+      
+      {/* Mobile Master Pane (Hidden on Desktop because it is ported to Custom Sidebar) */}
+      <div className={cn(
+          "flex-col w-full h-full min-h-0 bg-card border border-border shadow-sm rounded-2xl overflow-hidden shrink-0",
+          mobileView === 'dashboard' ? "hidden" : "flex lg:hidden"
+      )}>
+          <div className="p-5 border-b border-border bg-muted/20">
+              <h2 className="text-base font-bold text-foreground">Attendance List</h2>
+              <p className="text-xs font-medium text-muted-foreground mt-0.5">Select a module to view timeline</p>
           </div>
-          <div className="w-32 space-y-1.5">
-            <label className="block text-xs font-medium text-muted-foreground">Target %</label>
-            <select
-              value={targetAttendancePct}
-              onChange={(e) => setTargetAttendancePct(e.target.value)}
-              className="h-10 w-full rounded-xl border border-border/40 bg-secondary/30 px-3 text-sm font-medium appearance-none cursor-pointer hover:border-primary/50 transition-colors"
-            >
-              <option value="">Select</option>
-              {[60, 65, 70, 75, 80, 85, 90].map(val => (
-                <option key={val} value={val}>{val}%</option>
-              ))}
-            </select>
+          
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
+              <button 
+                 onClick={() => { setActiveSubject(null); setHistoryDetail(null); setMobileView('dashboard'); }}
+                 className={cn("w-full text-left p-4 rounded-xl flex items-center justify-between", !isDetailView ? "bg-primary/10 border border-primary/20" : "border border-transparent")}
+              >
+                  <span className={cn("text-sm font-bold", !isDetailView ? "text-primary" : "text-foreground")}>Global Dashboard</span>
+                  <Activity className={cn("w-4 h-4", !isDetailView ? "text-primary" : "text-muted-foreground")} />
+              </button>
+
+              {attendance.map((row) => {
+                  const subjectCode = String(row?.subjectcode || row?.individualsubjectcode || '').trim();
+                  const pct = Number(row.LTpercantage || 0);
+                  const isSelected = isDetailView && activeCode === subjectCode;
+                  const countState = subjectCounts[subjectCode];
+                  
+                  return (
+                      <button 
+                          key={subjectCode} onClick={() => { selectSubject(row); setMobileView('dashboard'); }}
+                          className={cn("w-full text-left py-3.5 px-4 rounded-xl transition-all mb-1", isSelected ? "bg-primary/5 text-primary border border-primary/10" : "bg-transparent hover:bg-muted/50 text-muted-foreground border border-transparent")}
+                      >
+                          <div className="flex items-start justify-between gap-3 mb-1.5">
+                              <span className={cn("text-[13px] font-semibold leading-relaxed", isSelected ? "text-primary font-bold" : "text-foreground")}>{row.subjectdesc || subjectCode}</span>
+                              <span className={cn("text-[11px] font-black shrink-0 mt-0.5", pct >= targetVal ? "text-emerald-500" : "text-rose-500")}>{Math.round(pct)}%</span>
+                          </div>
+                          
+                          <div className="flex items-center justify-between mt-2">
+                              <span className="text-[9px] font-mono tracking-wider opacity-60 bg-foreground/5 px-1.5 py-0.5 rounded uppercase">{subjectCode}</span>
+                              <span className="text-[10px] font-bold text-muted-foreground">
+                                  {countState?.total ? `${countState.attended} / ${countState.total}` : '...'}
+                              </span>
+                          </div>
+                      </button>
+                  )
+              })}
           </div>
-        </div>
-        <div className="mt-4 flex rounded-xl bg-secondary/50 p-1">
-          <button
-            type="button"
-            className={cn(
-              "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
-              attendanceMode === 'overview' ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            )}
-            onClick={() => setAttendanceMode('overview')}
-          >
-            Overview
-          </button>
-          <button
-            type="button"
-            className={cn(
-              "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
-              attendanceMode === 'day' ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            )}
-            onClick={() => setAttendanceMode('day')}
-          >
-            Day-to-Day
-          </button>
-        </div>
       </div>
 
-      <div className="space-y-4">
-        {!attendance.length ? <p className="text-sm text-muted-foreground font-medium">{message || 'No records found.'}</p> : null}
-        {attendance.map((row) => (
-          <div key={row.subjectcode} className="rounded-2xl border border-border/40 bg-card p-6 hover:border-primary/20 transition-all duration-300">
-              {(() => {
-                const pct = Number(row.LTpercantage || 0);
-                const effectiveTargetPct = String(targetAttendancePct || '75');
-                const target = Number(effectiveTargetPct || 75);
-                const subjectCode = String(row?.subjectcode || row?.individualsubjectcode || '').trim();
-                const countState = subjectCounts[subjectCode];
-                const trustedRatio = resolveAttendanceCounts(row, effectiveTargetPct, { allowDerived: false });
-                const fallbackRatio = trustedRatio || resolveAttendanceCounts(row, effectiveTargetPct, { allowDerived: true });
-
-                const countTotal = Number(countState?.total || 0);
-                const hasReliableCount = countTotal > 0;
-
-                const ratio = hasReliableCount
-                  ? {
-                      attended: Number(countState?.attended || 0),
-                      total: countTotal,
-                      source: countState?.source || 'daily'
-                    }
-                  : fallbackRatio;
-
-                const exactCountLoading = Boolean(countState?.loading && !(ratio?.total));
-                const ratioMessage = String(countState?.message || '').trim();
-                const ratioFetchFailed = /unable|failed|error|timeout|network/i.test(ratioMessage);
-                const noClassesYet = Boolean(
-                  countState && !countState?.loading && !(ratio?.total) && !ratioFetchFailed && pct <= 0
-                );
-                
-                const guidance = buildAttendanceGuidance(
-                  row,
-                  effectiveTargetPct,
-                  ratio ? { attended: ratio.attended, total: ratio.total } : undefined
-                );
-                
-                // Color logic based on target
-                const statusColorCls = pct >= target 
-                  ? 'text-emerald-500' 
-                  : pct >= target - 10 ? 'text-amber-500' : 'text-red-500';
-
-                return (
-                  <>
-                    <div className="mb-4 flex items-start justify-between gap-4">
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <h3 className="text-lg font-bold leading-none tracking-tight text-foreground font-[var(--font-instrument-sans)] truncate">
-                          {row.subjectdesc || row.subjectcode}
-                        </h3>
-                        <p className="text-xs font-medium text-muted-foreground">
-                          {row.subjectcode}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-4">
-                        {ratio?.total ? (
-                          <div className="flex flex-col items-end gap-0.5">
-                            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Attended / Total</span>
-                            <span className="text-lg font-black leading-none text-foreground">{ratio.attended}/{ratio.total}</span>
-                          </div>
-                        ) : noClassesYet ? (
-                          <div className="flex flex-col items-end gap-0.5">
-                            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Attended / Total</span>
-                            <span className="text-lg font-black leading-none text-foreground">0/0</span>
-                          </div>
-                        ) : exactCountLoading ? (
-                          <div className="text-[10px] font-medium text-muted-foreground/70">Attended / Total: Loading...</div>
-                        ) : null}
-                        <div className="flex flex-col items-center justify-center rounded-xl border-2 border-primary/20 p-2 min-w-[70px] bg-primary/5">
-                           <span className="text-2xl font-black leading-none text-primary">{toPercent(row.LTpercantage)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mb-3 space-y-2">
-                      <div className="h-1.5 w-full bg-muted/40 rounded-full overflow-hidden">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${Math.min(100, pct)}%` }}
-                          transition={{ duration: 1, ease: "circOut" }}
-                          className="h-full rounded-full bg-primary"
-                        />
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <p className={cn("text-xs font-bold", statusColorCls)}>
-                          {guidance}
-                        </p>
-                        <p className="text-xs font-medium text-muted-foreground/50">
-                          Target: {target}%
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { label: 'Lecture', val: row.Lpercentage },
-                        { label: 'Tutorial', val: row.Tpercentage },
-                        { label: 'Practical', val: row.Ppercentage }
-                      ].map((comp) => (
-                        <div key={comp.label} className="rounded-xl border border-border/40 bg-secondary/20 p-2 flex flex-col items-center">
-                          <p className="text-sm font-bold text-foreground">{toPercent(comp.val)}</p>
-                          <p className="text-[9px] font-medium text-muted-foreground">{comp.label}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                );
-              })()}
-              {SHOW_TECHNICAL_DETAILS ? (
-                <div className="mt-2 grid gap-1 text-[11px] text-muted-foreground sm:grid-cols-2">
-                  <p>Subject ID: {row.subjectid || '-'}</p>
-                  <p>Individual Code: {row.individualsubjectcode || '-'}</p>
-                  <p>L Component ID: {row.Lsubjectcomponentid || '-'}</p>
-                  <p>T Component ID: {row.Tsubjectcomponentid || '-'}</p>
-                  <p>P Component ID: {row.Psubjectcomponentid || '-'}</p>
-                </div>
-              ) : null}
-              {SHOW_TECHNICAL_DETAILS && pickRenderablePairs(row.raw || {}, [
-                'subjectcode',
-                'subjectdesc',
-                'subjectname',
-                'lpercentage',
-                'tpercentage',
-                'ppercentage',
-                'ltpercantage',
-                'ltpercentage'
-              ], 4).length ? (
-                <div className="mt-2 grid gap-1 text-[11px] text-muted-foreground sm:grid-cols-2">
-                  {pickRenderablePairs(row.raw || {}, [
-                    'subjectcode',
-                    'subjectdesc',
-                    'subjectname',
-                    'lpercentage',
-                    'tpercentage',
-                    'ppercentage',
-                    'ltpercantage',
-                    'ltpercentage'
-                  ], 4).map(([k, v]) => (
-                    <p key={`${row.subjectcode}-${k}`}>{k}: {v}</p>
-                  ))}
-                </div>
-              ) : null}
-              <div className="mt-3 flex gap-2">
-                {attendanceMode === 'day' ? (
-                  <Button
-                    size="default"
-                    variant="secondary"
-                    className="border-slate-300 dark:border-slate-600"
-                    onClick={() => loadSubject(row.subjectcode)}
-                    disabled={subjectDetails[row.subjectcode]?.loading || subjectDetails[row.subjectcode]?.loaded}
-                  >
-                    {subjectDetails[row.subjectcode]?.loading
-                      ? 'Loading...'
-                      : subjectDetails[row.subjectcode]?.loaded
-                        ? 'Loaded'
-                        : 'View Day-to-Day'}
-                  </Button>
-                ) : null}
+      {/* Main Right Pane (Dashboard Area) */}
+      <div className={cn("flex-1 flex flex-col gap-4 sm:gap-6 w-full h-full min-h-0 overflow-hidden", mobileView === 'roster' && "hidden lg:flex")}>
+          
+          <div className="flex items-center justify-between mt-1 sm:mt-0 mb-1 sm:mb-2 px-1 lg:p-0 shrink-0 min-h-[32px]">
+              <h2 className="text-sm sm:text-lg font-black text-foreground line-clamp-1 truncate pr-4">
+                  {isDetailView ? (activeSubject?.subjectdesc || activeCode) : "Global Workspace"}
+              </h2>
+              <div className="flex items-center gap-2 lg:gap-3 shrink-0">
+                 <div className="relative hidden sm:flex items-center border border-border bg-card shadow-sm rounded-lg overflow-hidden transition-colors hover:bg-muted">
+                     <div className="px-2 text-muted-foreground border-r border-border flex items-center justify-center">
+                         <Settings className="w-3.5 h-3.5" />
+                     </div>
+                     <select 
+                         value={targetVal} 
+                         onChange={(e) => setTargetAttendancePct(e.target.value)}
+                         className="bg-transparent text-xs font-bold text-foreground focus:outline-none appearance-none px-2 py-2 cursor-pointer w-[60px]"
+                     >
+                         <option value="60">60%</option>
+                         <option value="65">65%</option>
+                         <option value="70">70%</option>
+                         <option value="75">75%</option>
+                         <option value="80">80%</option>
+                         <option value="85">85%</option>
+                         <option value="90">90%</option>
+                     </select>
+                 </div>
+                 
+                 {isDetailView ? (
+                     <>
+                         <button onClick={() => setMobileView('roster')} className="lg:hidden text-[9px] sm:text-[10px] font-black text-primary flex items-center gap-1 px-2 py-1.5 rounded-lg bg-primary/10 tracking-widest uppercase border border-primary/20 transition-colors">
+                             &larr; Subjects
+                         </button>
+                         <button onClick={() => { setActiveSubject(null); setHistoryDetail(null); setMobileView('dashboard'); }} className="text-[9px] sm:text-[10px] font-black text-foreground flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-card border border-border tracking-widest uppercase transition-colors hover:bg-muted shadow-sm">
+                             <Activity className="w-3 h-3" /> Dash
+                         </button>
+                     </>
+                 ) : (
+                     <button onClick={() => setMobileView('roster')} className="lg:hidden text-[9px] sm:text-[10px] font-black text-primary flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary/10 uppercase tracking-widest border border-primary/20 transition-colors">
+                         &larr; Subjects
+                     </button>
+                 )}
               </div>
-              {attendanceMode === 'day' && (subjectDetails[row.subjectcode]?.rows || []).length ? (
-                <div className="mt-3 space-y-2 rounded-xl border border-border/40 bg-secondary/20 p-3 text-xs">
-                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <label className="flex items-center gap-2 text-muted-foreground">
-                      Status
-                      <select
-                        className="rounded-lg border border-border/40 bg-card px-2 py-1 text-xs"
-                        value={dayFilters[row.subjectcode] || 'all'}
-                        onChange={(e) => setDayFilters((prev) => ({ ...prev, [row.subjectcode]: e.target.value }))}
-                      >
-                        <option value="all">All</option>
-                        <option value="present">Present</option>
-                        <option value="absent">Absent</option>
-                      </select>
-                    </label>
-                    <label className="flex items-center gap-2 text-muted-foreground">
-                      Month
-                      <select
-                        className="rounded-lg border border-border/40 bg-card px-2 py-1 text-xs"
-                        value={monthFilters[row.subjectcode] || 'all'}
-                        onChange={(e) => setMonthFilters((prev) => ({ ...prev, [row.subjectcode]: e.target.value }))}
-                      >
-                        <option value="all">All Months</option>
-                        {Array.from(new Set((subjectDetails[row.subjectcode].rows || []).map((entry) => monthKeyFromDate(entry.datetime))))
-                          .filter((key) => key !== 'unknown')
-                          .sort((a, b) => String(b).localeCompare(String(a)))
-                          .map((key) => (
-                            <option key={key} value={key}>{monthLabelFromKey(key)}</option>
-                          ))}
-                      </select>
-                    </label>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setShowAllRows((prev) => ({ ...prev, [row.subjectcode]: !prev[row.subjectcode] }))}
-                    >
-                      {showAllRows[row.subjectcode] ? 'Show Recent' : 'Show All'}
-                    </Button>
-                  </div>
-                  {(() => {
-                    const allRows = subjectDetails[row.subjectcode].rows || [];
-                    const sortedRows = [...allRows].sort((a, b) => dateScore(b.datetime) - dateScore(a.datetime));
-                    const filteredRows = sortedRows
-                      .filter((entry) => {
-                        const mode = dayFilters[row.subjectcode] || 'all';
-                        if (mode === 'present') return entry.present === 'Present';
-                        if (mode === 'absent') return entry.present === 'Absent';
-                        return true;
-                      })
-                      .filter((entry) => {
-                        const monthMode = monthFilters[row.subjectcode] || 'all';
-                        if (monthMode === 'all') return true;
-                        return monthKeyFromDate(entry.datetime) === monthMode;
-                      });
-
-                    const visibleRows = filteredRows.slice(0, showAllRows[row.subjectcode] ? undefined : 20);
-
-                    const groupedByMonth = visibleRows.reduce((acc, entry) => {
-                      const key = monthKeyFromDate(entry.datetime);
-                      if (!acc[key]) acc[key] = [];
-                      acc[key].push(entry);
-                      return acc;
-                    }, {});
-
-                    const monthKeys = Object.keys(groupedByMonth).sort((a, b) => String(b).localeCompare(String(a)));
-
-                    const totalPresent = filteredRows.filter((entry) => entry.present === 'Present').length;
-                    const totalAbsent = filteredRows.filter((entry) => entry.present === 'Absent').length;
-                    const totalClasses = filteredRows.length;
-
-                    const monthlyStats = monthStatsFromRows(filteredRows);
-
-                    return (
-                      <>
-                        <div className="mb-2 grid gap-1 text-[11px] text-muted-foreground sm:grid-cols-3">
-                          <span>Present: {totalPresent}</span>
-                          <span>Absent: {totalAbsent}</span>
-                          <span>Attended / Total: {attendanceRatioText(totalPresent, totalClasses)}</span>
-                        </div>
-
-                        <div className="mb-2 flex flex-wrap gap-2">
-                          {monthlyStats.map((m) => (
-                      <span key={`${row.subjectcode}-${m.key}-stat`} className="rounded-lg border border-border/40 px-2 py-0.5 text-[10px] text-muted-foreground">
-                              {monthLabelFromKey(m.key)}: {attendanceRatioText(m.present, m.total)}
-                            </span>
-                          ))}
-                        </div>
-
-                        {monthKeys.map((monthKey) => {
-                          const monthRows = groupedByMonth[monthKey] || [];
-                          const monthPresent = monthRows.filter((entry) => entry.present === 'Present').length;
-                          const monthTotal = monthRows.length;
-
-                          return (
-                            <div key={`${row.subjectcode}-${monthKey}`} className="mb-2 rounded-xl border border-border/30 bg-card p-2">
-                              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-border/30 pb-1">
-                                <p className="text-xs font-semibold text-foreground">{monthLabelFromKey(monthKey)}</p>
-                                <p className="text-xs text-muted-foreground">Attended / Total: {attendanceRatioText(monthPresent, monthTotal)}</p>
-                              </div>
-
-                              <div className="space-y-2">
-                                {monthRows.map((entry, idx) => (
-                                  <div key={`${row.subjectcode}-${monthKey}-${idx}`} className="rounded-lg border border-border/30 bg-card px-2 py-1.5">
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div>
-                                        <span className="text-[11px] leading-5 sm:text-xs">{entry.datetime || '-'}</span>
-                                        {entry.topic ? <p className="text-[10px] text-muted-foreground">{entry.topic}</p> : null}
-                                      </div>
-                                      <span className={`rounded-lg px-2 py-0.5 text-[10px] font-semibold ${entry.present === 'Present' ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-500'}`}>
-                                        {entry.present}
-                                      </span>
-                                    </div>
-                                    {SHOW_TECHNICAL_DETAILS && pickRenderablePairs(entry.raw || {}, ['datetime', 'attendancedate', 'date', 'present', 'status', 'attendance', 'topic'], 3).length ? (
-                                      <div className="mt-1 grid gap-1 text-[10px] text-muted-foreground sm:grid-cols-2">
-                                        {pickRenderablePairs(entry.raw || {}, ['datetime', 'attendancedate', 'date', 'present', 'status', 'attendance', 'topic'], 3)
-                                          .map(([k, v]) => (
-                                            <p key={`${row.subjectcode}-${monthKey}-${idx}-${k}`}>{k}: {v}</p>
-                                          ))}
-                                      </div>
-                                    ) : null}
-                                    {SHOW_TECHNICAL_DETAILS && pickIdPairs(entry.raw || {}, 4).length ? (
-                                      <div className="mt-1 grid gap-1 text-[10px] text-muted-foreground sm:grid-cols-2">
-                                        {pickIdPairs(entry.raw || {}, 4).map(([k, v]) => (
-                                          <p key={`${row.subjectcode}-${monthKey}-${idx}-id-${k}`}>{k}: {v}</p>
-                                        ))}
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </>
-                    );
-                  })()}
-                </div>
-              ) : null}
-              {attendanceMode === 'day' && subjectDetails[row.subjectcode]?.loaded && !(subjectDetails[row.subjectcode]?.rows || []).length ? (
-                <p className="mt-3 text-xs text-muted-foreground">
-                  {subjectDetails[row.subjectcode]?.message || 'Day-to-day attendance is not available for this subject right now.'}
-                </p>
-              ) : null}
           </div>
-        ))}
+
+          {/* Top Dashboard Widgets (Bento Grid on Mobile, Standard Grid on Desktop) */}
+          <div className="grid grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6 shrink-0">
+             
+             {/* Widget 1: Guidance / Today's Box */}
+             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="bg-card border border-border shadow-sm rounded-2xl p-5 md:p-6 flex flex-col justify-between relative overflow-hidden col-span-1">
+                 <div className="flex items-center gap-2 text-muted-foreground mb-4 z-10">
+                     <FolderOpen className="w-4 h-4" />
+                     <h3 className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Status</h3>
+                 </div>
+                 
+                 <div className="mb-4 sm:mb-6">
+                     <span className={cn("text-xl sm:text-2xl font-black font-[var(--font-instrument-sans)] tracking-tighter", layoutSafe ? "text-emerald-500" : "text-rose-500")}>
+                         {layoutSafe ? "Secure" : "Critical"}
+                     </span>
+                     <p className="text-[10px] sm:text-sm font-medium text-foreground mt-1 line-clamp-2">
+                         {isDetailView ? layoutGuidance : (aggregateMetrics ? `${aggregateMetrics.attended} Total Classes` : 'Analyzing...')}
+                     </p>
+                 </div>
+
+                 <div className="grid grid-cols-2 gap-2 border-t border-border pt-3 sm:pt-4">
+                     <div className="flex flex-col items-start sm:items-center">
+                         <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase">Target</span>
+                         <span className="text-xs sm:text-sm font-black text-foreground">{targetVal}%</span>
+                     </div>
+                     <div className="flex flex-col items-end sm:items-center justify-center">
+                         {layoutSafe ? <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500"/> : <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-rose-500"/>}
+                     </div>
+                 </div>
+             </motion.div>
+
+             {/* Widget 2: Ratios and Metrics */}
+             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.05 }} className="bg-card border border-border shadow-sm rounded-2xl p-5 md:p-6 flex flex-col justify-between relative overflow-hidden col-span-1">
+                 <div className="flex items-center gap-2 text-muted-foreground mb-4 z-10">
+                     <Activity className="w-4 h-4" />
+                     <h3 className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Volume</h3>
+                 </div>
+                 
+                 <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-baseline gap-1">
+                     <span className="text-2xl sm:text-3xl font-black tracking-tighter text-foreground">{layoutAttended}</span>
+                     <span className="text-[10px] sm:text-sm font-bold text-muted-foreground">/ {layoutTotal}</span>
+                 </div>
+
+                 <div className="flex justify-between sm:grid sm:grid-cols-3 gap-1 sm:gap-2 border-t border-border pt-3 sm:pt-4">
+                     <div className="flex items-center justify-between sm:justify-center text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase">
+                        Lab {isDetailView && <span className="text-foreground tracking-wider ml-1">{toPercent(activeSubject?.Ppercentage)}</span>}
+                     </div>
+                     <div className="flex items-center justify-between sm:justify-center text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase">
+                        Lec {isDetailView && <span className="text-foreground tracking-wider ml-1">{toPercent(activeSubject?.Lpercentage)}</span>}
+                     </div>
+                 </div>
+             </motion.div>
+
+             {/* Widget 3: Segmented Arch Chart */}
+             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="bg-card border border-border shadow-sm rounded-2xl p-5 md:p-6 flex flex-col items-center justify-center col-span-2 xl:col-span-1 relative">
+                 <div className="w-full flex items-center justify-between mb-2">
+                     <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Performance Ratio</h3>
+                 </div>
+                 {aggregateMetrics || isDetailView ? (
+                    <SegmentedArch pct={layoutPct} />
+                 ) : (
+                    <div className="flex-1 flex items-center justify-center text-sm font-medium text-muted-foreground">Loading topology...</div>
+                 )}
+             </motion.div>
+
+          </div>
+
+          {/* Bottom Table Area */}
+          <div className="bg-card border border-border shadow-sm rounded-2xl flex flex-col w-full flex-1 min-h-0 overflow-hidden">
+             
+             {/* Table Header */}
+             <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border flex items-center justify-between bg-muted/10 shrink-0">
+                 <h2 className="text-[13px] sm:text-sm font-bold text-foreground flex items-center gap-2">
+                    {isDetailView ? <Clock className="w-4 h-4 text-muted-foreground"/> : <Filter className="w-4 h-4 text-muted-foreground"/>}
+                    {isDetailView ? 'Session Timeline' : 'Module Registry'}
+                 </h2>
+                 <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground shrink-0">{isDetailView && historyDetail?.rows?.length} Records</span>
+             </div>
+
+             {/* Table Body (Timeline or Empty State) */}
+             <div className="flex-1 overflow-auto custom-scrollbar p-0 sm:p-6 relative">
+                 {isDetailView ? (
+                     historyDetail?.loading ? (
+                         <div className="flex items-center justify-center h-full text-xs font-mono uppercase tracking-widest text-muted-foreground">Fetching records...</div>
+                     ) : historyDetail?.rows?.length > 0 ? (
+                         <table className="w-full text-sm text-left">
+                             <thead className="text-[10px] text-muted-foreground uppercase bg-muted/20 border-b border-border">
+                                 <tr>
+                                     <th className="px-4 py-3 font-bold rounded-l-lg">Date / Time</th>
+                                     <th className="px-4 py-3 font-bold">Type</th>
+                                     <th className="px-4 py-3 font-bold">Topic Coverage</th>
+                                     <th className="px-4 py-3 font-bold text-right rounded-r-lg">Status</th>
+                                 </tr>
+                             </thead>
+                             <tbody>
+                                 {historyDetail.rows.map((row, i) => (
+                                     <motion.tr 
+                                         key={i} 
+                                         initial={{ opacity: 0, x: -10 }}
+                                         animate={{ opacity: 1, x: 0 }}
+                                         transition={{ delay: i * 0.02 }}
+                                         className="border-b border-border/50 cursor-default"
+                                     >
+                                         <td className="px-4 py-3.5 font-bold text-foreground w-[160px]">{row.datetime || '-'}</td>
+                                         <td className="px-4 py-3.5 text-muted-foreground w-[100px]">{row.classtype || 'Class'}</td>
+                                         <td className="px-4 py-3.5 text-muted-foreground max-w-full break-words">{row.topic || '-'}</td>
+                                         <td className="px-4 py-3.5 text-right w-[120px]">
+                                             <span className={cn(
+                                                 "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border shadow-sm",
+                                                 row.present === 'Present' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                                             )}>
+                                                 {row.present === 'Present' ? 'Present' : 'Absent'}
+                                             </span>
+                                         </td>
+                                     </motion.tr>
+                                 ))}
+                             </tbody>
+                         </table>
+                     ) : (
+                         <div className="flex items-center justify-center h-full text-xs font-mono uppercase tracking-widest text-muted-foreground text-center">
+                             {historyDetail?.error || 'Empty Timeline Array.'}
+                         </div>
+                     )
+                 ) : (
+                     <div className="flex flex-col items-center justify-center h-full text-muted-foreground space-y-3">
+                         <div className="w-12 h-12 rounded-full border border-dashed border-border flex items-center justify-center bg-muted/20">
+                            <FolderOpen className="w-5 h-5 opacity-50" />
+                         </div>
+                         <p className="text-sm font-medium">Select a module from the roster to view timeline telemetry.</p>
+                     </div>
+                 )}
+             </div>
+
+          </div>
+
       </div>
     </div>
   );

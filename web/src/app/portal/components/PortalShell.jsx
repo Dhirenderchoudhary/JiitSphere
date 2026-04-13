@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { LogOut, RefreshCw } from 'lucide-react';
+import Link from 'next/link';
+import { LogOut, RefreshCw, BarChart2 } from 'lucide-react';
 import TopPanelTools from 'components/TopPanelTools';
 import { Button } from 'components/ui/button';
 import { fetchMe, fetchPortalSdkSession } from 'lib/api';
@@ -12,8 +13,6 @@ import { cn } from 'lib/utils';
 import {
   tabs,
   adminTabs,
-  glassPanel,
-  darkPanel,
   SHOW_PORTAL_DIAGNOSTICS,
   STALE_ON_FOCUS_MS,
   AUTO_REFRESH_INTERVAL_MS
@@ -21,8 +20,8 @@ import {
 import HydrationStatusPanel from './HydrationStatusPanel';
 
 const tabLoadingState = (
-  <div className="surface-card flex min-h-[220px] items-center justify-center p-6 text-sm text-muted-foreground">
-    Loading section...
+  <div className="flex min-h-[400px] w-full items-center justify-center p-6 text-sm text-muted-foreground font-mono uppercase tracking-widest">
+    <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Initializing payload...
   </div>
 );
 
@@ -34,7 +33,6 @@ const FeesView = dynamic(() => import('./FeesView'), { loading: () => tabLoading
 const ProfileView = dynamic(() => import('./ProfileView'), { loading: () => tabLoadingState });
 const AnalyticsView = dynamic(() => import('./AnalyticsView'), { loading: () => tabLoadingState });
 
-/** Format milliseconds ago into a human label like "just now", "3 min ago", "2 hr ago" */
 const formatAgo = (ms) => {
   const sec = Math.floor(ms / 1000);
   if (sec < 60) return 'just now';
@@ -48,10 +46,12 @@ export default function PortalShell({ token, onLogout }) {
   const [activeTab, setActiveTab] = useState('attendance');
   const [sdkSession, setSdkSession] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [cachedPhoto, setCachedPhoto] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastRefreshedAt, setLastRefreshedAt] = useState(Date.now());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [agoLabel, setAgoLabel] = useState('just now');
+  const [customSidebar, setCustomSidebar] = useState(null);
   const lastHiddenAt = useRef(null);
 
   const onExpired = useCallback(() => {
@@ -64,7 +64,6 @@ export default function PortalShell({ token, onLogout }) {
     setAgoLabel('just now');
   }, []);
 
-  // ── Initial SDK session + user fetch ──────────────────────────────
   useEffect(() => {
     setIsRefreshing(true);
     fetchPortalSdkSession(token, false)
@@ -77,7 +76,9 @@ export default function PortalShell({ token, onLogout }) {
         if (err instanceof SessionExpiredError) {
           onExpired();
         } else {
-          onLogout();
+          // Suppress automatic logout on raw network/server errors (500/502).
+          // Allow the UI to ride out transient backend blips without destroying user tokens.
+          console.warn("Portal Sync Transient Warning:", err?.message || 'Unknown error');
         }
       });
   }, [token, onLogout, onExpired, refreshKey]);
@@ -91,13 +92,17 @@ export default function PortalShell({ token, onLogout }) {
       });
   }, [token, onExpired]);
 
-  // ── Auto-refresh every AUTO_REFRESH_INTERVAL_MS ───────────────────
+  useEffect(() => {
+    try {
+      setCachedPhoto(window.localStorage.getItem('jaypee_buddy_cached_photo') || '');
+    } catch (e) {}
+  }, [activeTab]);
+
   useEffect(() => {
     const id = setInterval(triggerRefresh, AUTO_REFRESH_INTERVAL_MS);
     return () => clearInterval(id);
   }, [triggerRefresh]);
 
-  // ── Refresh when tab becomes visible after STALE_ON_FOCUS_MS ──────
   useEffect(() => {
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') {
@@ -113,7 +118,6 @@ export default function PortalShell({ token, onLogout }) {
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, [triggerRefresh]);
 
-  // ── Tick the "X min ago" label every 30 s ────────────────────────
   useEffect(() => {
     const id = setInterval(() => {
       setAgoLabel(formatAgo(Date.now() - lastRefreshedAt));
@@ -133,7 +137,7 @@ export default function PortalShell({ token, onLogout }) {
   }, [activeTab, displayedTabs]);
 
   const content = useMemo(() => {
-    const viewProps = { token, onExpired };
+    const viewProps = { token, onExpired, setCustomSidebar };
     if (activeTab === 'attendance') return <AttendanceView key={refreshKey} {...viewProps} />;
     if (activeTab === 'grades') return <GradesView key={refreshKey} {...viewProps} />;
     if (activeTab === 'exams') return <ExamsView key={refreshKey} {...viewProps} semesters={semesters} />;
@@ -144,76 +148,145 @@ export default function PortalShell({ token, onLogout }) {
   }, [activeTab, semester, semesters, token, onExpired, refreshKey]);
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl px-4 py-8 pb-40 sm:px-6 sm:pb-36 lg:px-8">
-      <header className={`mb-8 p-6 sm:p-8 ${glassPanel}`}>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-bold text-muted-foreground">Student Portal</p>
-            <h1 className="font-[var(--font-instrument-sans)] text-3xl font-bold tracking-tight sm:text-4xl text-foreground">JPortal</h1>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <TopPanelTools />
-            <div className="h-8 w-px bg-border/30 mx-1" />
-            <Button
-              variant="outline"
-              onClick={onLogout}
-              size="sm"
-              className="rounded-lg h-9 font-bold text-xs border-border/40"
-            >
-              <LogOut className="mr-2 h-3.5 w-3.5" />
-              Logout
-            </Button>
-            <div className="flex flex-col items-end gap-1">
-              <Button
-                variant="secondary"
-                disabled={isRefreshing}
-                onClick={triggerRefresh}
-                size="sm"
-                className="rounded-lg h-9 font-bold text-xs"
-              >
-                <RefreshCw className={`mr-2 h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                {isRefreshing ? 'Refreshing...' : 'Refresh'}
-              </Button>
-              <span className="text-[9px] font-medium text-muted-foreground">Synced {agoLabel}</span>
-            </div>
-          </div>
+    <div className="flex h-screen w-full bg-background overflow-hidden text-foreground">
+      {/* Desktop Main Left Sidebar */}
+      <aside className="w-[280px] flex-shrink-0 border-r border-border bg-card flex-col z-20 hidden lg:flex shadow-sm">
+        {/* Logo Section */}
+        <div className="p-6 pb-2">
+          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-inner">
+                <BarChart2 className="w-5 h-5 text-primary-foreground" />
+             </div>
+             <span className="font-black text-2xl font-[var(--font-instrument-sans)] tracking-tighter">JiitSphere</span>
+          </Link>
         </div>
-      </header>
+        
+        {/* Navigation Wrapper / Custom Contextual Sidebar */}
+        {customSidebar ? customSidebar : (
+          <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar mt-6">
+            <div className="px-6 py-2 mb-2">
+               <span className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-[0.2em]">Platform Core</span>
+            </div>
+            
+            <nav className="px-4 space-y-1">
+               {displayedTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const active = tab.id === activeTab;
+                  return (
+                     <button 
+                        key={tab.id} 
+                        onClick={() => setActiveTab(tab.id)} 
+                        className={cn(
+                          "w-full flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 relative", 
+                          active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                        )}
+                     >
+                        <Icon className={cn("w-4 h-4", active ? "opacity-100" : "opacity-60")} />
+                        {tab.label}
+                        {active && (
+                          <motion.div 
+                            layoutId="active-sidebar-tab"
+                            className="absolute left-0 top-[15%] bottom-[15%] w-1 bg-primary rounded-r-full"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                          />
+                        )}
+                     </button>
+                  )
+               })}
+            </nav>
+          </div>
+        )}
+        
+        {/* Persistent User Profile Footer */}
+        <div className="p-5 border-t border-border bg-muted/10">
+           <button 
+               onClick={() => setActiveTab('profile')} 
+               className="w-full flex items-center gap-3 px-2 py-1.5 cursor-pointer group hover:bg-muted/50 rounded-xl transition-all"
+           >
+               <div className="w-10 h-10 shrink-0 rounded-full bg-secondary border border-border shadow-sm flex items-center justify-center overflow-hidden group-hover:border-primary/20 transition-colors">
+                  {cachedPhoto ? (
+                      <img src={cachedPhoto} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                      <span className="text-sm font-black text-foreground group-hover:text-primary transition-colors">{currentUser?.name?.charAt(0) || "S"}</span>
+                  )}
+               </div>
+               <div className="flex flex-col text-left flex-1 min-w-0">
+                  <span className="text-sm font-bold truncate group-hover:text-primary transition-colors">{currentUser?.name || "Student"}</span>
+                  <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest truncate">View Profile</span>
+               </div>
+               <div 
+                   onClick={(e) => { e.stopPropagation(); onLogout(); }}
+                   className="p-1.5 rounded-md hover:bg-rose-500/10 transition-colors"
+               >
+                   <LogOut className="w-4 h-4 text-muted-foreground/40 hover:text-rose-500 transition-colors" />
+               </div>
+           </button>
+        </div>
+      </aside>
 
-      {SHOW_PORTAL_DIAGNOSTICS ? <HydrationStatusPanel diagnostics={sdkSession?.diagnostics} /> : null}
+      {/* Main Right Content Pipeline */}
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-[#fafafa] dark:bg-background/95">
+        
+        {/* Top Header Bar */}
+        <header className="flex items-center justify-between px-4 sm:px-6 lg:px-10 py-4 sm:py-5 bg-card border-b border-border z-10 shrink-0">
+           <div className="flex items-center gap-3 sm:gap-4">
+              {/* Mobile-only Logo */}
+              <Link href="/" className="flex lg:hidden items-center gap-2 hover:opacity-80 transition-opacity">
+                 <div className="w-8 h-8 sm:w-9 sm:h-9 bg-primary rounded-lg shadow-inner flex items-center justify-center shrink-0">
+                    <BarChart2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
+                 </div>
+                 <span className="font-black text-xl font-[var(--font-instrument-sans)] tracking-tighter text-foreground pr-2 border-r border-border/50 hidden sm:block">JiitSphere</span>
+              </Link>
+              
+              <div className="flex flex-col min-w-0 justify-center">
+                 <div className="relative flex items-center bg-secondary/40 hover:bg-secondary/70 border border-border/60 rounded-xl transition-colors shadow-sm overflow-hidden">
+                     <select
+                        className="text-sm font-bold text-foreground bg-transparent border-none outline-none appearance-none cursor-pointer py-1.5 sm:py-2 pl-3 pr-8 relative truncate max-w-[140px] sm:max-w-[200px] w-full"
+                        value={activeTab}
+                        onChange={(e) => setActiveTab(e.target.value)}
+                        style={{ backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="currentColor" viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>')`, backgroundPosition: 'right 8px center', backgroundRepeat: 'no-repeat'}}
+                     >
+                         {displayedTabs.map(t => <option key={t.id} value={t.id} className="bg-background text-foreground">{t.label}</option>)}
+                     </select>
+                 </div>
+              </div>
+           </div>
+           
+           <div className="flex items-center gap-4">
+               <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 hidden sm:inline">Synced {agoLabel}</span>
+               <div className="h-5 w-px bg-border/50 mx-1 hidden sm:block" />
+               <TopPanelTools />
+               <Button variant="secondary" size="sm" onClick={triggerRefresh} disabled={isRefreshing} className="h-9 gap-2 shadow-sm rounded-lg font-bold ml-2">
+                   <RefreshCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin")} />
+                   <span className="hidden sm:inline">{isRefreshing ? 'Syncing...' : 'Sync'}</span>
+               </Button>
+           </div>
+        </header>
+        
+        {/* Dynamic Content Body */}
+        <div className={cn("flex-1 relative p-4 lg:p-6 xl:p-8", activeTab === 'attendance' ? "overflow-hidden" : "overflow-y-auto custom-scrollbar")}>
+           {SHOW_PORTAL_DIAGNOSTICS ? <HydrationStatusPanel diagnostics={sdkSession?.diagnostics} /> : null}
+           {content}
+        </div>
+      </main>
 
-      <div className="relative z-10">
-        {content}
-      </div>
-
-      <nav aria-label="Portal sections" className={`fixed bottom-6 left-1/2 z-40 flex w-[min(720px,92vw)] -translate-x-1/2 items-center gap-1 p-1.5 ${darkPanel}`}>
-        {displayedTabs.map((tab) => {
+      {/* Mobile Bottom Navigation Fallback (Visible only < lg screens) */}
+      <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 flex w-[min(92vw,400px)] items-center gap-1 p-1.5 bg-card/90 backdrop-blur-xl border border-border shadow-2xl rounded-2xl z-50">
+        {displayedTabs.slice(0, 5).map((tab) => {
           const Icon = tab.icon;
           const active = tab.id === activeTab;
           return (
             <button
               key={tab.id}
-              type="button"
               onClick={() => setActiveTab(tab.id)}
-              aria-current={active ? 'page' : undefined}
-              aria-label={`Open ${tab.label}`}
-              className={`flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-[10px] font-bold transition-all duration-300 relative ${
-                active ? 'text-primary' : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'
-              }`}
+              className={cn("flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-[10px] font-bold transition-all relative", active ? "text-primary" : "text-muted-foreground")}
             >
-              <Icon className={cn("h-4 w-4 transition-transform", active ? "scale-110" : "opacity-50")} />
-              <span className="hidden sm:inline text-[9px]">{tab.label}</span>
-              {active && (
-                <motion.div 
-                  layoutId="portal-tab-indicator"
-                  className="absolute inset-0 bg-primary/10 rounded-xl -z-10"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
+              <Icon className={cn("h-5 w-5 transition-transform", active && "scale-110")} />
             </button>
           );
         })}
       </nav>
-    </main>
+    </div>
   );
 }
