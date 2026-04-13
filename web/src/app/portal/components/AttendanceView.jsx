@@ -88,6 +88,77 @@ export default function AttendanceView({ token, onExpired }) {
     });
   }, [token, selectedSem, onExpired]);
 
+  useEffect(() => {
+    if (!selectedSem || !attendance.length) return;
+
+    let cancelled = false;
+    const subjectCodes = Array.from(
+      new Set(
+        attendance
+          .map((row) => String(row?.subjectcode || '').trim())
+          .filter(Boolean)
+      )
+    );
+
+    // Preload daily rows so overview can show exact attended/total counts.
+    const preloadExactCounts = async () => {
+      setSubjectDetails((prev) => {
+        const next = { ...prev };
+        for (const code of subjectCodes) {
+          if (next[code]?.loaded || next[code]?.loading) continue;
+          next[code] = {
+            loaded: false,
+            loading: true,
+            rows: [],
+            message: ''
+          };
+        }
+        return next;
+      });
+
+      for (const subjectCode of subjectCodes) {
+        if (cancelled) break;
+
+        try {
+          const response = await fetchPortalSubjectAttendance(token, selectedSem, subjectCode, false);
+          if (cancelled) break;
+
+          setSubjectDetails((prev) => ({
+            ...prev,
+            [subjectCode]: {
+              loaded: true,
+              loading: false,
+              rows: response?.data?.studentAttdsummarylist || [],
+              message: response?.data?.message || ''
+            }
+          }));
+        } catch (err) {
+          if (err instanceof SessionExpiredError) {
+            onExpired?.();
+            return;
+          }
+
+          if (cancelled) break;
+          setSubjectDetails((prev) => ({
+            ...prev,
+            [subjectCode]: {
+              loaded: true,
+              loading: false,
+              rows: [],
+              message: err?.message || 'Unable to load subject attendance'
+            }
+          }));
+        }
+      }
+    };
+
+    preloadExactCounts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attendance, selectedSem, token, onExpired]);
+
   const loadSubject = async (subjectCode) => {
     const current = subjectDetails[subjectCode];
     if (!subjectCode || !selectedSem || current?.loading || current?.loaded) return;
@@ -199,7 +270,11 @@ export default function AttendanceView({ token, onExpired }) {
                 const exactAttended = detailRows.filter((entry) => String(entry?.present || '').toLowerCase() === 'present').length;
                 const ratio = exactTotal
                   ? { attended: exactAttended, total: exactTotal, source: 'daily' }
-                  : resolveAttendanceCounts(row, targetAttendancePct);
+                  : resolveAttendanceCounts(row, targetAttendancePct, { allowDerived: false });
+                const exactCountLoading = Boolean(subjectDetails[row.subjectcode]?.loading && !(ratio?.total));
+                const ratioMessage = String(subjectDetails[row.subjectcode]?.message || '').trim();
+                const ratioFetchFailed = /unable|failed|error|timeout|network/i.test(ratioMessage);
+                const noClassesYet = Boolean(subjectDetails[row.subjectcode]?.loaded && !(ratio?.total) && !ratioFetchFailed);
                 
                 const guidance = buildAttendanceGuidance(row, targetAttendancePct);
                 
@@ -226,6 +301,14 @@ export default function AttendanceView({ token, onExpired }) {
                             <div className="h-0.5 w-6 bg-primary" />
                             <span className="text-base text-muted-foreground">{ratio.total}</span>
                           </div>
+                        ) : noClassesYet ? (
+                          <div className="flex flex-col items-end gap-0.5 font-black leading-none">
+                            <span className="text-xl text-foreground">0</span>
+                            <div className="h-0.5 w-6 bg-primary" />
+                            <span className="text-base text-muted-foreground">0</span>
+                          </div>
+                        ) : exactCountLoading ? (
+                          <div className="text-[10px] font-medium text-muted-foreground/70">Loading count...</div>
                         ) : null}
                         <div className="flex flex-col items-center justify-center rounded-xl border-2 border-primary/20 p-2 min-w-[70px] bg-primary/5">
                            <span className="text-2xl font-black leading-none text-primary">{toPercent(row.LTpercantage)}</span>

@@ -239,6 +239,48 @@ const findNumericByRegex = (row = {}, regex) => {
   return null;
 };
 
+const extractRatioCounts = (row = {}) => {
+  for (const value of Object.values(row || {})) {
+    if (typeof value !== 'string') continue;
+    const match = value.match(/(\d+)\s*\/\s*(\d+)/);
+    if (!match) continue;
+
+    const attended = Number(match[1]);
+    const total = Number(match[2]);
+    if (!Number.isFinite(attended) || !Number.isFinite(total)) continue;
+    if (total <= 0 || attended < 0 || attended > total) continue;
+
+    return { attended, total };
+  }
+  return null;
+};
+
+const normalizeAttendancePair = ({ attended = 0, total = 0, percent = 0 }) => {
+  const safeTotal = Number(total);
+  const safeAttended = Number(attended);
+  const safePercent = Number(percent);
+
+  if (!Number.isFinite(safeTotal) || safeTotal <= 0 || safeTotal > 1000) {
+    return { attended: 0, total: 0 };
+  }
+
+  if (!Number.isFinite(safeAttended) || safeAttended < 0) {
+    return { attended: 0, total: 0 };
+  }
+
+  const boundedAttended = Math.min(safeAttended, safeTotal);
+
+  if (safePercent > 0) {
+    const computedPercent = (boundedAttended / safeTotal) * 100;
+    // Reject obviously mismatched pairs (usually parsed from unrelated fields).
+    if (Math.abs(computedPercent - safePercent) > 12) {
+      return { attended: 0, total: 0 };
+    }
+  }
+
+  return { attended: Math.round(boundedAttended), total: Math.round(safeTotal) };
+};
+
 const normalizeSemesters = (rows = []) => {
   if (!Array.isArray(rows)) return [];
   return rows
@@ -406,6 +448,11 @@ const normalizeSubjectDailyRows = (rows = []) => {
 const normalizeAttendanceRows = (rows = []) => {
   if (!Array.isArray(rows)) return [];
   return rows.map((row) => {
+    const ltPercentage = numberOr(
+      row?.LTpercantage ?? row?.LTpercentage ?? row?.ltpercentage ?? row?.totalpercentage,
+      0
+    );
+
     const attendedDirect = numberOr(
       pickFirst(row, [
         'ltattended',
@@ -416,8 +463,7 @@ const normalizeAttendanceRows = (rows = []) => {
         'attendedclass',
         'attendedclasses',
         'presentcount',
-        'presentclasses',
-        'attended'
+        'presentclasses'
       ]),
       0
     );
@@ -434,8 +480,7 @@ const normalizeAttendanceRows = (rows = []) => {
         'totalcount',
         'conductedclass',
         'heldclasses',
-        'totalheldclasses',
-        'total'
+        'totalheldclasses'
       ]),
       0
     );
@@ -443,8 +488,21 @@ const normalizeAttendanceRows = (rows = []) => {
     const attendedRegex = numberOr(findNumericByRegex(row, /(lt.*attend|attend.*lt|attended.?class|present.?class|classattend|attendcount)/i), 0);
     const totalRegex = numberOr(findNumericByRegex(row, /(lt.*total|total.*class|class.?total|conducted|held.?class|delivered)/i), 0);
 
-    const attendedclasses = attendedDirect > 0 ? attendedDirect : attendedRegex;
-    const totalclasses = totalDirect > 0 ? totalDirect : totalRegex;
+    const rawRatio = extractRatioCounts(row);
+
+    let attendedclasses = attendedDirect > 0 ? attendedDirect : attendedRegex;
+    let totalclasses = totalDirect > 0 ? totalDirect : totalRegex;
+
+    if (!(attendedclasses > 0 && totalclasses > 0) && rawRatio) {
+      attendedclasses = rawRatio.attended;
+      totalclasses = rawRatio.total;
+    }
+
+    const reliablePair = normalizeAttendancePair({
+      attended: attendedclasses,
+      total: totalclasses,
+      percent: ltPercentage
+    });
 
     return {
       subjectcode: row?.subjectcode || row?.individualsubjectcode || row?.subjectdesc || 'SUBJECT',
@@ -457,12 +515,9 @@ const normalizeAttendanceRows = (rows = []) => {
       Lpercentage: numberOr(row?.Lpercentage ?? row?.lpercentage ?? row?.lecturepercentage, 0),
       Tpercentage: numberOr(row?.Tpercentage ?? row?.tpercentage ?? row?.tutorialpercentage, 0),
       Ppercentage: numberOr(row?.Ppercentage ?? row?.ppercentage ?? row?.practicalpercentage, 0),
-      LTpercantage: numberOr(
-        row?.LTpercantage ?? row?.LTpercentage ?? row?.ltpercentage ?? row?.totalpercentage,
-        0
-      ),
-      attendedclasses,
-      totalclasses,
+      LTpercantage: ltPercentage,
+      attendedclasses: reliablePair.attended,
+      totalclasses: reliablePair.total,
       canmissclasses: numberOr(pickFirst(row, ['canmiss', 'canmissclass', 'canmissclasses', 'canmisscount']), 0),
       needattendclasses: numberOr(pickFirst(row, ['needattend', 'needtoattend', 'requiredclasses', 'mustattend']), 0),
       raw: row

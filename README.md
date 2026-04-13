@@ -59,3 +59,7 @@ bun run import:s3 -- --dry-run # preview only
 - [API Examples](docs/API_EXAMPLES.md)
 - [Admin Workflow](docs/ADMIN_WORKFLOW.md)
 - [System Guide](docs/COMPLETE_SYSTEM_GUIDE.md)
+
+## License
+
+This project is licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later). See [LICENSE](LICENSE).

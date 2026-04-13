@@ -296,7 +296,8 @@ export const deriveCountsFromPercent = (row, targetPct) => {
   return best;
 };
 
-export const resolveAttendanceCounts = (row, targetPct) => {
+export const resolveAttendanceCounts = (row, targetPct, options = {}) => {
+  const { allowDerived = false } = options;
   const directTotal = Number(row?.totalclasses || 0);
   const directAttended = Number(row?.attendedclasses || 0);
   if (directTotal > 0) {
@@ -310,6 +311,7 @@ export const resolveAttendanceCounts = (row, targetPct) => {
   const rawRatio = extractRatioFromRaw(row);
   if (rawRatio) return rawRatio;
 
+  if (!allowDerived) return null;
   return deriveCountsFromPercent(row, targetPct);
 };
 
@@ -317,7 +319,7 @@ export const buildAttendanceGuidance = (row, targetPct) => {
   const target = Number(targetPct || 0);
   if (!target) return 'Select target %';
 
-  const resolved = resolveAttendanceCounts(row, targetPct);
+  const resolved = resolveAttendanceCounts(row, targetPct, { allowDerived: false });
   const attended = Number(resolved?.attended || row?.attendedclasses || 0);
   const total = Number(resolved?.total || row?.totalclasses || 0);
   if (total > 0) return missOrNeedText(attended, total, target);

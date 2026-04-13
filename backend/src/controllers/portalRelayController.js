@@ -300,6 +300,12 @@ const tryRelayLogin = async (req, res, next) => {
     const ownerId = req.user.userId || req.user.email || 'unknown';
     const { sessionId, userId, password, captcha, usertype = 'S', encryptedPayload } = req.body || {};
 
+    const normalizedUserId = String(userId || '').trim();
+    const normalizedPassword = String(password || '').trim();
+    if (!normalizedUserId || !normalizedPassword) {
+      return res.status(400).json({ success: false, message: 'User ID and password are required' });
+    }
+
     const session = ensureOwnedSession(sessionId, ownerId);
     if (!session) {
       return res.status(404).json({ success: false, message: 'Relay session not found' });
@@ -308,11 +314,43 @@ const tryRelayLogin = async (req, res, next) => {
     const attempts = [];
     let authenticated = false;
     const normalizedUserType = String(usertype || 'S').trim().toUpperCase();
-    const portalUsername = normalizedUserType === 'P' ? `P${userId}` : userId;
     const normalizedCaptcha = String(captcha || '')
       .trim()
       .replace(/[^a-z0-9]/gi, '')
       .slice(0, 10);
+
+    const loginIdentities = [];
+    const seenIdentities = new Set();
+    const pushIdentity = (username, identityType, label) => {
+      const normalizedUsername = String(username || '').trim();
+      const normalizedType = String(identityType || '').trim().toUpperCase();
+      if (!normalizedUsername || !normalizedType) return;
+
+      const key = `${normalizedType}:${normalizedUsername.toLowerCase()}`;
+      if (seenIdentities.has(key)) return;
+      seenIdentities.add(key);
+      loginIdentities.push({ username: normalizedUsername, usertype: normalizedType, label });
+    };
+
+    const baseUserId = normalizedUserId.replace(/^p/i, '');
+    const primaryUsername =
+      normalizedUserType === 'P'
+        ? /^p/i.test(normalizedUserId)
+          ? normalizedUserId
+          : `P${normalizedUserId}`
+        : normalizedUserId;
+
+    pushIdentity(primaryUsername, normalizedUserType, 'primary');
+    if (normalizedUserType === 'S') {
+      if (baseUserId && baseUserId !== normalizedUserId) {
+        pushIdentity(baseUserId, 'S', 'strip-prefix');
+      }
+      if (baseUserId && !/^p/i.test(normalizedUserId)) {
+        pushIdentity(`P${baseUserId}`, 'P', 'prefixed-fallback');
+      }
+    } else if (normalizedUserType === 'P' && baseUserId && baseUserId !== normalizedUserId) {
+      pushIdentity(baseUserId, 'S', 'student-fallback');
+    }
 
     const candidates = [];
 
@@ -325,41 +363,55 @@ const tryRelayLogin = async (req, res, next) => {
       });
     }
 
-    if (!encryptedPayload && portalUsername) {
-      authenticated = await runEncryptedLoginFlow({
-        session,
-        attempts,
-        portalUsername,
-        normalizedUserType,
-        password,
-        captchaPayload: DEFAULT_PORTAL_CAPTCHA,
-        strategy: 'encrypted-default-captcha'
-      });
-
-      if (!authenticated && normalizedCaptcha) {
-        const captchaEnvelope =
-          session.lastCaptchaPayload && typeof session.lastCaptchaPayload === 'object'
-            ? { ...session.lastCaptchaPayload, captcha: normalizedCaptcha }
-            : { captcha: normalizedCaptcha };
+    if (!encryptedPayload && loginIdentities.length) {
+      for (const identity of loginIdentities) {
+        if (authenticated) break;
 
         authenticated = await runEncryptedLoginFlow({
           session,
           attempts,
-          portalUsername,
-          normalizedUserType,
+          portalUsername: identity.username,
+          normalizedUserType: identity.usertype,
           password,
-          captchaPayload: captchaEnvelope,
-          strategy: 'encrypted-user-captcha'
+          captchaPayload: DEFAULT_PORTAL_CAPTCHA,
+          strategy: `encrypted-default-captcha:${identity.label}`
         });
+
+        if (!authenticated && normalizedCaptcha) {
+          const captchaEnvelope =
+            session.lastCaptchaPayload && typeof session.lastCaptchaPayload === 'object'
+              ? { ...session.lastCaptchaPayload, captcha: normalizedCaptcha }
+              : { captcha: normalizedCaptcha };
+
+          authenticated = await runEncryptedLoginFlow({
+            session,
+            attempts,
+            portalUsername: identity.username,
+            normalizedUserType: identity.usertype,
+            password,
+            captchaPayload: captchaEnvelope,
+            strategy: `encrypted-user-captcha:${identity.label}`
+          });
+        }
+
+        if (!authenticated) {
+          const identityCandidates = portalClient.makeLoginCandidates({
+            userId: identity.username,
+            password,
+            captcha: normalizedCaptcha,
+            usertype: identity.usertype
+          });
+          identityCandidates.forEach((candidate) => {
+            candidates.push({ ...candidate, strategyLabel: identity.label });
+          });
+        }
       }
     }
 
     if (!authenticated) {
-      candidates.push(...portalClient.makeLoginCandidates({ userId: portalUsername, password, captcha: normalizedCaptcha, usertype: normalizedUserType }));
-
       for (const candidate of candidates) {
         const attempt = await executeRelayAttempt(session, candidate);
-        attempt.strategy = 'legacy-fallback';
+        attempt.strategy = candidate.strategyLabel ? `legacy-fallback:${candidate.strategyLabel}` : 'legacy-fallback';
         attempts.push(attempt);
         if (!authenticated && responseLooksSuccessful(attempt.response) && applyAuthContextToSession(session, attempt.response)) {
           authenticated = true;
