@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useCallback, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { TOKEN_KEY, PORTAL_VERIFIED_KEY, LOGIN_AT_KEY } from './constants';
-import { LoginView, PortalShell } from './components';
+import { PortalShell } from './components';
 
 /** Parse the `exp` field from a base64url JWT without any library. */
 const parseJwtExp = (token) => {
@@ -23,7 +24,9 @@ const isTokenExpired = (token) => {
 };
 
 export default function PortalPage() {
+  const router = useRouter();
   const [token, setToken] = useState('');
+  const [isMounted, setIsMounted] = useState(false);
 
   const clearSession = useCallback(() => {
     window.localStorage.removeItem(TOKEN_KEY);
@@ -33,21 +36,24 @@ export default function PortalPage() {
   }, []);
 
   useEffect(() => {
+    setIsMounted(true);
     const verified = window.localStorage.getItem(PORTAL_VERIFIED_KEY) === 'true';
     const savedToken = window.localStorage.getItem(TOKEN_KEY) || '';
 
     if (!verified || !savedToken) {
       clearSession();
+      router.replace('/login');
       return;
     }
 
     if (isTokenExpired(savedToken)) {
       clearSession();
+      router.replace('/login');
       return;
     }
 
     setToken(savedToken);
-  }, [clearSession]);
+  }, [clearSession, router]);
 
   // Re-check token expiry whenever the tab regains focus
   useEffect(() => {
@@ -56,23 +62,38 @@ export default function PortalPage() {
       const savedToken = window.localStorage.getItem(TOKEN_KEY) || '';
       if (savedToken && isTokenExpired(savedToken)) {
         clearSession();
+        router.replace('/login');
       }
     };
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [clearSession]);
-
-  const handleAuth = (nextToken) => {
-    window.localStorage.setItem(LOGIN_AT_KEY, String(Date.now()));
-    setToken(nextToken);
-  };
+  }, [clearSession, router]);
 
   const handleLogout = useCallback(() => {
     clearSession();
-  }, [clearSession]);
+    router.replace('/login');
+  }, [clearSession, router]);
+
+  if (!isMounted) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-6 bg-background">
+        <div className="flex flex-col items-center gap-3 animate-pulse">
+           <div className="size-3 border-2 border-primary/50 rotate-45 shadow-sm" />
+           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Igniting Engine</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!token) {
-    return <LoginView onAuth={handleAuth} />;
+    return (
+      <div className="flex min-h-screen items-center justify-center p-6 bg-background">
+        <div className="flex flex-col items-center gap-3 animate-pulse">
+           <div className="size-3 border-2 border-primary/50 rotate-45 shadow-sm" />
+           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Authenticating</p>
+        </div>
+      </div>
+    );
   }
 
   return <PortalShell token={token} onLogout={handleLogout} />;

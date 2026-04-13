@@ -61,6 +61,15 @@
     min-height: 100vh;
     transition: background-color 220ms ease, color 220ms ease;
   }
+
+  /* ── Hide Scrollbars Universally ────────────────────────────── */
+  * {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+  *::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
 }
 
 @layer components {

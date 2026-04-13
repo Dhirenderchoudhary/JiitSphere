@@ -63,6 +63,50 @@ export default function ProfileView({ token, onExpired }) {
     };
   }, [token, onExpired]);
 
+  // Persist Profile Photo cache whenever a valid profile is loaded
+  useEffect(() => {
+    if (!profile) return;
+    
+    // Quick parse logic just for caching
+    const keyMap = Object.keys(profile || {}).reduce((acc, key) => { acc[String(key).toLowerCase()] = key; return acc; }, {});
+    const keyNorm = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    const findValue = (keys = [], contains = []) => {
+      for (const key of keys) {
+        const resolved = keyMap[String(key).toLowerCase()] || key;
+        const raw = profile?.[resolved];
+        if (raw) return typeof raw === 'string' ? raw : String(raw);
+      }
+      const normalizedTokens = contains.map((token) => keyNorm(token)).filter(Boolean);
+      for (const [rawKey, rawValue] of Object.entries(profile || {})) {
+        if (!rawValue) continue;
+        const normalizedKey = keyNorm(rawKey);
+        if (normalizedTokens.some((token) => normalizedKey.includes(token))) {
+          return typeof rawValue === 'string' ? rawValue : String(rawValue);
+        }
+      }
+      return '';
+    };
+
+    const rawPhoto = findValue(
+      ['studentphoto', 'studentimage', 'profilephoto', 'photobase64', 'photo'],
+      ['student photo', 'profile photo', 'photo base64', 'image base64']
+    );
+
+    let src = '';
+    if (rawPhoto) {
+      if (rawPhoto.startsWith('data:image') || rawPhoto.startsWith('http://') || rawPhoto.startsWith('https://')) {
+        src = rawPhoto;
+      } else if (/^[A-Za-z0-9+/=]+$/.test(rawPhoto) && rawPhoto.length > 120) {
+        src = `data:image/jpeg;base64,${rawPhoto}`;
+      }
+    }
+
+    if (src) {
+      try { window.localStorage.setItem('jaypee_buddy_cached_photo', src); } catch (e) {}
+    }
+  }, [profile]);
+
   if (!profile) return (
     <div className="pb-28 sm:pb-24">
       <div className="flex items-center justify-center animate-pulse" style={{ height: '600px' }}>
@@ -310,34 +354,60 @@ export default function ProfileView({ token, onExpired }) {
 
     <div className="rounded-2xl border border-border/40 bg-card pb-28 sm:pb-24 shadow-sm">
       <div className="space-y-6 p-6 sm:p-8">
-        {/* Profile Identity */}
-        <div className="flex flex-col sm:flex-row items-center gap-6 p-6 rounded-xl border border-border/30 bg-secondary/10">
-          <div className="relative group shrink-0">
-             {profilePhotoSrc ? (
-                <Image
-                  src={profilePhotoSrc}
-                  alt="Student Identity"
-                  width={96}
-                  height={96}
-                  unoptimized
-                  className="size-24 rounded-xl border-2 border-primary/20 object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-              ) : (
-                <div className="size-24 flex items-center justify-center rounded-xl border-2 border-primary/20 bg-background text-2xl font-black text-primary">
-                  {String(profileName || 'S').slice(0, 1).toUpperCase()}
-                </div>
-              )}
-              <div className="absolute -bottom-1 -right-1 size-3 rounded-full bg-emerald-500" />
+        {/* Advanced Corporate Security ID Interface */}
+        <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm p-6 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8 group">
+          {/* Subtle Security Bloom Background Pattern */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-[1500ms]" />
+          
+          <div className="relative shrink-0">
+             <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl overflow-hidden border border-border shadow-sm relative z-10 bg-muted">
+                 {profilePhotoSrc ? (
+                    <Image
+                      src={profilePhotoSrc}
+                      alt="Student Identity"
+                      fill
+                      unoptimized
+                      className="object-cover group-hover:scale-105 transition-transform duration-[800ms] ease-out"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-4xl font-black text-muted-foreground/50">
+                      {String(profileName || 'S').slice(0, 1).toUpperCase()}
+                    </div>
+                  )}
+             </div>
+             {/* Architectural Security Chip Hook */}
+             <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-4 h-12 bg-primary/10 border border-primary/20 rounded-r-md z-0 hidden sm:block" />
           </div>
           
-          <div className="text-center sm:text-left space-y-1 flex-1 min-w-0">
-            <p className="text-xs font-medium text-muted-foreground">Student Profile</p>
-            <h3 className="text-2xl font-bold tracking-tight text-foreground font-[var(--font-instrument-sans)] truncate">
-              {profileName || 'Student'}
-            </h3>
-            <p className="text-xs font-medium text-muted-foreground break-all">
-              {(profile.enrollmentno && String(profile.enrollmentno).length > 4 ? profile.enrollmentno : '') || fallbackEnrollment}
-            </p>
+          <div className="text-center sm:text-left flex-1 min-w-0 z-10 w-full mt-2 sm:mt-0">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-2">
+                <div>
+                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80 mb-1.5">Corporate Access Identity</p>
+                   <h3 className="text-2xl sm:text-3xl font-black tracking-tighter text-foreground truncate">
+                     {profileName || 'Student'}
+                   </h3>
+                </div>
+                <div className="hidden sm:flex flex-col items-end">
+                   <div className="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-sm">
+                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Validated
+                   </div>
+                </div>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 mt-5 sm:mt-6 border-t border-border/50 pt-5">
+                <div className="flex flex-col gap-1">
+                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Enrollment ID</span>
+                   <span className="text-sm font-mono font-semibold text-foreground truncate">
+                      {(profile.enrollmentno && String(profile.enrollmentno).length > 4 ? profile.enrollmentno : '') || fallbackEnrollment}
+                   </span>
+                </div>
+                <div className="flex flex-col gap-1">
+                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Classification</span>
+                   <span className="text-sm font-bold text-foreground truncate">
+                      {profile.program || 'Verified Entity'}
+                   </span>
+                </div>
+            </div>
           </div>
         </div>
 
