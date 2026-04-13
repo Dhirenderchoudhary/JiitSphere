@@ -154,6 +154,15 @@ export default function PortalShell({ token, onLogout }) {
           <div className="flex flex-wrap items-center gap-3">
             <TopPanelTools />
             <div className="h-8 w-px bg-border/30 mx-1" />
+            <Button
+              variant="outline"
+              onClick={onLogout}
+              size="sm"
+              className="rounded-lg h-9 font-bold text-xs border-border/40"
+            >
+              <LogOut className="mr-2 h-3.5 w-3.5" />
+              Logout
+            </Button>
             <div className="flex flex-col items-end gap-1">
               <Button
                 variant="secondary"
