@@ -44,6 +44,20 @@ const isLikelyPdfBuffer = (buffer) => {
   return buffer.subarray(0, 5).toString('utf8') === '%PDF-';
 };
 
+const isLikelyImageBuffer = (buffer) => {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 4) return false;
+  const sig = buffer.subarray(0, 12);
+  // JPEG: FF D8 FF
+  if (sig[0] === 0xff && sig[1] === 0xd8 && sig[2] === 0xff) return true;
+  // PNG: 89 50 4E 47
+  if (sig[0] === 0x89 && sig[1] === 0x50 && sig[2] === 0x4e && sig[3] === 0x47) return true;
+  // GIF: GIF87a / GIF89a
+  if (sig.subarray(0, 6).toString('ascii') === 'GIF87a' || sig.subarray(0, 6).toString('ascii') === 'GIF89a') return true;
+  // WEBP: RIFF....WEBP
+  if (sig.subarray(0, 4).toString('ascii') === 'RIFF' && sig.subarray(8, 12).toString('ascii') === 'WEBP') return true;
+  return false;
+};
+
 const timedPortalFetch = async (url, options = {}, timeoutMs = env.portalRequestTimeoutMs) => {
   const timeout = Math.max(1000, Number(timeoutMs) || 12000);
   const controller = new AbortController();
@@ -57,6 +71,119 @@ const timedPortalFetch = async (url, options = {}, timeoutMs = env.portalRequest
   } finally {
     clearTimeout(timer);
   }
+};
+
+const normalizePortalPhotoSource = (rawSource) => {
+  const source = String(rawSource || '').trim();
+  if (!source) return null;
+
+  if (source.startsWith('data:image') || source.startsWith('blob:')) return null;
+  if (source.length > 2048) return null;
+
+  const compact = source.replace(/\s+/g, '');
+  if (compact.length > 80 && /^[A-Za-z0-9+/=_-]+$/.test(compact)) return null;
+
+  try {
+    if (/^https?:\/\//i.test(source)) {
+      const parsed = new URL(source);
+      if (parsed.origin !== portalOrigin) return null;
+      return parsed.toString();
+    }
+
+    if (source.startsWith('//')) {
+      const parsed = new URL(`https:${source}`);
+      if (parsed.origin !== portalOrigin) return null;
+      return parsed.toString();
+    }
+
+    if (source.startsWith('www.')) {
+      const parsed = new URL(`https://${source}`);
+      if (parsed.origin !== portalOrigin) return null;
+      return parsed.toString();
+    }
+
+    if (source.startsWith('/')) {
+      return toPortalUrl(source);
+    }
+
+    if (/^studentportalapi\//i.test(source) || /^studentportal\//i.test(source)) {
+      return toPortalUrl(`/${source}`);
+    }
+
+    // Allow generic relative official portal paths like StudentPhoto.ashx?id=...
+    // and normalize them against the official portal origin.
+    if (/^[a-z0-9._~!$&'()*+,;=:@/?%\-]+$/i.test(source) && !/\s/.test(source)) {
+      return toPortalUrl(`/${source.replace(/^\/+/, '')}`);
+    }
+  } catch (_error) {
+    return null;
+  }
+
+  return null;
+};
+
+const decodeInlinePhotoSource = (rawSource) => {
+  const source = String(rawSource || '').trim();
+  if (!source) return null;
+
+  let contentType = 'image/jpeg';
+  let payload = source;
+
+  const dataUrlMatch = source.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
+  if (dataUrlMatch) {
+    contentType = String(dataUrlMatch[1] || 'image/jpeg').toLowerCase();
+    payload = String(dataUrlMatch[2] || '');
+  }
+
+  const compact = String(payload || '').replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+  if (compact.length < 80 || !/^[A-Za-z0-9+/=]+$/.test(compact)) return null;
+
+  const padded = compact.padEnd(Math.ceil(compact.length / 4) * 4, '=');
+  const buffer = Buffer.from(padded, 'base64');
+  if (!buffer.length || !isLikelyImageBuffer(buffer)) return null;
+
+  if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+    contentType = 'image/png';
+  } else if (buffer.subarray(0, 6).toString('ascii') === 'GIF87a' || buffer.subarray(0, 6).toString('ascii') === 'GIF89a') {
+    contentType = 'image/gif';
+  } else if (buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP') {
+    contentType = 'image/webp';
+  } else {
+    contentType = 'image/jpeg';
+  }
+
+  return { buffer, contentType };
+};
+
+const resolveProfilePhotoSourceFromSession = (profile = {}) => {
+  if (!profile || typeof profile !== 'object') return '';
+
+  const keyMap = Object.keys(profile).reduce((acc, key) => {
+    acc[String(key).toLowerCase()] = key;
+    return acc;
+  }, {});
+
+  const preferred = [
+    'studentphoto',
+    'studentimage',
+    'profilephoto',
+    'photo',
+    'photobase64',
+    'profileimgurl',
+    'profileimageurl',
+    'studentphotourl',
+    'imageurl',
+    'photourl'
+  ];
+
+  for (const key of preferred) {
+    const resolved = keyMap[String(key).toLowerCase()] || key;
+    const value = profile?.[resolved];
+    const extracted = extractPhotoScalar(value);
+    if (extracted) return String(extracted).trim();
+  }
+
+  return '';
 };
 
 const dateCode = (date = new Date(), timeZone = PORTAL_TIME_ZONE) => {
@@ -876,7 +1003,12 @@ const extractPhotoScalar = (value, depth = 0) => {
 
   for (const [rawKey, rawValue] of Object.entries(value || {})) {
     const normalized = normalizeKey(rawKey);
-    if (!/(photo|image|img|base64|avatar|signature)/.test(normalized)) continue;
+
+    // Some official payloads nest media fields under profile-like objects.
+    const isDirectMediaKey = /(photo|image|img|base64|avatar|signature)/.test(normalized);
+    const isProfileContainer = /profile/.test(normalized) && (Array.isArray(rawValue) || (rawValue && typeof rawValue === 'object'));
+    if (!isDirectMediaKey && !isProfileContainer) continue;
+
     const extracted = extractPhotoScalar(rawValue, depth + 1);
     if (extracted) return extracted;
   }
@@ -3239,6 +3371,124 @@ const getProfile = async (req, res) => {
   });
 };
 
+const getProfilePhoto = async (req, res) => {
+  const session = ensureSession(req, res);
+  if (!session) return undefined;
+  const debug = parseBooleanLike(req?.query?.debug, false);
+
+  const buildDebugPayload = (base = {}) => ({
+    success: false,
+    message: 'Official portal photo proxy failed',
+    debug: {
+      sourcePreview: String(req?.query?.source || '').slice(0, 160),
+      ...base
+    }
+  });
+
+  const source = String(req?.query?.source || '').trim() || resolveProfilePhotoSourceFromSession(session?.dataset?.profile || {});
+  const inlinePhoto = decodeInlinePhotoSource(source);
+  if (inlinePhoto?.buffer?.length) {
+    if (debug) {
+      return res.status(200).json({
+        success: true,
+        message: 'Official portal photo proxy debug',
+        debug: {
+          code: 'INLINE_BASE64_IMAGE',
+          contentType: inlinePhoto.contentType,
+          byteLength: inlinePhoto.buffer.length
+        }
+      });
+    }
+
+    res.setHeader('Content-Type', inlinePhoto.contentType || 'image/jpeg');
+    res.setHeader('Content-Length', inlinePhoto.buffer.length);
+    res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    return res.send(inlinePhoto.buffer);
+  }
+
+  const photoUrl = normalizePortalPhotoSource(source);
+  if (!photoUrl) {
+    return res.status(400).json(
+      debug ? buildDebugPayload({ code: 'INVALID_SOURCE' }) : { success: false, message: 'Invalid profile photo source' }
+    );
+  }
+
+  const relaySessionId = session?.dataset?.relaySessionId;
+  const ownerId = ownerKey(req);
+  const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
+  if (!relaySession) {
+    return res.status(400).json(
+      debug
+        ? buildDebugPayload({ code: 'NO_RELAY_SESSION', normalizedUrl: photoUrl })
+        : { success: false, message: 'No active portal relay session' }
+    );
+  }
+
+  const headers = {
+    Accept: 'image/*,*/*;q=0.8',
+    Referer: 'https://webportal.jiit.ac.in:6011/studentportal/#/',
+    Origin: 'https://webportal.jiit.ac.in:6011'
+  };
+
+  const cookieHeader = buildCookieHeader(relaySession);
+  if (cookieHeader) {
+    headers.Cookie = cookieHeader;
+  }
+
+  const { response, error } = await timedPortalFetch(photoUrl, { method: 'GET', headers }, 15000);
+  if (error || !response?.ok) {
+    const debugMeta = {
+      code: 'UPSTREAM_FETCH_FAILED',
+      normalizedUrl: photoUrl,
+      upstreamStatus: response?.status || 0,
+      upstreamStatusText: response?.statusText || '',
+      errorName: error?.name || '',
+      errorMessage: error?.message || ''
+    };
+    console.warn('[profile-photo-proxy] upstream fetch failed', debugMeta);
+    return res.status(502).json(debug ? buildDebugPayload(debugMeta) : { success: false, message: 'Failed to fetch official portal photo' });
+  }
+
+  const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const looksLikeImage = contentType.startsWith('image/') || isLikelyImageBuffer(buffer);
+  if (!looksLikeImage || !buffer.length) {
+    const textPreview = buffer.subarray(0, 256).toString('utf8').replace(/\s+/g, ' ').trim();
+    const debugMeta = {
+      code: 'UPSTREAM_NOT_IMAGE',
+      normalizedUrl: photoUrl,
+      upstreamStatus: response.status,
+      contentType,
+      byteLength: buffer.length,
+      preview: textPreview
+    };
+    console.warn('[profile-photo-proxy] upstream returned non-image payload', debugMeta);
+    return res.status(502).json(
+      debug ? buildDebugPayload(debugMeta) : { success: false, message: 'Official portal did not return a valid image' }
+    );
+  }
+
+  if (debug) {
+    return res.status(200).json({
+      success: true,
+      message: 'Official portal photo proxy debug',
+      debug: {
+        normalizedUrl: photoUrl,
+        upstreamStatus: response.status,
+        contentType,
+        byteLength: buffer.length
+      }
+    });
+  }
+
+  res.setHeader('Content-Type', contentType.startsWith('image/') ? contentType : 'image/jpeg');
+  res.setHeader('Content-Length', buffer.length);
+  res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  return res.send(buffer);
+};
+
 const getGrades = async (req, res) => {
   const session = ensureSession(req, res);
   if (!session) return undefined;
@@ -4409,6 +4659,7 @@ module.exports = {
   getAttendanceCounts,
   getSubjectAttendance,
   getProfile,
+  getProfilePhoto,
   getGrades,
   getMarksSemesters,
   getExams,

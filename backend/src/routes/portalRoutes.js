@@ -18,6 +18,7 @@ const {
 	getAttendanceCounts,
 	getSubjectAttendance,
 	getProfile,
+	getProfilePhoto,
 	getGrades,
 	getMarksSemesters,
 	getExams,
@@ -42,6 +43,7 @@ router.get('/sdk/attendance', authUser, relayLimiter, getAttendance);
 router.get('/sdk/attendance/counts', authUser, relayLimiter, getAttendanceCounts);
 router.get('/sdk/attendance/subject', authUser, relayLimiter, getSubjectAttendance);
 router.get('/sdk/profile', authUser, relayLimiter, getProfile);
+router.get('/sdk/profile/photo', authUser, relayLimiter, getProfilePhoto);
 router.get('/sdk/grades', authUser, relayLimiter, getGrades);
 router.get('/sdk/marks/semesters', authUser, relayLimiter, getMarksSemesters);
 router.get('/sdk/exams', authUser, relayLimiter, getExams);

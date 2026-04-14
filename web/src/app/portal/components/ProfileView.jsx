@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
-import { fetchPortalProfile, SessionExpiredError } from 'lib/api';
+import { fetchPortalProfile, fetchPortalProfilePhotoBlob, SessionExpiredError } from 'lib/api';
 import { cn } from 'lib/utils';
 import { LAST_PORTAL_USER_ID, SHOW_TECHNICAL_DETAILS } from '../constants';
 import { toPrettyValue, toLabel, flattenScalarPairs } from '../utils';
@@ -68,7 +67,12 @@ const extractPhotoText = (value, depth = 0) => {
 
   for (const [rawKey, rawValue] of Object.entries(value || {})) {
     const keyNorm = normalizeToken(rawKey);
-    if (!/(photo|image|img|base64|avatar|signature)/.test(keyNorm)) continue;
+
+    // Official payloads sometimes wrap image fields in profile-like nested objects.
+    const isDirectMediaKey = /(photo|image|img|base64|avatar|signature)/.test(keyNorm);
+    const isProfileContainer = /profile/.test(keyNorm) && (Array.isArray(rawValue) || (rawValue && typeof rawValue === 'object'));
+    if (!isDirectMediaKey && !isProfileContainer) continue;
+
     const extracted = extractPhotoText(rawValue, depth + 1);
     if (extracted) return extracted;
   }
@@ -95,6 +99,13 @@ const normalizePhotoSrc = (rawValue) => {
     }
   }
 
+  // Some official payloads start with raw JPEG base64 (`/9j/...`) rather than a URL.
+  // Detect and convert before treating leading `/` as a path.
+  const compact = text.replace(/\s+/g, '');
+  if (compact.length > 80 && /^[A-Za-z0-9+/=_-]+$/.test(compact)) {
+    return `data:image/jpeg;base64,${compact.replace(/-/g, '+').replace(/_/g, '/')}`;
+  }
+
   if (
     text.startsWith('data:image') ||
     text.startsWith('http://') ||
@@ -113,11 +124,6 @@ const normalizePhotoSrc = (rawValue) => {
     }
   }
 
-  const compact = text.replace(/\s+/g, '');
-  if (compact.length > 80 && /^[A-Za-z0-9+/=_-]+$/.test(compact)) {
-    return `data:image/jpeg;base64,${compact.replace(/-/g, '+').replace(/_/g, '/')}`;
-  }
-
   if (text.startsWith('www.')) {
     return `https://${text}`;
   }
@@ -129,11 +135,36 @@ const normalizePhotoSrc = (rawValue) => {
   return '';
 };
 
+const needsPortalPhotoProxy = (src) => {
+  const value = String(src || '').trim();
+  if (!value) return false;
+  const lower = value.toLowerCase();
+  if (lower.startsWith('data:image') || lower.startsWith('blob:')) return false;
+  if (lower.includes('webportal.jiit.ac.in:6011')) return true;
+  if (lower.startsWith('/studentportalapi/') || lower.startsWith('/studentportal/')) return true;
+  if (lower.startsWith('studentportalapi/') || lower.startsWith('studentportal/')) return true;
+  return false;
+};
+
+const shouldTryPortalPhotoProxy = (src) => {
+  const value = String(src || '').trim();
+  if (!value) return false;
+  const lower = value.toLowerCase();
+  if (lower.startsWith('data:image') || lower.startsWith('blob:')) return false;
+  if (needsPortalPhotoProxy(value)) return true;
+  // Common official relative patterns: StudentPhoto.ashx?id=..., image endpoints with query params.
+  if (/\.ashx(\?|$)/i.test(value)) return true;
+  if ((value.includes('?') || value.includes('/')) && !/^https?:\/\//i.test(value)) return true;
+  return false;
+};
+
 export default function ProfileView({ token, onExpired }) {
   const [profile, setProfile] = useState(null);
   const [message, setMessage] = useState('');
   const [fallbackEnrollment, setFallbackEnrollment] = useState('');
   const [cachedSidebarPhoto, setCachedSidebarPhoto] = useState('');
+  const [resolvedPortalPhotoSrc, setResolvedPortalPhotoSrc] = useState('');
+  const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
   const [profileTab, setProfileTab] = useState('personal');
 
   const hasPhotoInPayload = (payload) => {
@@ -190,7 +221,9 @@ export default function ProfileView({ token, onExpired }) {
       }
 
       try {
-        setCachedSidebarPhoto(window.localStorage.getItem('jaypee_buddy_cached_photo') || '');
+        const cached = window.localStorage.getItem('jaypee_buddy_cached_photo') || '';
+        const normalizedCached = normalizePhotoSrc(cached);
+        setCachedSidebarPhoto(needsPortalPhotoProxy(normalizedCached) ? '' : normalizedCached);
       } catch (_error) {
         setCachedSidebarPhoto('');
       }
@@ -306,7 +339,7 @@ export default function ProfileView({ token, onExpired }) {
 
     const src = normalizePhotoSrc(rawPhoto);
 
-    if (src) {
+    if (src && !needsPortalPhotoProxy(src) && !src.startsWith('blob:') && !src.startsWith('data:image')) {
       try { window.localStorage.setItem('jaypee_buddy_cached_photo', src); } catch (e) {}
     }
 
@@ -318,6 +351,70 @@ export default function ProfileView({ token, onExpired }) {
     try { window.localStorage.setItem('jaypee_buddy_identity_mode', identityMode); } catch (e) {}
     try { window.dispatchEvent(new Event('jaypee-buddy-identity-updated')); } catch (e) {}
   }, [profile]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let activeBlobUrl = '';
+
+    const resolvePortalPhoto = async () => {
+      setResolvedPortalPhotoSrc('');
+      if (!profile || profile?.realData === false) return;
+      setPhotoLoadFailed(false);
+
+      const keyMap = Object.keys(profile || {}).reduce((acc, key) => {
+        acc[String(key).toLowerCase()] = key;
+        return acc;
+      }, {});
+
+      const keyNorm = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const findRawProfileValue = (keys = [], contains = []) => {
+        for (const key of keys) {
+          const resolved = keyMap[String(key).toLowerCase()] || key;
+          const raw = profile?.[resolved];
+          if (raw !== undefined && raw !== null && String(raw).trim() !== '') return raw;
+        }
+
+        const normalizedTokens = contains.map((token) => keyNorm(token)).filter(Boolean);
+        for (const [rawKey, rawValue] of Object.entries(profile || {})) {
+          if (rawValue === undefined || rawValue === null || String(rawValue).trim() === '') continue;
+          const normalizedKey = keyNorm(rawKey);
+          if (normalizedTokens.some((token) => normalizedKey.includes(token))) {
+            return rawValue;
+          }
+        }
+        return null;
+      };
+
+      const rawPhoto = findRawProfileValue(
+        ['studentphoto', 'studentimage', 'profilephoto', 'photobase64', 'photo', 'studentphotourl', 'profileimgurl', 'profileimageurl', 'imageurl', 'photourl'],
+        ['student photo', 'profile photo', 'photo base64', 'image base64', 'profile image', 'image url', 'photo url']
+      );
+
+      const normalizedSrc = normalizePhotoSrc(rawPhoto);
+      const rawExtracted = extractPhotoText(rawPhoto);
+      const proxySource = String(normalizedSrc || rawExtracted || '').trim();
+      if (!shouldTryPortalPhotoProxy(proxySource)) return;
+
+      try {
+        const blob = await fetchPortalProfilePhotoBlob(token, proxySource);
+        if (cancelled) return;
+        activeBlobUrl = URL.createObjectURL(blob);
+        setResolvedPortalPhotoSrc(activeBlobUrl);
+      } catch (_error) {
+        if (!cancelled) {
+          setResolvedPortalPhotoSrc('');
+        }
+      }
+    };
+
+    resolvePortalPhoto();
+    return () => {
+      cancelled = true;
+      if (activeBlobUrl) {
+        URL.revokeObjectURL(activeBlobUrl);
+      }
+    };
+  }, [profile, token]);
 
   if (!profile) return (
     <div className="pb-28 sm:pb-24">
@@ -384,7 +481,9 @@ export default function ProfileView({ token, onExpired }) {
   );
 
   const profilePhotoSrc = normalizePhotoSrc(profilePhotoRaw);
-  const displayPhotoSrc = profilePhotoSrc || cachedSidebarPhoto;
+  const safeProfilePhotoSrc = needsPortalPhotoProxy(profilePhotoSrc) ? '' : profilePhotoSrc;
+  const safeCachedPhotoSrc = needsPortalPhotoProxy(cachedSidebarPhoto) ? '' : cachedSidebarPhoto;
+  const displayPhotoSrc = resolvedPortalPhotoSrc || safeProfilePhotoSrc || safeCachedPhotoSrc;
 
   const branchDisplay =
     profile.branchdesc ||
@@ -595,19 +694,22 @@ export default function ProfileView({ token, onExpired }) {
           
           <div className="relative shrink-0">
              <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl overflow-hidden border border-border shadow-sm relative z-10 bg-muted">
-                {displayPhotoSrc ? (
-                    <Image
-                   src={displayPhotoSrc}
-                      alt="Student Identity"
-                      fill
-                      unoptimized
-                      className="object-cover group-hover:scale-105 transition-transform duration-[800ms] ease-out"
-                    />
-                  ) : (
+                {displayPhotoSrc && !photoLoadFailed ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={displayPhotoSrc}
+                    alt="Student Identity"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[800ms] ease-out"
+                    loading="eager"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                    onError={() => setPhotoLoadFailed(true)}
+                  />
+                ) : (
                     <div className="w-full h-full flex items-center justify-center text-4xl font-black text-muted-foreground/50">
                       {String(profileName || 'S').slice(0, 1).toUpperCase()}
                     </div>
-                  )}
+                )}
              </div>
              {/* Architectural Security Chip Hook */}
              <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-4 h-12 bg-primary/10 border border-primary/20 rounded-r-md z-0 hidden sm:block" />

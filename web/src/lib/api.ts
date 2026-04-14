@@ -283,6 +283,26 @@ export const fetchPortalSubjectAttendance = async (
 ) => sdkGet(token, '/portal/sdk/attendance/subject', withRealtime({ semester, subject }, refresh));
 export const fetchPortalProfile = async (token: string, refresh = PORTAL_REALTIME_DEFAULT) =>
   sdkGet(token, '/portal/sdk/profile', withRealtime({}, refresh));
+
+export const fetchPortalProfilePhotoBlob = async (token: string, source: string) => {
+  const query = cleanParams({ source });
+  const url = `${API_BASE_URL}/portal/sdk/profile/photo?${query}`;
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store'
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({} as { message?: string }));
+    throw new Error(errorData.message || 'Failed to fetch official portal profile photo');
+  }
+
+  const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+  const blob = await response.blob();
+  if (!contentType.startsWith('image/') || blob.size <= 0) {
+    throw new Error('Official portal profile photo response is invalid');
+  }
+  return blob;
+};
 export const fetchPortalGrades = async (token: string, refresh = PORTAL_REALTIME_DEFAULT) =>
   sdkGet(token, '/portal/sdk/grades', withRealtime({}, refresh));
 export const fetchPortalExams = async (token: string, refresh = PORTAL_REALTIME_DEFAULT) =>
