@@ -1,0 +1,606 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+const clone = (value) => JSON.parse(JSON.stringify(value));
+
+const semesters = [
+  { registration_id: 'REG-ODD-2025', registration_code: 'ODD 2025-26', stynumber: 5 },
+  { registration_id: 'REG-EVE-2024', registration_code: 'EVE 2024-25', stynumber: 4 },
+  { registration_id: 'REG-ODD-2024', registration_code: 'ODD 2024-25', stynumber: 3 }
+];
+
+const attendanceData = {
+  'REG-ODD-2025': {
+    studentattendancelist: [
+      {
+        subjectcode: '23B11CS301',
+        subjectdesc: 'Data Structures and Algorithms II',
+        LTpercantage: 89,
+        attendedclasses: 49,
+        totalclasses: 55,
+        canmissclasses: 6,
+        needattendclasses: 0
+      },
+      {
+        subjectcode: '23B11CS303',
+        subjectdesc: 'Operating Systems',
+        LTpercantage: 84,
+        attendedclasses: 46,
+        totalclasses: 55,
+        canmissclasses: 3,
+        needattendclasses: 0
+      },
+      {
+        subjectcode: '23B11CS305',
+        subjectdesc: 'Database Management Systems',
+        LTpercantage: 79,
+        attendedclasses: 42,
+        totalclasses: 53,
+        canmissclasses: 1,
+        needattendclasses: 0
+      },
+      {
+        subjectcode: '23B11MA301',
+        subjectdesc: 'Probability and Statistics',
+        LTpercantage: 73,
+        attendedclasses: 40,
+        totalclasses: 55,
+        canmissclasses: 0,
+        needattendclasses: 2
+      },
+      {
+        subjectcode: '23B11HS201',
+        subjectdesc: 'Professional Communication',
+        LTpercantage: 92,
+        attendedclasses: 34,
+        totalclasses: 37,
+        canmissclasses: 4,
+        needattendclasses: 0
+      }
+    ]
+  },
+  'REG-EVE-2024': {
+    studentattendancelist: [
+      {
+        subjectcode: '22B11CS204',
+        subjectdesc: 'Computer Networks',
+        LTpercantage: 86,
+        attendedclasses: 44,
+        totalclasses: 51,
+        canmissclasses: 4,
+        needattendclasses: 0
+      },
+      {
+        subjectcode: '22B11CS206',
+        subjectdesc: 'Design and Analysis of Algorithms',
+        LTpercantage: 82,
+        attendedclasses: 41,
+        totalclasses: 50,
+        canmissclasses: 2,
+        needattendclasses: 0
+      },
+      {
+        subjectcode: '22B11CS208',
+        subjectdesc: 'Software Engineering',
+        LTpercantage: 88,
+        attendedclasses: 45,
+        totalclasses: 51,
+        canmissclasses: 5,
+        needattendclasses: 0
+      }
+    ]
+  }
+};
+
+const subjectDailyData = {
+  'REG-ODD-2025:23B11CS301': {
+    studentAttdsummarylist: [
+      { datetime: '2026-01-10', present: 'Present', topic: 'Balanced Trees' },
+      { datetime: '2026-01-12', present: 'Present', topic: 'AVL Rotations' },
+      { datetime: '2026-01-16', present: 'Absent', topic: 'Red Black Trees' },
+      { datetime: '2026-01-19', present: 'Present', topic: 'Hashing' },
+      { datetime: '2026-01-22', present: 'Present', topic: 'Amortized Analysis' }
+    ],
+    message: ''
+  },
+  'REG-ODD-2025:23B11CS303': {
+    studentAttdsummarylist: [
+      { datetime: '2026-01-09', present: 'Present', topic: 'Process Scheduling' },
+      { datetime: '2026-01-13', present: 'Present', topic: 'Deadlocks' },
+      { datetime: '2026-01-17', present: 'Present', topic: 'Memory Management' },
+      { datetime: '2026-01-21', present: 'Absent', topic: 'Paging' },
+      { datetime: '2026-01-24', present: 'Present', topic: 'File Systems' }
+    ],
+    message: ''
+  },
+  'REG-ODD-2025:23B11CS305': {
+    studentAttdsummarylist: [
+      { datetime: '2026-01-08', present: 'Present', topic: 'Normalization' },
+      { datetime: '2026-01-12', present: 'Present', topic: 'Transactions' },
+      { datetime: '2026-01-15', present: 'Absent', topic: 'Concurrency Control' },
+      { datetime: '2026-01-20', present: 'Present', topic: 'Indexing' },
+      { datetime: '2026-01-23', present: 'Present', topic: 'Query Optimization' }
+    ],
+    message: ''
+  },
+  'REG-ODD-2025:23B11MA301': {
+    studentAttdsummarylist: [
+      { datetime: '2026-01-07', present: 'Present', topic: 'Random Variables' },
+      { datetime: '2026-01-11', present: 'Absent', topic: 'Expectation and Variance' },
+      { datetime: '2026-01-14', present: 'Present', topic: 'Distributions' },
+      { datetime: '2026-01-18', present: 'Present', topic: 'Sampling Theory' },
+      { datetime: '2026-01-25', present: 'Present', topic: 'Hypothesis Testing' }
+    ],
+    message: ''
+  },
+  'REG-ODD-2025:23B11HS201': {
+    studentAttdsummarylist: [
+      { datetime: '2026-01-06', present: 'Present', topic: 'Presentation Skills' },
+      { datetime: '2026-01-10', present: 'Present', topic: 'Technical Writing' },
+      { datetime: '2026-01-14', present: 'Present', topic: 'Group Discussion' },
+      { datetime: '2026-01-18', present: 'Present', topic: 'Interview Communication' },
+      { datetime: '2026-01-22', present: 'Present', topic: 'Email Etiquette' }
+    ],
+    message: ''
+  }
+};
+
+const gradeCards = {
+  'REG-ODD-2025': [
+    {
+      subjectid: 'S301',
+      subjectcode: '23B11CS301',
+      subjectdesc: 'Data Structures and Algorithms II',
+      credit: 4,
+      grade: 'A',
+      gradepoint: 9,
+      marksobtained: 86,
+      totalmarks: 100,
+      assessment: 'Total',
+      assessmentorder: 999
+    },
+    {
+      subjectid: 'S303',
+      subjectcode: '23B11CS303',
+      subjectdesc: 'Operating Systems',
+      credit: 4,
+      grade: 'A',
+      gradepoint: 9,
+      marksobtained: 83,
+      totalmarks: 100,
+      assessment: 'Total',
+      assessmentorder: 999
+    },
+    {
+      subjectid: 'S305',
+      subjectcode: '23B11CS305',
+      subjectdesc: 'Database Management Systems',
+      credit: 4,
+      grade: 'B+',
+      gradepoint: 8,
+      marksobtained: 78,
+      totalmarks: 100,
+      assessment: 'Total',
+      assessmentorder: 999
+    },
+    {
+      subjectid: 'SMA301',
+      subjectcode: '23B11MA301',
+      subjectdesc: 'Probability and Statistics',
+      credit: 3,
+      grade: 'B+',
+      gradepoint: 8,
+      marksobtained: 74,
+      totalmarks: 100,
+      assessment: 'Total',
+      assessmentorder: 999
+    },
+    {
+      subjectid: 'SHS201',
+      subjectcode: '23B11HS201',
+      subjectdesc: 'Professional Communication',
+      credit: 2,
+      grade: 'A+',
+      gradepoint: 10,
+      marksobtained: 91,
+      totalmarks: 100,
+      assessment: 'Total',
+      assessmentorder: 999
+    }
+  ],
+  'REG-EVE-2024': [
+    {
+      subjectid: 'S204',
+      subjectcode: '22B11CS204',
+      subjectdesc: 'Computer Networks',
+      credit: 4,
+      grade: 'A',
+      gradepoint: 9,
+      marksobtained: 84,
+      totalmarks: 100,
+      assessment: 'Total',
+      assessmentorder: 999
+    },
+    {
+      subjectid: 'S206',
+      subjectcode: '22B11CS206',
+      subjectdesc: 'Design and Analysis of Algorithms',
+      credit: 4,
+      grade: 'B+',
+      gradepoint: 8,
+      marksobtained: 79,
+      totalmarks: 100,
+      assessment: 'Total',
+      assessmentorder: 999
+    },
+    {
+      subjectid: 'S208',
+      subjectcode: '22B11CS208',
+      subjectdesc: 'Software Engineering',
+      credit: 3,
+      grade: 'A',
+      gradepoint: 9,
+      marksobtained: 82,
+      totalmarks: 100,
+      assessment: 'Total',
+      assessmentorder: 999
+    }
+  ],
+  'REG-ODD-2024': [
+    {
+      subjectid: 'S103',
+      subjectcode: '21B11CS103',
+      subjectdesc: 'Object Oriented Programming',
+      credit: 4,
+      grade: 'B+',
+      gradepoint: 8,
+      marksobtained: 77,
+      totalmarks: 100,
+      assessment: 'Total',
+      assessmentorder: 999
+    },
+    {
+      subjectid: 'S105',
+      subjectcode: '21B11CS105',
+      subjectdesc: 'Discrete Mathematics',
+      credit: 4,
+      grade: 'B',
+      gradepoint: 7,
+      marksobtained: 71,
+      totalmarks: 100,
+      assessment: 'Total',
+      assessmentorder: 999
+    }
+  ]
+};
+
+const grades = [
+  {
+    registration_id: 'REG-ODD-2025',
+    registration_code: 'ODD 2025-26',
+    sgpa: 8.92,
+    cgpa: 8.61,
+    credits: 17,
+    earnedPoints: 151.64
+  },
+  {
+    registration_id: 'REG-EVE-2024',
+    registration_code: 'EVE 2024-25',
+    sgpa: 8.44,
+    cgpa: 8.47,
+    credits: 11,
+    earnedPoints: 92.84
+  },
+  {
+    registration_id: 'REG-ODD-2024',
+    registration_code: 'ODD 2024-25',
+    sgpa: 8.02,
+    cgpa: 8.05,
+    credits: 8,
+    earnedPoints: 64.16
+  }
+];
+
+const subjects = {
+  'REG-ODD-2025': {
+    registered: [
+      'Data Structures and Algorithms II',
+      'Operating Systems',
+      'Database Management Systems',
+      'Probability and Statistics',
+      'Professional Communication'
+    ],
+    faculties: [
+      'Dr. N. Sharma',
+      'Prof. A. Mehta',
+      'Dr. R. Soni',
+      'Prof. V. Gupta',
+      'Ms. K. Arora'
+    ],
+    details: [
+      {
+        subjectid: 'S301',
+        subjectcode: '23B11CS301',
+        subjectdesc: 'Data Structures and Algorithms II',
+        credits: 4,
+        component: 'Theory',
+        section: 'A1',
+        faculty: 'Dr. N. Sharma'
+      },
+      {
+        subjectid: 'S303',
+        subjectcode: '23B11CS303',
+        subjectdesc: 'Operating Systems',
+        credits: 4,
+        component: 'Theory',
+        section: 'A1',
+        faculty: 'Prof. A. Mehta'
+      },
+      {
+        subjectid: 'S305',
+        subjectcode: '23B11CS305',
+        subjectdesc: 'Database Management Systems',
+        credits: 4,
+        component: 'Theory + Lab',
+        section: 'A1',
+        faculty: 'Dr. R. Soni'
+      },
+      {
+        subjectid: 'SMA301',
+        subjectcode: '23B11MA301',
+        subjectdesc: 'Probability and Statistics',
+        credits: 3,
+        component: 'Theory',
+        section: 'A1',
+        faculty: 'Prof. V. Gupta'
+      },
+      {
+        subjectid: 'SHS201',
+        subjectcode: '23B11HS201',
+        subjectdesc: 'Professional Communication',
+        credits: 2,
+        component: 'Practical',
+        section: 'A1',
+        faculty: 'Ms. K. Arora'
+      }
+    ]
+  }
+};
+
+const exams = [
+  {
+    registration_id: 'REG-ODD-2025',
+    registration_code: 'ODD 2025-26',
+    subject: 'Data Structures and Algorithms II',
+    date: '20/05/2026',
+    slot: 'FN',
+    time: '09:00 AM - 12:00 PM',
+    room: 'LT-8',
+    seat_number: 'A-127',
+    exameventid: 'EV-2026-01'
+  },
+  {
+    registration_id: 'REG-ODD-2025',
+    registration_code: 'ODD 2025-26',
+    subject: 'Operating Systems',
+    date: '24/05/2026',
+    slot: 'AN',
+    time: '02:00 PM - 05:00 PM',
+    room: 'AB-304',
+    seat_number: 'B-042',
+    exameventid: 'EV-2026-01'
+  },
+  {
+    registration_id: 'REG-ODD-2025',
+    registration_code: 'ODD 2025-26',
+    subject: 'Database Management Systems',
+    date: '28/05/2026',
+    slot: 'FN',
+    time: '09:00 AM - 12:00 PM',
+    room: 'AB-112',
+    seat_number: 'C-019',
+    exameventid: 'EV-2026-01'
+  }
+];
+
+const fees = [
+  {
+    registration_id: 'REG-ODD-2025',
+    registration_code: 'ODD 2025-26',
+    semester_label: 'Semester 5',
+    total_demand: 112500,
+    paid_amount: 112500,
+    due_amount: 0,
+    fine_amount: 0,
+    payment_date: '15/01/2026'
+  },
+  {
+    registration_id: 'REG-EVE-2024',
+    registration_code: 'EVE 2024-25',
+    semester_label: 'Semester 4',
+    total_demand: 109000,
+    paid_amount: 109000,
+    due_amount: 0,
+    fine_amount: 0,
+    payment_date: '03/08/2025'
+  },
+  {
+    registration_id: 'REG-ODD-2024',
+    registration_code: 'ODD 2024-25',
+    semester_label: 'Semester 3',
+    total_demand: 105500,
+    paid_amount: 105500,
+    due_amount: 0,
+    fine_amount: 0,
+    payment_date: '10/01/2025'
+  }
+];
+
+const marksParsedData = {
+  'REG-ODD-2025__ODD 2025-26': {
+    studentInfo: {
+      name: 'Dhirender Choudhary',
+      enrollment_no: '9923102082',
+      registration_code: 'ODD 2025-26'
+    },
+    exams: ['T1', 'T2', 'T3'],
+    courses: [
+      {
+        name: 'DATA STRUCTURES AND ALGORITHMS II',
+        code: '23B11CS301',
+        totalObtained: 86,
+        totalFull: 100,
+        exams: {
+          T1: { obtainedWeightage: 16, totalWeightage: 20 },
+          T2: { obtainedWeightage: 32, totalWeightage: 40 },
+          T3: { obtainedWeightage: 38, totalWeightage: 40 }
+        }
+      },
+      {
+        name: 'OPERATING SYSTEMS',
+        code: '23B11CS303',
+        totalObtained: 83,
+        totalFull: 100,
+        exams: {
+          T1: { obtainedWeightage: 15, totalWeightage: 20 },
+          T2: { obtainedWeightage: 33, totalWeightage: 40 },
+          T3: { obtainedWeightage: 35, totalWeightage: 40 }
+        }
+      },
+      {
+        name: 'DATABASE MANAGEMENT SYSTEMS',
+        code: '23B11CS305',
+        totalObtained: 78,
+        totalFull: 100,
+        exams: {
+          T1: { obtainedWeightage: 14, totalWeightage: 20 },
+          T2: { obtainedWeightage: 30, totalWeightage: 40 },
+          T3: { obtainedWeightage: 34, totalWeightage: 40 }
+        }
+      }
+    ]
+  },
+  'REG-EVE-2024__EVE 2024-25': {
+    studentInfo: {
+      name: 'Dhirender Choudhary',
+      enrollment_no: '9923102082',
+      registration_code: 'EVE 2024-25'
+    },
+    exams: ['T1', 'T2', 'T3'],
+    courses: [
+      {
+        name: 'COMPUTER NETWORKS',
+        code: '22B11CS204',
+        totalObtained: 84,
+        totalFull: 100,
+        exams: {
+          T1: { obtainedWeightage: 16, totalWeightage: 20 },
+          T2: { obtainedWeightage: 31, totalWeightage: 40 },
+          T3: { obtainedWeightage: 37, totalWeightage: 40 }
+        }
+      },
+      {
+        name: 'DESIGN AND ANALYSIS OF ALGORITHMS',
+        code: '22B11CS206',
+        totalObtained: 79,
+        totalFull: 100,
+        exams: {
+          T1: { obtainedWeightage: 14, totalWeightage: 20 },
+          T2: { obtainedWeightage: 30, totalWeightage: 40 },
+          T3: { obtainedWeightage: 35, totalWeightage: 40 }
+        }
+      }
+    ]
+  },
+  'REG-ODD-2024__ODD 2024-25': {
+    studentInfo: {
+      name: 'Dhirender Choudhary',
+      enrollment_no: '9923102082',
+      registration_code: 'ODD 2024-25'
+    },
+    exams: ['T1', 'T2', 'T3'],
+    courses: [
+      {
+        name: 'OBJECT ORIENTED PROGRAMMING',
+        code: '21B11CS103',
+        totalObtained: 77,
+        totalFull: 100,
+        exams: {
+          T1: { obtainedWeightage: 13, totalWeightage: 20 },
+          T2: { obtainedWeightage: 30, totalWeightage: 40 },
+          T3: { obtainedWeightage: 34, totalWeightage: 40 }
+        }
+      }
+    ]
+  }
+};
+
+const profile = {
+  studentname: 'Dhirender Choudhary',
+  enrollmentno: '9923102082',
+  studentphoto: '/demo-student-profile.png',
+  apaarid: 'APAAR9988776655',
+  program: 'B.Tech Computer Science and Engineering',
+  programdesc: 'Bachelor of Technology in CSE',
+  semester: 'Semester 5',
+  sectioncode: 'A1',
+  batch: '2023-2027',
+  academicyear: '2025-26',
+  instituteemail: 'dhirender.choudhary@jiitsphere.app',
+  personalemail: 'dhirender.choudhary@example.com',
+  fathername: 'Rakesh Kumar',
+  mothername: 'Anita Kumar',
+  gender: 'Male',
+  dateofbirth: '2005-04-12',
+  mobile: '9990011223',
+  bloodgroup: 'B+',
+  category: 'General',
+  nationality: 'Indian',
+  branchcode: 'CSE',
+  branchdesc: 'Computer Science and Engineering',
+  registrationno: 'REG-9923102082',
+  institutecode: 'JIIT-62',
+  address: 'A-120, Sector 62, Noida',
+  city: 'Noida',
+  state: 'Uttar Pradesh',
+  pincode: '201309',
+  source: 'public-demo'
+};
+
+const buildPublicDemoDataset = (userId = 'dhirender.choudhary@jiitsphere.local') => {
+  return clone({
+    mode: 'public-demo',
+    realData: true,
+    relaySessionId: null,
+    semesters,
+    attendanceData,
+    subjectDailyData,
+    grades,
+    gradeCards,
+    exams,
+    profile: {
+      ...profile,
+      userId
+    },
+    subjects,
+    fees,
+    marksSemesters: semesters,
+    marksParsedData,
+    diagnostics: {
+      overall: 'demo',
+      reason: 'Public student demo dataset',
+      steps: {
+        demoDataset: {
+          status: 'ok',
+          endpoint: 'local-demo-seed',
+          responseStatus: 'SUCCESS',
+          message: 'Loaded local demo data without external portal credentials',
+          at: new Date().toISOString()
+        }
+      }
+    }
+  });
+};
+
+module.exports = {
+  buildPublicDemoDataset
+};

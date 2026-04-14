@@ -6,6 +6,7 @@ import { Button } from 'components/ui/button';
 import { Input } from 'components/ui/input';
 import {
   fetchPortalRelayCaptcha,
+  loginPortalDemo,
   loginUser,
   portalSdkLogin,
   startPortalRelaySession,
@@ -68,6 +69,37 @@ export default function LoginView({ onAuth }) {
   useEffect(() => {
     setUserId(window.localStorage.getItem(LAST_PORTAL_USER_ID) || '');
   }, []);
+
+  const handleTryDemo = async () => {
+    setLoading(true);
+    setError('');
+    setProbeMessage('Starting public demo...');
+
+    try {
+      const auth = await loginPortalDemo();
+      const activeToken = auth?.data?.token;
+      const demoUserId = String(auth?.data?.user?.userId || 'dhirender.choudhary@jiitsphere.local');
+
+      if (!activeToken) {
+        throw new Error('Demo session token missing');
+      }
+
+      await portalSdkLogin(activeToken, { userId: demoUserId });
+      window.localStorage.setItem(TOKEN_KEY, activeToken);
+      window.localStorage.setItem(LAST_PORTAL_USER_ID, demoUserId);
+      window.localStorage.setItem(PORTAL_VERIFIED_KEY, 'true');
+      window.localStorage.setItem('jaypee_buddy_identity_mode', 'demo');
+      window.localStorage.setItem('jaypee_buddy_cached_profile_name', 'Dhirender Choudhary');
+      window.localStorage.setItem('jaypee_buddy_cached_photo', '/demo-student-profile.png');
+      window.dispatchEvent(new Event('jaypee-buddy-identity-updated'));
+      onAuth(activeToken);
+    } catch (err) {
+      setError(normalizeUiError(err?.message || 'Unable to start public demo'));
+      setProbeMessage('');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async (event) => {
     event.preventDefault();
@@ -145,6 +177,10 @@ export default function LoginView({ onAuth }) {
       window.localStorage.setItem(TOKEN_KEY, activeToken);
       window.localStorage.setItem(LAST_PORTAL_USER_ID, normalizedUserId);
       window.localStorage.setItem(PORTAL_VERIFIED_KEY, 'true');
+      window.localStorage.setItem('jaypee_buddy_identity_mode', 'portal');
+      window.localStorage.removeItem('jaypee_buddy_cached_photo');
+      window.localStorage.removeItem('jaypee_buddy_cached_profile_name');
+      window.dispatchEvent(new Event('jaypee-buddy-identity-updated'));
       onAuth(activeToken);
     } catch (err) {
       setError(normalizeUiError(err?.message));
@@ -248,6 +284,28 @@ export default function LoginView({ onAuth }) {
               >
                 {loading ? 'Signing in...' : captchaImage ? 'Verify & Sign In' : 'Sign In'}
               </Button>
+
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border/60" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/70">or</span>
+                  <div className="h-px flex-1 bg-border/60" />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-11 rounded-xl font-bold text-sm"
+                  onClick={() => {
+                    handleTryDemo().catch(() => null);
+                  }}
+                  disabled={loading}
+                >
+                  {loading ? 'Opening Demo...' : 'Try Demo'}
+                </Button>
+                <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
+                  Public student mode: no college ID or password required.
+                </p>
+              </div>
             </form>
           </div>
         </div>

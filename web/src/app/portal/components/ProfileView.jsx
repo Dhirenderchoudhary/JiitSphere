@@ -20,6 +20,95 @@ const LanyardBadge = dynamic(() => import('components/LanyardBadge'), {
   )
 });
 
+const normalizeToken = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const extractPhotoText = (value, depth = 0) => {
+  if (depth > 4 || value === null || value === undefined) return '';
+
+  if (typeof value === 'string') {
+    const text = String(value).trim();
+    return text || '';
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const extracted = extractPhotoText(item, depth + 1);
+      if (extracted) return extracted;
+    }
+    return '';
+  }
+
+  if (typeof value !== 'object') return '';
+
+  const preferredKeys = [
+    'studentphoto',
+    'studentimage',
+    'profilephoto',
+    'photobase64',
+    'photo',
+    'profileimgurl',
+    'profileimageurl',
+    'studentphotourl',
+    'imageurl',
+    'photourl',
+    'image',
+    'img',
+    'url',
+    'base64',
+    'data'
+  ];
+
+  for (const key of preferredKeys) {
+    const keyNorm = normalizeToken(key);
+    const matchedEntry = Object.entries(value).find(([rawKey]) => normalizeToken(rawKey) === keyNorm);
+    if (!matchedEntry) continue;
+    const extracted = extractPhotoText(matchedEntry[1], depth + 1);
+    if (extracted) return extracted;
+  }
+
+  for (const [rawKey, rawValue] of Object.entries(value || {})) {
+    const keyNorm = normalizeToken(rawKey);
+    if (!/(photo|image|img|base64|avatar|profile|signature)/.test(keyNorm)) continue;
+    const extracted = extractPhotoText(rawValue, depth + 1);
+    if (extracted) return extracted;
+  }
+
+  return '';
+};
+
+const normalizePhotoSrc = (rawValue) => {
+  const extracted = extractPhotoText(rawValue);
+  if (!extracted) return '';
+
+  const text = String(extracted).trim().replace(/^['"]|['"]$/g, '');
+  if (!text) return '';
+
+  if (
+    text.startsWith('data:image') ||
+    text.startsWith('http://') ||
+    text.startsWith('https://') ||
+    text.startsWith('/')
+  ) {
+    return text;
+  }
+
+  const lowerText = text.toLowerCase();
+  const markerIndex = lowerText.indexOf('base64,');
+  if (markerIndex >= 0) {
+    const payload = text.slice(markerIndex + 7).replace(/\s+/g, '');
+    if (payload.length > 80) {
+      return `data:image/jpeg;base64,${payload.replace(/-/g, '+').replace(/_/g, '/')}`;
+    }
+  }
+
+  const compact = text.replace(/\s+/g, '');
+  if (compact.length > 80 && /^[A-Za-z0-9+/=_-]+$/.test(compact)) {
+    return `data:image/jpeg;base64,${compact.replace(/-/g, '+').replace(/_/g, '/')}`;
+  }
+
+  return '';
+};
+
 export default function ProfileView({ token, onExpired }) {
   const [profile, setProfile] = useState(null);
   const [message, setMessage] = useState('');
@@ -88,23 +177,45 @@ export default function ProfileView({ token, onExpired }) {
       return '';
     };
 
-    const rawPhoto = findValue(
+    const findRawValue = (keys = [], contains = []) => {
+      for (const key of keys) {
+        const resolved = keyMap[String(key).toLowerCase()] || key;
+        const raw = profile?.[resolved];
+        if (raw !== undefined && raw !== null && String(raw).trim() !== '') return raw;
+      }
+      const normalizedTokens = contains.map((token) => keyNorm(token)).filter(Boolean);
+      for (const [rawKey, rawValue] of Object.entries(profile || {})) {
+        if (rawValue === undefined || rawValue === null || String(rawValue).trim() === '') continue;
+        const normalizedKey = keyNorm(rawKey);
+        if (normalizedTokens.some((token) => normalizedKey.includes(token))) {
+          return rawValue;
+        }
+      }
+      return null;
+    };
+
+    const rawPhoto = findRawValue(
       ['studentphoto', 'studentimage', 'profilephoto', 'photobase64', 'photo'],
-      ['student photo', 'profile photo', 'photo base64', 'image base64']
+      ['student photo', 'profile photo', 'photo base64', 'image base64', 'profile image', 'image url']
+    );
+    const rawName = findValue(
+      ['studentname', 'name', 'student_name'],
+      ['student name', 'name']
     );
 
-    let src = '';
-    if (rawPhoto) {
-      if (rawPhoto.startsWith('data:image') || rawPhoto.startsWith('http://') || rawPhoto.startsWith('https://')) {
-        src = rawPhoto;
-      } else if (/^[A-Za-z0-9+/=]+$/.test(rawPhoto) && rawPhoto.length > 120) {
-        src = `data:image/jpeg;base64,${rawPhoto}`;
-      }
-    }
+    const src = normalizePhotoSrc(rawPhoto);
 
     if (src) {
       try { window.localStorage.setItem('jaypee_buddy_cached_photo', src); } catch (e) {}
     }
+
+    if (rawName) {
+      try { window.localStorage.setItem('jaypee_buddy_cached_profile_name', rawName); } catch (e) {}
+    }
+
+    const identityMode = String(profile?.source || '').toLowerCase() === 'public-demo' ? 'demo' : 'portal';
+    try { window.localStorage.setItem('jaypee_buddy_identity_mode', identityMode); } catch (e) {}
+    try { window.dispatchEvent(new Event('jaypee-buddy-identity-updated')); } catch (e) {}
   }, [profile]);
 
   if (!profile) return (
@@ -148,21 +259,30 @@ export default function ProfileView({ token, onExpired }) {
     return '';
   };
 
-  const profilePhotoRaw = findProfileValue(
+  const findRawProfileValue = (keys = [], contains = []) => {
+    for (const key of keys) {
+      const resolved = keyMap[String(key).toLowerCase()] || key;
+      const raw = profile?.[resolved];
+      if (raw !== undefined && raw !== null && String(raw).trim() !== '') return raw;
+    }
+
+    const normalizedTokens = contains.map((token) => keyNorm(token)).filter(Boolean);
+    for (const [rawKey, rawValue] of Object.entries(profile || {})) {
+      if (rawValue === undefined || rawValue === null || String(rawValue).trim() === '') continue;
+      const normalizedKey = keyNorm(rawKey);
+      if (normalizedTokens.some((token) => normalizedKey.includes(token))) {
+        return rawValue;
+      }
+    }
+    return null;
+  };
+
+  const profilePhotoRaw = findRawProfileValue(
     ['studentphoto', 'studentimage', 'profilephoto', 'photobase64', 'photo'],
-    ['student photo', 'profile photo', 'photo base64', 'image base64']
+    ['student photo', 'profile photo', 'photo base64', 'image base64', 'profile image', 'image url']
   );
 
-  const profilePhotoSrc = (() => {
-    if (!profilePhotoRaw) return '';
-    if (profilePhotoRaw.startsWith('data:image') || profilePhotoRaw.startsWith('http://') || profilePhotoRaw.startsWith('https://')) {
-      return profilePhotoRaw;
-    }
-    if (/^[A-Za-z0-9+/=]+$/.test(profilePhotoRaw) && profilePhotoRaw.length > 120) {
-      return `data:image/jpeg;base64,${profilePhotoRaw}`;
-    }
-    return '';
-  })();
+  const profilePhotoSrc = normalizePhotoSrc(profilePhotoRaw);
 
   const profileName = findProfileValue(['studentname', 'name'], ['student name']) || profile.studentname;
 

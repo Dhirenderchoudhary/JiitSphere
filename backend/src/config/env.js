@@ -106,6 +106,7 @@ module.exports = {
   portalRelayBaseUrl: process.env.PORTAL_RELAY_BASE_URL || 'https://webportal.jiit.ac.in:6011/studentportal',
   authRateLimitWindowMs: Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS || (isProduction ? 15 * 60 * 1000 : 60 * 1000)),
   authRateLimitMax: Number(process.env.AUTH_RATE_LIMIT_MAX || (isProduction ? 5 : 30)),
+  portalPublicDemoEnabled: parseBool(process.env.PORTAL_PUBLIC_DEMO_ENABLED, true),
   relayRateLimitWindowMs: Number(process.env.RELAY_RATE_LIMIT_WINDOW_MS || 60 * 1000),
   relayRateLimitMax: Number(process.env.RELAY_RATE_LIMIT_MAX || (isProduction ? 60 : 120)),
   maxUploadSizeMb: Number(process.env.MAX_UPLOAD_SIZE_MB || 200),

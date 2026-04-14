@@ -1,13 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download } from 'lucide-react';
 import { Button } from 'components/ui/button';
 import {
   fetchPortalGrades,
   downloadPortalMarks,
-  fetchPortalMarksData,
-  fetchPortalMarksSemesters,
   SessionExpiredError
 } from 'lib/api';
 import { cn } from 'lib/utils';
@@ -217,18 +215,60 @@ const normalizeSemesterToken = (value = '') =>
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, '');
 
+const extractSemesterNumber = (value) => {
+  const text = String(value || '').trim().toUpperCase();
+  if (!text) return null;
+
+  const semMatch = text.match(/\bSEM(?:ESTER)?\s*[-:]?\s*(\d{1,2})\b/i);
+  if (semMatch) {
+    const num = Number(semMatch[1]);
+    return Number.isFinite(num) && num > 0 && num < 50 ? num : null;
+  }
+
+  const plainMatch = text.match(/^(\d{1,2})$/);
+  if (plainMatch) {
+    const num = Number(plainMatch[1]);
+    return Number.isFinite(num) && num > 0 && num < 50 ? num : null;
+  }
+
+  return null;
+};
+
+const semesterNumberFromRow = (row = {}) => {
+  const directKeys = [
+    'stynumber',
+    'sty_number',
+    'semesterno',
+    'semester_no',
+    'semester_number',
+    'currentsemester',
+    'semno',
+    'sem'
+  ];
+
+  for (const key of directKeys) {
+    const numeric = finiteNumber(row?.[key]);
+    if (numeric !== null && numeric > 0 && numeric < 50) {
+      return Math.round(numeric);
+    }
+  }
+
+  return (
+    extractSemesterNumber(row?.registration_code) ||
+    extractSemesterNumber(row?.registration_id) ||
+    extractSemesterNumber(row?.semester)
+  );
+};
+
 export default function GradesView({ token, onExpired }) {
   const [semesters, setSemesters] = useState([]);
   const [grades, setGrades] = useState([]);
   const [gradeCards, setGradeCards] = useState({});
   const [message, setMessage] = useState('');
   const [selectedSem, setSelectedSem] = useState('');
-  const [gradesMode, setGradesMode] = useState('marks');
+  const [gradesMode, setGradesMode] = useState('overview');
   const [selectedGraphIndex, setSelectedGraphIndex] = useState(-1);
   const [downloadingMarks, setDownloadingMarks] = useState(false);
-  const [marksData, setMarksData] = useState({});
-  const [marksLoading, setMarksLoading] = useState(false);
-  const [marksSemesters, setMarksSemesters] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -241,16 +281,43 @@ export default function GradesView({ token, onExpired }) {
         return;
       }
 
-      setGrades(payload?.summaries || []);
+      const summaries = Array.isArray(payload?.summaries) ? payload.summaries : [];
+      setGrades(summaries);
       setGradeCards(payload?.gradeCards || {});
-      const sems = payload?.semesters || [];
-      setSemesters(sems);
-      if (sems.length) {
+      const sems = Array.isArray(payload?.semesters) ? payload.semesters : [];
+      const sortedSems = [...sems].sort((a, b) => (
+        semesterSortScore(b?.registration_code, b?.registration_id)
+        - semesterSortScore(a?.registration_code, a?.registration_id)
+      ));
+      setSemesters(sortedSems);
+      if (sortedSems.length) {
+        const summaryById = new Set();
+        const summaryByCode = new Set();
+        const summaryBySemNo = new Set();
+        for (const row of summaries) {
+          if (!(Number(row?.sgpa || 0) > 0 || Number(row?.cgpa || 0) > 0)) continue;
+          const semId = String(row?.registration_id || '').trim();
+          if (semId) summaryById.add(semId);
+          const codeToken = normalizeSemesterToken(row?.registration_code);
+          if (codeToken) summaryByCode.add(codeToken);
+          const semNo = semesterNumberFromRow(row);
+          if (semNo) summaryBySemNo.add(semNo);
+        }
+
+        const preferredSemester = sortedSems.find((sem) => {
+          const semId = String(sem?.registration_id || '').trim();
+          if (semId && summaryById.has(semId)) return true;
+          const codeToken = normalizeSemesterToken(sem?.registration_code);
+          if (codeToken && summaryByCode.has(codeToken)) return true;
+          const semNo = semesterNumberFromRow(sem);
+          return semNo && summaryBySemNo.has(semNo);
+        });
+
         setSelectedSem((current) => {
-          if (current && sems.some((sem) => String(sem?.registration_id) === String(current))) {
+          if (current && sortedSems.some((sem) => String(sem?.registration_id) === String(current))) {
             return current;
           }
-          return String(sems[0]?.registration_id || '');
+          return String((preferredSemester || sortedSems[0])?.registration_id || '');
         });
       }
     };
@@ -308,6 +375,7 @@ export default function GradesView({ token, onExpired }) {
   const gradeSummaryBySemester = useMemo(() => {
     const byId = {};
     const byCode = {};
+    const bySemNo = {};
 
     for (const row of sortedGrades) {
       const semId = String(row?.registration_id || '').trim();
@@ -317,36 +385,75 @@ export default function GradesView({ token, onExpired }) {
       if (semCodeToken && !byCode[semCodeToken]) {
         byCode[semCodeToken] = row;
       }
+
+      const semNo = semesterNumberFromRow(row);
+      if (semNo && !bySemNo[semNo]) {
+        bySemNo[semNo] = row;
+      }
     }
 
-    return { byId, byCode };
+    return { byId, byCode, bySemNo };
   }, [sortedGrades]);
 
-  const eligibleSemesters = useMemo(() => {
-    const filtered = sortedSemesters.filter((sem) => {
-      const semId = String(sem?.registration_id || '');
-      const semCodeToken = normalizeSemesterToken(sem?.registration_code);
-      const summary = gradeSummaryBySemester.byId[semId] || gradeSummaryBySemester.byCode[semCodeToken];
-      const hasSummary = Number(summary?.sgpa || 0) > 0 || Number(summary?.cgpa || 0) > 0;
-      const hasGradePoints = Array.isArray(gradeCards?.[semId])
-        && gradeCards[semId].some((row) => {
-          const gp = Number(row?.gradepoint);
-          return Number.isFinite(gp) && gp > 0;
-        });
+  const gradeRowsBySemesterId = useMemo(() => {
+    const semsAsc = [...sortedSemesters].reverse();
+    const rowsAsc = [...sortedGrades].reverse();
+    const bySemId = {};
+    const usedRows = new Set();
 
-      return hasSummary || hasGradePoints;
-    });
+    const resolveDirect = (sem) => {
+      const semId = String(sem?.registration_id || '').trim();
+      if (semId && gradeSummaryBySemester.byId[semId]) {
+        return gradeSummaryBySemester.byId[semId];
+      }
 
-    return filtered.length ? filtered : sortedSemesters;
-  }, [sortedSemesters, gradeSummaryBySemester, gradeCards]);
+      const codeToken = normalizeSemesterToken(sem?.registration_code);
+      if (codeToken && gradeSummaryBySemester.byCode[codeToken]) {
+        return gradeSummaryBySemester.byCode[codeToken];
+      }
+
+      const semNo = semesterNumberFromRow(sem);
+      if (semNo && gradeSummaryBySemester.bySemNo[semNo]) {
+        return gradeSummaryBySemester.bySemNo[semNo];
+      }
+
+      return null;
+    };
+
+    for (const sem of semsAsc) {
+      const semId = String(sem?.registration_id || '').trim();
+      if (!semId) continue;
+
+      const direct = resolveDirect(sem);
+      if (!direct) continue;
+
+      bySemId[semId] = direct;
+      usedRows.add(direct);
+    }
+
+    const unresolved = semsAsc.filter((sem) => !bySemId[String(sem?.registration_id || '').trim()]);
+    const remainingRows = rowsAsc.filter((row) => !usedRows.has(row));
+
+    let cursor = 0;
+    for (const sem of unresolved) {
+      const semId = String(sem?.registration_id || '').trim();
+      if (!semId) continue;
+
+      const row = remainingRows[cursor];
+      if (!row) break;
+      bySemId[semId] = row;
+      cursor += 1;
+    }
+
+    return bySemId;
+  }, [sortedSemesters, sortedGrades, gradeSummaryBySemester]);
 
   const selectedSemester = useMemo(() => {
     return (
       sortedSemesters.find((s) => String(s?.registration_id) === String(selectedSem))
-      || marksSemesters.find((s) => String(s?.registration_id) === String(selectedSem))
       || null
     );
-  }, [sortedSemesters, marksSemesters, selectedSem]);
+  }, [sortedSemesters, selectedSem]);
 
   const gradeCardsSemesterKey = useMemo(() => {
     const directKey = String(selectedSem || '').trim();
@@ -380,45 +487,32 @@ export default function GradesView({ token, onExpired }) {
     if (!stillExists) setSelectedSem(String(sortedSemesters[0]?.registration_id || ''));
   }, [selectedSem, sortedSemesters]);
 
-  useEffect(() => {
-    if (gradesMode === 'marks') return;
-    if (!eligibleSemesters.length) return;
-
-    const existsInEligible = eligibleSemesters.some((s) => String(s.registration_id) === String(selectedSem));
-    if (!existsInEligible) {
-      setSelectedSem(String(eligibleSemesters[0]?.registration_id || ''));
-    }
-  }, [gradesMode, selectedSem, eligibleSemesters]);
-
   const currentSummary = useMemo(() => {
     const selectedSemId = String(selectedSem || '').trim();
-    const selectedSemCode = normalizeSemesterToken(selectedSemester?.registration_code);
+    const fromGrades = gradeRowsBySemesterId[selectedSemId] || null;
 
-    const fromGrades =
-      gradeSummaryBySemester.byId[selectedSemId] ||
-      (selectedSemCode ? gradeSummaryBySemester.byCode[selectedSemCode] : null);
+    if (fromGrades) return fromGrades;
+
+    const fromSem = selectedSemester;
+    if (fromSem) return { registration_id: fromSem.registration_id, registration_code: fromSem.registration_code, sgpa: 0, cgpa: 0 };
 
     const latestValidSummary = sortedGrades.find(
       (row) => Number(row?.sgpa || 0) > 0 || Number(row?.cgpa || 0) > 0
     );
+    return latestValidSummary || sortedGrades[0] || null;
+  }, [selectedSem, selectedSemester, sortedGrades, gradeRowsBySemesterId]);
 
-    if (fromGrades && (Number(fromGrades?.sgpa || 0) > 0 || Number(fromGrades?.cgpa || 0) > 0)) {
-      return fromGrades;
-    }
-    if (latestValidSummary) return latestValidSummary;
-    if (fromGrades) return fromGrades;
-    const fromSem = selectedSemester;
-    if (fromSem) return { registration_id: fromSem.registration_id, registration_code: fromSem.registration_code, sgpa: 0, cgpa: 0 };
-    return sortedGrades[0] || null;
-  }, [selectedSem, selectedSemester, sortedGrades, gradeSummaryBySemester]);
+  const latestValidSummary = useMemo(() => {
+    return sortedGrades.find((row) => Number(row?.sgpa || 0) > 0 || Number(row?.cgpa || 0) > 0) || null;
+  }, [sortedGrades]);
 
   const visibleRows = useMemo(() => {
     return (gradeCards[gradeCardsSemesterKey] || []).map((row) => ({
       ...row,
-      registration_code: currentSummary?.registration_code || selectedSem,
+      registration_code: selectedSemester?.registration_code || currentSummary?.registration_code || selectedSem,
       registration_id: gradeCardsSemesterKey || selectedSem
     }));
-  }, [gradeCards, selectedSem, gradeCardsSemesterKey, currentSummary]);
+  }, [gradeCards, selectedSem, gradeCardsSemesterKey, selectedSemester, currentSummary]);
 
   const groupedMarksRows = useMemo(() => {
     const groups = new Map();
@@ -474,6 +568,14 @@ export default function GradesView({ token, onExpired }) {
       }))
       .sort((a, b) => String(a.subjectdesc).localeCompare(String(b.subjectdesc)));
   }, [visibleRows]);
+
+  const marksBySubjectKey = useMemo(() => {
+    const byKey = {};
+    for (const row of groupedMarksRows) {
+      byKey[row.key] = row;
+    }
+    return byKey;
+  }, [groupedMarksRows]);
 
   const semesterCredits = useMemo(() => {
     return groupedMarksRows.reduce((sum, row) => sum + Number(row?.credit || 0), 0);
@@ -539,6 +641,30 @@ export default function GradesView({ token, onExpired }) {
     return semesterGradeCards.reduce((sum, row) => sum + Number(row?.credit || 0), 0);
   }, [semesterGradeCards]);
 
+  const displayedSemesterCredits = useMemo(() => {
+    const summaryCredits = Number(currentSummary?.credits || 0);
+    if (Number.isFinite(summaryCredits) && summaryCredits > 0) return summaryCredits;
+    return semesterTotalCredits;
+  }, [currentSummary, semesterTotalCredits]);
+
+  const semesterSubjectCards = useMemo(() => {
+    return semesterGradeCards.map((subject) => {
+      const marksRow = marksBySubjectKey[subject.key] || null;
+      const obtainedLabel = formatMarksValue(marksRow?.obtained);
+      const totalLabel = formatMarksValue(marksRow?.total);
+      const marksText = toDisplayMarks(obtainedLabel, totalLabel);
+      const marksPercent = marksRow && Number(marksRow?.total || 0) > 0
+        ? `${((Number(marksRow?.obtained || 0) * 100) / Number(marksRow.total)).toFixed(1)}%`
+        : null;
+
+      return {
+        ...subject,
+        marksText,
+        marksPercent
+      };
+    });
+  }, [semesterGradeCards, marksBySubjectKey]);
+
   const graphRows = useMemo(() => {
     return [...sortedGrades]
       .filter((row) => Number(row?.sgpa || 0) > 0 || Number(row?.cgpa || 0) > 0)
@@ -546,16 +672,20 @@ export default function GradesView({ token, onExpired }) {
   }, [sortedGrades]);
 
   const overviewSemRows = useMemo(() => {
-    return [...eligibleSemesters].reverse()
+    return [...sortedSemesters].reverse()
       .map((sem) => ({
         sem,
-        gradeRow:
-          gradeSummaryBySemester.byId[String(sem?.registration_id || '')] ||
-          gradeSummaryBySemester.byCode[normalizeSemesterToken(sem?.registration_code)] ||
-          null
+        gradeRow: gradeRowsBySemesterId[String(sem?.registration_id || '')] || {
+          registration_id: sem?.registration_id,
+          registration_code: sem?.registration_code,
+          sgpa: 0,
+          cgpa: 0,
+          credits: 0,
+          earnedPoints: 0
+        }
       }))
-      .filter((item) => item.gradeRow && (Number(item.gradeRow?.sgpa || 0) > 0 || Number(item.gradeRow?.cgpa || 0) > 0));
-  }, [eligibleSemesters, gradeSummaryBySemester]);
+      .filter((item) => item.gradeRow);
+  }, [sortedSemesters, gradeRowsBySemesterId]);
 
   useEffect(() => {
     if (!graphRows.length) {
@@ -762,7 +892,7 @@ export default function GradesView({ token, onExpired }) {
 
       {sortedSemesters.length ? (
         <div className="flex rounded-xl bg-secondary/50 p-1">
-          {['overview', 'semester', 'marks'].map((mode) => (
+          {['overview', 'semester'].map((mode) => (
             <button
               key={mode}
               type="button"
@@ -778,7 +908,7 @@ export default function GradesView({ token, onExpired }) {
         </div>
       ) : null}
 
-      {eligibleSemesters.length && gradesMode !== 'marks' ? (
+      {sortedSemesters.length ? (
         <div className="rounded-2xl border border-border/40 bg-card p-6 space-y-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-xl border border-border/40 bg-secondary/20 p-4 space-y-1">
@@ -790,7 +920,10 @@ export default function GradesView({ token, onExpired }) {
               </div>
               <div className="rounded-xl border-2 border-primary/20 p-4 flex flex-col items-center justify-center bg-primary/5">
                 <p className="text-xs font-medium text-primary/80">Cumulative CGPA</p>
-                <p className="text-4xl font-black tracking-tight text-primary">{toFixedSafe(currentSummary?.cgpa, 2)}</p>
+                <p className="text-4xl font-black tracking-tight text-primary">{toFixedSafe(latestValidSummary?.cgpa ?? currentSummary?.cgpa, 2)}</p>
+                {latestValidSummary?.registration_code ? (
+                  <p className="mt-1 text-[10px] font-medium text-primary/70">As of {latestValidSummary.registration_code}</p>
+                ) : null}
               </div>
             </div>
 
@@ -805,14 +938,14 @@ export default function GradesView({ token, onExpired }) {
                       value={selectedSem}
                       onChange={(e) => setSelectedSem(e.target.value)}
                     >
-                      {eligibleSemesters.map((s) => (
+                      {sortedSemesters.map((s) => (
                         <option key={s.registration_id || s.registration_code} value={s.registration_id}>
                           {s.registration_code || s.registration_id || 'Semester'}
                         </option>
                       ))}
                     </select>
                     <span className="rounded-xl border border-border/40 bg-secondary/20 px-3 py-2 text-xs font-bold text-foreground">
-                      Total Credits: {toDisplayNumber(semesterTotalCredits, 1)}
+                      Total Credits: {toDisplayNumber(displayedSemesterCredits, 1)}
                     </span>
                   </div>
                 </div>
@@ -823,14 +956,14 @@ export default function GradesView({ token, onExpired }) {
                     disabled={downloadingMarks || !currentSummary}
                     className="rounded-xl font-bold h-10 px-6"
                   >
-                    <Download className="mr-2 h-4 w-4" /> {downloadingMarks ? 'Fetching...' : 'Portal PDF'}
+                    <Download className="mr-2 h-4 w-4" /> {downloadingMarks ? 'Fetching...' : 'Marks PDF'}
                   </Button>
                 </div>
               </div>
 
-              {semesterGradeCards.length ? (
+              {semesterSubjectCards.length ? (
                 <div className="grid gap-3 sm:grid-cols-2 border-t border-border/20 pt-6">
-                  {semesterGradeCards.map((subject) => (
+                  {semesterSubjectCards.map((subject) => (
                     <div
                       key={subject.key}
                       className="rounded-xl border border-border/40 p-4 flex items-center justify-between gap-3 hover:border-primary/30 transition-colors"
@@ -847,6 +980,10 @@ export default function GradesView({ token, onExpired }) {
                             {subject.grade || '-'}
                           </p>
                           <p className="text-[9px] font-medium text-muted-foreground">Grade</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-black tracking-tight text-sky-300">{subject.marksText}</p>
+                          <p className="text-[9px] font-medium text-muted-foreground">{subject.marksPercent || 'Marks'}</p>
                         </div>
                         <div className="text-center">
                           <p className="text-xl font-black tracking-tight text-foreground">
@@ -902,7 +1039,7 @@ export default function GradesView({ token, onExpired }) {
                     const ep = Number(gradeRow?.earnedPoints || 0);
                     const cr = Number(gradeRow?.credits || 0);
                     const hasGp = ep > 0 && cr > 0;
-                    const semLabel = `Semester ${idx + 1}`;
+                      const semLabel = String(sem?.registration_code || '').trim() || `Semester ${idx + 1}`;
                     return (
                       <div key={sem.registration_id} className="rounded-xl border border-border/40 p-4 hover:border-primary/30 transition-colors">
                         <div className="flex justify-between items-start mb-2">
@@ -932,473 +1069,7 @@ export default function GradesView({ token, onExpired }) {
         </div>
       ) : null}
 
-      <MarksTab
-        gradesMode={gradesMode}
-        marksSemesters={marksSemesters}
-        setMarksSemesters={setMarksSemesters}
-        fallbackSemesters={sortedSemesters}
-        selectedSem={selectedSem}
-        setSelectedSem={setSelectedSem}
-        currentSummary={currentSummary}
-        token={token}
-        marksData={marksData}
-        setMarksData={setMarksData}
-        marksLoading={marksLoading}
-        setMarksLoading={setMarksLoading}
-        fallbackGroupedMarks={groupedMarksRows}
-        downloadPortalMarksPdf={downloadPortalMarksPdf}
-        downloadingMarks={downloadingMarks}
-      />
     </div>
   );
 }
 
-function MarksTab({
-  gradesMode,
-  marksSemesters,
-  setMarksSemesters,
-  fallbackSemesters,
-  selectedSem,
-  setSelectedSem,
-  currentSummary,
-  token,
-  marksData,
-  setMarksData,
-  marksLoading,
-  setMarksLoading,
-  fallbackGroupedMarks,
-  downloadPortalMarksPdf,
-  downloadingMarks
-}) {
-  const semesterOptions = useMemo(() => {
-    if (Array.isArray(marksSemesters) && marksSemesters.length) return marksSemesters;
-    return Array.isArray(fallbackSemesters) ? fallbackSemesters : [];
-  }, [marksSemesters, fallbackSemesters]);
-
-  const selectedMarksSemester = useMemo(() => {
-    return semesterOptions.find((sem) => String(sem?.registration_id) === String(selectedSem)) || null;
-  }, [semesterOptions, selectedSem]);
-
-  const effectiveSemester = selectedMarksSemester || currentSummary || null;
-
-  useEffect(() => {
-    if (gradesMode !== 'marks' || (Array.isArray(marksSemesters) && marksSemesters.length)) return;
-
-    let cancelled = false;
-    fetchPortalMarksSemesters(token, false)
-      .then((rows) => {
-        if (cancelled) return;
-        if (Array.isArray(rows) && rows.length) {
-          setMarksSemesters(rows);
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      cancelled = true;
-    };
-  }, [gradesMode, marksSemesters, token, setMarksSemesters]);
-
-  useEffect(() => {
-    if (gradesMode !== 'marks' || !semesterOptions.length) return;
-    const exists = semesterOptions.some((s) => String(s?.registration_id) === String(selectedSem));
-    if (!exists) {
-      setSelectedSem(String(semesterOptions[0]?.registration_id || ''));
-    }
-  }, [gradesMode, semesterOptions, selectedSem, setSelectedSem]);
-
-  // Fetch marks data when semester changes and marks tab is active
-  useEffect(() => {
-    if (gradesMode !== 'marks' || !effectiveSemester?.registration_id || !effectiveSemester?.registration_code) return;
-
-    const cacheKey = `${effectiveSemester.registration_id}_${effectiveSemester.registration_code}`;
-    if (marksData[cacheKey]) {
-      let cancelled = false;
-      setMarksLoading(true);
-
-      fetchPortalMarksData(token, effectiveSemester.registration_id, effectiveSemester.registration_code, true)
-        .then((freshData) => {
-          if (cancelled) return;
-          setMarksData((prev) => ({ ...prev, [cacheKey]: freshData }));
-        })
-        .catch(() => {
-          // Keep existing cached view when background refresh fails.
-        })
-        .finally(() => {
-          if (!cancelled) setMarksLoading(false);
-        });
-
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    let cancelled = false;
-    setMarksLoading(true);
-
-    fetchPortalMarksData(token, effectiveSemester.registration_id, effectiveSemester.registration_code, false)
-      .then((cachedData) => {
-        if (cancelled) return;
-        setMarksData((prev) => ({ ...prev, [cacheKey]: cachedData }));
-
-        // Re-parse on backend in background to replace stale/incomplete cached data.
-        fetchPortalMarksData(token, effectiveSemester.registration_id, effectiveSemester.registration_code, true)
-          .then((freshData) => {
-            if (cancelled) return;
-            setMarksData((prev) => ({ ...prev, [cacheKey]: freshData }));
-          })
-          .catch(() => {
-            // Keep cached payload rendered if refresh fails.
-          })
-          .finally(() => {
-            if (!cancelled) setMarksLoading(false);
-          });
-      })
-      .catch((err) => {
-        console.error('Failed to fetch marks data:', err);
-        if (!cancelled) {
-          setMarksData((prev) => ({ ...prev, [cacheKey]: { courses: [], exams: [], error: err.message } }));
-          setMarksLoading(false);
-        }
-      });
-
-    return () => { cancelled = true; };
-  }, [
-    gradesMode,
-    effectiveSemester?.registration_id,
-    effectiveSemester?.registration_code,
-    token,
-    marksData,
-    setMarksData,
-    setMarksLoading
-  ]);
-
-  if (gradesMode !== 'marks' || !semesterOptions.length) return null;
-
-  const cacheKey = effectiveSemester ? `${effectiveSemester.registration_id}_${effectiveSemester.registration_code}` : '';
-  const currentMarks = marksData[cacheKey] || null;
-  const parsedCourses = Array.isArray(currentMarks?.courses) ? currentMarks.courses : [];
-
-  const normalizeSubjectToken = (value) =>
-    String(value || '')
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, '');
-
-  const courseMergeKey = (course = {}) => {
-    const codeToken = normalizeSubjectToken(course?.code || course?.subjectcode);
-    if (codeToken) return `C:${codeToken}`;
-    const nameToken = normalizeSubjectToken(course?.name || course?.subjectdesc);
-    if (nameToken) return `N:${nameToken}`;
-    return '';
-  };
-
-  const fallbackCourses = Array.isArray(fallbackGroupedMarks)
-    ? fallbackGroupedMarks.map((row, idx) => {
-        const exams = {};
-        const assessments = Array.isArray(row?.assessments) ? row.assessments : [];
-
-        assessments.forEach((assessment, aIdx) => {
-          const label = compactAssessmentLabel(assessment?.label, aIdx);
-          if (!label) return;
-          exams[label] = {
-            obtainedWeightage: finiteNumber(assessment?.obtained),
-            totalWeightage: finiteNumber(assessment?.total)
-          };
-        });
-
-        return {
-          name: row?.subjectdesc || row?.subjectcode || `Subject ${idx + 1}`,
-          code: row?.subjectcode || '',
-          totalObtained: finiteNumber(row?.obtained),
-          totalFull: finiteNumber(row?.total),
-          exams
-        };
-      })
-    : [];
-
-  const courseMap = new Map();
-  const mergeExamEntry = (base = {}, incoming = {}) => {
-    const merged = { ...base };
-    ['obtainedWeightage', 'totalWeightage', 'obtainedMarks', 'fullMarks'].forEach((key) => {
-      const currentValue = finiteNumber(merged[key]);
-      if (currentValue !== null) return;
-      const incomingValue = finiteNumber(incoming[key]);
-      if (incomingValue !== null) merged[key] = incomingValue;
-    });
-    return merged;
-  };
-
-  const mergeCourse = (course, index) => {
-    const key = courseMergeKey(course) || `X:${index}`;
-    const incoming = {
-      name: String(course?.name || course?.subjectdesc || '').trim() || `Subject ${index + 1}`,
-      code: String(course?.code || course?.subjectcode || '').trim(),
-      totalObtained: finiteNumber(course?.totalObtained),
-      totalFull: finiteNumber(course?.totalFull),
-      exams: { ...(course?.exams && typeof course.exams === 'object' ? course.exams : {}) }
-    };
-
-    if (!courseMap.has(key)) {
-      courseMap.set(key, incoming);
-      return;
-    }
-
-    const existing = courseMap.get(key);
-    existing.name = existing.name || incoming.name;
-    existing.code = existing.code || incoming.code;
-
-    if (finiteNumber(existing.totalFull) === null && finiteNumber(incoming.totalFull) !== null) {
-      existing.totalFull = incoming.totalFull;
-    }
-    if (finiteNumber(existing.totalObtained) === null && finiteNumber(incoming.totalObtained) !== null) {
-      existing.totalObtained = incoming.totalObtained;
-    }
-
-    const examNames = new Set([
-      ...Object.keys(existing.exams || {}),
-      ...Object.keys(incoming.exams || {})
-    ]);
-
-    const mergedExams = {};
-    examNames.forEach((examName) => {
-      mergedExams[examName] = mergeExamEntry(existing.exams?.[examName], incoming.exams?.[examName]);
-    });
-
-    existing.exams = mergedExams;
-  };
-
-  parsedCourses.forEach((course, idx) => mergeCourse(course, idx));
-  fallbackCourses.forEach((course, idx) => mergeCourse(course, parsedCourses.length + idx));
-
-  const courses = [...courseMap.values()].sort((a, b) =>
-    String(a?.name || '').localeCompare(String(b?.name || ''))
-  );
-
-  // Color for progress bars based on percentage
-  const barColor = (pct) => {
-    if (pct >= 75) return 'bg-emerald-500';
-    if (pct >= 50) return 'bg-amber-500';
-    if (pct >= 25) return 'bg-orange-500';
-    return 'bg-red-500';
-  };
-
-  return (
-    <>
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <select
-          className="min-w-[200px] rounded-xl border border-border/40 bg-secondary/30 px-3 py-2 text-sm font-medium appearance-none cursor-pointer hover:border-primary/50 transition-colors"
-          value={selectedSem}
-          onChange={(e) => setSelectedSem(e.target.value)}
-        >
-          {semesterOptions.map((s) => (
-            <option key={s.registration_id} value={s.registration_id}>{s.registration_code}</option>
-          ))}
-        </select>
-      </div>
-
-      {marksLoading && !courses.length ? (
-        <div className="rounded-2xl border border-border/40 bg-card p-8 text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">Loading marks from portal PDF...</p>
-        </div>
-      ) : currentMarks?.error && !courses.length ? (
-        <div className="rounded-2xl border border-border/40 bg-card p-8 text-center space-y-2">
-          <p className="text-sm text-muted-foreground">Marks data is not available yet</p>
-          <p className="text-xs text-muted-foreground/60">Please check back later</p>
-        </div>
-      ) : courses.length ? (
-        <div className="space-y-3">
-          {marksLoading ? (
-            <p className="text-xs font-medium text-muted-foreground">Refreshing marks in background...</p>
-          ) : null}
-
-          <div className="grid gap-4 sm:grid-cols-2">
-          {courses.map((course, idx) => {
-            const examMap = new Map();
-
-            Object.entries(course?.exams || {}).forEach(([examName, marks], examIndex) => {
-              const label = compactAssessmentLabel(examName, examIndex);
-              const order = assessmentOrder(label, examIndex);
-
-              const obtainedWeightage = finiteNumber(marks?.obtainedWeightage);
-              const totalWeightage = finiteNumber(marks?.totalWeightage);
-              const obtainedMarks = finiteNumber(marks?.obtainedMarks);
-              const fullMarks = finiteNumber(marks?.fullMarks);
-
-              const total = totalWeightage !== null && totalWeightage > 0
-                ? totalWeightage
-                : fullMarks !== null && fullMarks > 0
-                  ? fullMarks
-                  : null;
-
-              let obtained = obtainedWeightage !== null ? obtainedWeightage : obtainedMarks;
-              if (obtained !== null && total !== null && total > 0) {
-                obtained = Math.max(0, Math.min(obtained, total));
-              }
-
-              const existing = examMap.get(label) || {
-                key: `${course.code || idx}-${label}`,
-                label,
-                order,
-                obtained: 0,
-                total: 0,
-                hasObtained: false,
-                hasTotal: false,
-                isSummary: label === 'Total'
-              };
-
-              if (obtained !== null) {
-                existing.obtained += obtained;
-                existing.hasObtained = true;
-              }
-
-              if (total !== null && total > 0) {
-                existing.total += total;
-                existing.hasTotal = true;
-              }
-
-              examMap.set(label, existing);
-            });
-
-            const assessmentRows = [...examMap.values()]
-              .map((row) => ({
-                ...row,
-                obtained: row.hasObtained ? row.obtained : null,
-                total: row.hasTotal ? row.total : null
-              }))
-              .sort((a, b) => a.order - b.order || a.label.localeCompare(b.label));
-
-            const hasTestSeries = assessmentRows.some((row) => /^T\d+$/i.test(String(row?.label || '')));
-            if (hasTestSeries) {
-              ['T1', 'T2', 'T3'].forEach((label, tIdx) => {
-                if (assessmentRows.some((row) => String(row?.label || '').toUpperCase() === label)) return;
-                assessmentRows.push({
-                  key: `${course.code || idx}-${label}`,
-                  label,
-                  order: tIdx + 1,
-                  obtained: null,
-                  total: null,
-                  hasObtained: false,
-                  hasTotal: false,
-                  isSummary: false
-                });
-              });
-            }
-
-            const explicitObtained = finiteNumber(course?.totalObtained);
-            const explicitTotal = finiteNumber(course?.totalFull);
-
-            const derivedTotal = assessmentRows
-              .filter((row) => !row.isSummary && row.total !== null && row.total > 0)
-              .reduce((sum, row) => sum + row.total, 0);
-
-            const derivedObtained = assessmentRows
-              .filter((row) => !row.isSummary)
-              .reduce((sum, row) => {
-                const value = finiteNumber(row.obtained);
-                return sum + (value !== null ? value : 0);
-              }, 0);
-
-            let courseTotal = explicitTotal !== null && explicitTotal > 0 ? explicitTotal : (derivedTotal > 0 ? derivedTotal : null);
-            let courseObtained = explicitObtained !== null ? explicitObtained : (courseTotal !== null ? derivedObtained : null);
-
-            if (courseTotal === null && (explicitObtained === null || explicitObtained <= 0) && derivedObtained <= 0) {
-              courseObtained = null;
-            }
-
-            if (courseTotal !== null && courseObtained !== null) {
-              courseObtained = Math.max(0, Math.min(courseObtained, courseTotal));
-            }
-
-            const totalIndex = assessmentRows.findIndex((row) => row.label === 'Total');
-            if (totalIndex >= 0) {
-              const current = assessmentRows[totalIndex];
-              assessmentRows[totalIndex] = {
-                ...current,
-                isSummary: true,
-                order: 999,
-                total: courseTotal !== null ? courseTotal : current.total,
-                obtained: courseObtained !== null ? courseObtained : current.obtained
-              };
-            } else {
-              assessmentRows.push({
-                key: `${course.code || idx}-Total`,
-                label: 'Total',
-                order: 999,
-                obtained: courseObtained,
-                total: courseTotal,
-                hasObtained: courseObtained !== null,
-                hasTotal: courseTotal !== null,
-                isSummary: true
-              });
-            }
-
-            assessmentRows.sort((a, b) => a.order - b.order || a.label.localeCompare(b.label));
-
-            const scoreLabel = toDisplayMarks(formatMarksValue(courseObtained), formatMarksValue(courseTotal));
-
-            return (
-              <div
-                key={`${course.code || idx}`}
-                className="rounded-2xl border border-border/40 bg-card p-5 space-y-4 hover:border-primary/30 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h4 className="text-sm font-black tracking-tight text-foreground leading-tight uppercase break-words">
-                      {course.name}
-                    </h4>
-                    {course.code ? (
-                      <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">{course.code}</p>
-                    ) : null}
-                  </div>
-                  <span className="shrink-0 rounded-full border border-border/40 bg-secondary/30 px-3 py-1 text-xs font-bold text-foreground whitespace-nowrap">
-                    Score: {scoreLabel}
-                  </span>
-                </div>
-
-                {assessmentRows.length ? (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-[1fr_auto] text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      <span>Assessment</span>
-                      <span>Weightage</span>
-                    </div>
-
-                    {assessmentRows.map((assessment) => {
-                      const obt = finiteNumber(assessment?.obtained);
-                      const tot = finiteNumber(assessment?.total);
-                      const pct = tot !== null && tot > 0 && obt !== null
-                        ? Math.max(0, Math.min(100, (obt / tot) * 100))
-                        : 0;
-                      const displayObt = formatMarksValue(obt) ?? '-';
-                      const displayTot = tot !== null && tot > 0 ? formatMarksValue(tot) ?? '-' : '-';
-
-                      return (
-                        <div key={assessment.key} className="space-y-1.5">
-                          <div className="grid grid-cols-[1fr_auto] gap-2 text-sm">
-                            <p className={cn('font-semibold truncate', assessment.isSummary ? 'text-primary' : 'text-foreground')}>
-                              {assessment.label}
-                            </p>
-                            <p className="font-bold text-foreground whitespace-nowrap">
-                              {displayObt} <span className="text-muted-foreground font-medium">/ {displayTot}</span>
-                            </p>
-                          </div>
-                          <div className="h-2 rounded-full bg-secondary/40 overflow-hidden">
-                            <div
-                              className={cn("h-full rounded-full transition-all duration-500", barColor(pct))}
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
-          </div>
-        </div>
-      ) : null}
-    </>
-  );
-}

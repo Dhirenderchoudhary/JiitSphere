@@ -3,6 +3,10 @@ const { createOrUpdateSession, getSessionByOwner } = require('../services/ownPor
 const env = require('../config/env');
 const { ensureOwnedSession, buildCookieHeader } = require('../services/portalRelayService');
 const { encryptPortalPayload } = require('../utils/portalCrypto');
+const { buildPublicDemoDataset } = require('../services/demoPortalDataset');
+const { PortalClient, PortalError } = require('../services/portalClient');
+const { fetchOfficialGradeSummaries } = require('../services/portalGrades');
+const { fetchMarks: fetchMarksFromPdf } = require('../services/portalMarks');
 
 const PORTAL_TIME_ZONE = 'Asia/Kolkata';
 
@@ -93,117 +97,28 @@ const buildCommonHeaders = (relaySession, authContext, contentType) => {
   return headers;
 };
 
-const buildPortalNetworkErrorPayload = (path, error) => {
-  const timeoutMs = Number(env.portalRequestTimeoutMs || 12000);
-  const code = error?.cause?.code || error?.code || error?.name || 'PORTAL_FETCH_ERROR';
-  const isAbortError = String(error?.name || '').toLowerCase() === 'aborterror' || String(code) === 'ABORT_ERR';
-  const message = isAbortError
-    ? `Portal request timed out after ${timeoutMs}ms`
-    : error?.cause?.message || error?.message || 'Portal request failed';
-
-  return {
-    status: {
-      responseStatus: 'FAILED',
-      errors: [message]
-    },
-    meta: {
-      networkError: true,
-      code: String(code),
-      path
-    }
-  };
-};
-
-const timedPortalFetch = async (url, init) => {
-  const timeoutMs = Number(env.portalRequestTimeoutMs || 12000);
-  const controller = new AbortController();
-  const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const response = await fetch(url, {
-      ...init,
-      signal: controller.signal
-    });
-    return { response };
-  } catch (error) {
-    return { error };
-  } finally {
-    clearTimeout(timeoutHandle);
-  }
-};
-
 const postPortal = async (relaySession, authContext, path, payload, options = {}) => {
-  const { encrypted = true } = options;
-  const url = toPortalUrl(path);
-  const networkFailure = (error) => ({
-    ok: false,
-    status: 0,
-    data: buildPortalNetworkErrorPayload(path, error)
-  });
-
-  const postPlainJson = async () => {
-    const plainBody = JSON.stringify(payload || {});
-    const { response, error } = await timedPortalFetch(url, {
-      method: 'POST',
-      headers: buildCommonHeaders(relaySession, authContext, 'application/json'),
-      body: plainBody
-    });
-    if (error) return networkFailure(error);
-    const data = await parseRelayBody(response);
-    return { ok: response.ok, status: response.status, data };
-  };
-
-  if (!encrypted) {
-    return postPlainJson();
+  try {
+    const client = new PortalClient(relaySession, authContext);
+    const data = await client.post(path, payload, options);
+    return {
+      ok: true,
+      status: 200,
+      data: { status: { responseStatus: 'success' }, response: data }
+    };
+  } catch (err) {
+    const httpStatus = err.details?.httpStatus || 500;
+    const isNetworkError = err.type === 'FETCH_ERROR' && (!err.details?.httpStatus || err.details?.httpStatus >= 500);
+    return {
+      ok: false,
+      status: httpStatus,
+      data: {
+        status: err.details?.portalStatus || { responseStatus: 'FAILED', errors: [err.message] },
+        message: err.message,
+        meta: { networkError: isNetworkError, code: err.details?.code || err.code || 'PORTAL_FETCH_ERROR', path }
+      }
+    };
   }
-
-  const encryptedBody = encryptPortalPayload(JSON.stringify(payload || {}), new Date(), PORTAL_TIME_ZONE);
-
-  const encryptedAttempts = [
-    {
-      contentType: 'application/json',
-      body: encryptedBody
-    },
-    {
-      contentType: 'text/plain;charset=UTF-8',
-      body: encryptedBody
-    },
-    {
-      contentType: 'application/json',
-      body: JSON.stringify(encryptedBody)
-    }
-  ];
-
-  let last = { ok: false, status: 500, data: null };
-  for (const attempt of encryptedAttempts) {
-    const { response, error } = await timedPortalFetch(url, {
-      method: 'POST',
-      headers: buildCommonHeaders(relaySession, authContext, attempt.contentType),
-      body: attempt.body
-    });
-    if (error) {
-      last = networkFailure(error);
-      break;
-    }
-    const data = await parseRelayBody(response);
-    last = { ok: response.ok, status: response.status, data };
-
-    if (response.ok && statusSuccess(data)) {
-      return last;
-    }
-
-    if (!(response.status >= 400 && looksLikeJsonParseError(data))) {
-      return last;
-    }
-  }
-
-  if (last.status === 0) return last;
-
-  if (last.status === 415 || looksLikeUnsupportedContentType(last.data)) {
-    return postPlainJson();
-  }
-
-  return last;
 };
 
 const statusSuccess = (payload) => {
@@ -369,34 +284,113 @@ const normalizeSgpaCgpaRows = (rows = [], semesters = []) => {
   const sortedSemesters = sortSemestersDesc(semesters || []);
 
   return rows.map((row, index) => {
-    const semLabelFromRow = pickFirst(row, ['registrationcode', 'registration_code', 'registrationdesc', 'semestercode', 'semestername']) || null;
-    const regIdFromRow = pickFirst(row, ['registrationid', 'registration_id']);
-    const styFromRow = pickFirst(row, ['stynumber', 'sty_number', 'styno', 'sty_no', 'semesterno', 'semester_no', 'semester_number', 'currentsemester']);
+    const semLabelFromRow = pickFirst(row, [
+      'registrationcode',
+      'registration_code',
+      'registrationdesc',
+      'registrationlabel',
+      'semestercode',
+      'semestername',
+      'semester',
+      'session',
+      'term'
+    ]) || null;
+
+    const regIdFromRow = pickFirst(row, [
+      'registrationid',
+      'registration_id',
+      'regid',
+      'registration',
+      'registrationvalue'
+    ]);
+
+    const styFromRow = pickFirst(row, [
+      'stynumber',
+      'sty_number',
+      'sty',
+      'styno',
+      'sty_no',
+      'semesterno',
+      'semester_no',
+      'semester_number',
+      'currentsemester',
+      'semno',
+      'sem'
+    ]);
 
     const semesterById = regIdFromRow
       ? sortedSemesters.find((sem) => String(sem?.registration_id) === String(regIdFromRow))
       : null;
+
+    const semesterByRegIdAsLabel = semesterById || !regIdFromRow
+      ? null
+      : findSemesterByLabel(sortedSemesters, regIdFromRow);
+
     const semesterByStyle = semesterById || !styFromRow
       ? null
       : sortedSemesters.find((sem) => String(sem?.stynumber || '') === String(styFromRow));
-    const semesterByLabel = (semesterById || semesterByStyle)
+    const semesterByLabel = (semesterById || semesterByRegIdAsLabel || semesterByStyle)
       ? null
       : findSemesterByLabel(sortedSemesters, semLabelFromRow);
 
     const semNumFromLabelMatch = String(semLabelFromRow || '').match(/\bSEM(?:ESTER)?\s*[-:]?\s*(\d+)\b/i);
     const semNumFromLabel = semNumFromLabelMatch ? Number(semNumFromLabelMatch[1]) : NaN;
-    const semesterBySemNo = (semesterById || semesterByStyle || semesterByLabel || !Number.isFinite(semNumFromLabel))
+    const plainSemNo = Number(String(semLabelFromRow || '').trim());
+    const semesterBySemNo = (semesterById || semesterByRegIdAsLabel || semesterByStyle || semesterByLabel || !Number.isFinite(semNumFromLabel))
       ? null
       : sortedSemesters.find((sem) => Number(sem?.stynumber) === semNumFromLabel);
 
-    const resolvedSemester = semesterById || semesterByStyle || semesterByLabel || semesterBySemNo;
+    const semesterByPlainSemNo =
+      (semesterById || semesterByRegIdAsLabel || semesterByStyle || semesterByLabel || semesterBySemNo || !Number.isFinite(plainSemNo))
+        ? null
+        : sortedSemesters.find((sem) => Number(sem?.stynumber) === plainSemNo);
+
+    const resolvedSemester =
+      semesterById ||
+      semesterByRegIdAsLabel ||
+      semesterByStyle ||
+      semesterByLabel ||
+      semesterBySemNo ||
+      semesterByPlainSemNo;
 
     if (!resolvedSemester) {
       return null;
     }
 
-    const sgpa = numberOr(pickFirst(row, ['sgpa', 'semestersgpa', 'semestergpa', 'sgpaobtained', 'stygpa', 'semgpa', 'semsgpa']), 0);
-    const cgpa = numberOr(pickFirst(row, ['cgpa', 'cumulativecgpa', 'overallcgpa', 'cumulativegpa', 'overallgpa', 'totalcgpa', 'semestercgpa']), 0);
+    const sgpa = numberOr(
+      pickFirst(row, [
+        'sgpa',
+        'semester_sgpa',
+        'semestersgpa',
+        'semestergpa',
+        'sgpaobtained',
+        'stygpa',
+        'semesterstygpa',
+        'semgpa',
+        'semsgpa',
+        'gradepointaverage'
+      ]),
+      0
+    );
+
+    const cgpa = numberOr(
+      pickFirst(row, [
+        'cgpa',
+        'cumulativecgpa',
+        'cummulativecgpa',
+        'overallcgpa',
+        'cumulativegpa',
+        'cummulativegpa',
+        'overallgpa',
+        'totalcgpa',
+        'semestercgpa',
+        'stycgpa',
+        'cumulativegradepointaverage',
+        'cummulativegradepointaverage',
+        'overallgradepointaverage'
+      ]),
+      0
+    );
 
     if (!(sgpa > 0 || cgpa > 0)) {
       return null;
@@ -414,10 +408,16 @@ const normalizeSgpaCgpaRows = (rows = [], semesters = []) => {
 
 const mergeGradeSummaries = (primaryRows = [], fallbackRows = []) => {
   const bySem = new Map();
+  const byCodeToken = new Map();
 
   const upsert = (row, preferIncoming = true) => {
     if (!row?.registration_id && !row?.registration_code) return;
-    const key = String(row.registration_id || row.registration_code);
+
+    const registrationId = String(row?.registration_id || '').trim();
+    const codeToken = normalizeSemesterLabelToken(row?.registration_code || '');
+    const defaultKey = registrationId || (codeToken ? `code:${codeToken}` : String(row.registration_code || 'Semester'));
+    const codeMappedKey = codeToken ? byCodeToken.get(codeToken) : null;
+    const key = codeMappedKey || defaultKey;
     const existing = bySem.get(key);
 
     if (!existing) {
@@ -430,6 +430,9 @@ const mergeGradeSummaries = (primaryRows = [], fallbackRows = []) => {
         earnedPoints: numberOr(row.earnedPoints, 0),
         raw: row.raw || null
       });
+      if (codeToken) {
+        byCodeToken.set(codeToken, key);
+      }
       return;
     }
 
@@ -438,7 +441,13 @@ const mergeGradeSummaries = (primaryRows = [], fallbackRows = []) => {
     const currentSgpa = numberOr(existing.sgpa, 0);
     const currentCgpa = numberOr(existing.cgpa, 0);
 
+    if ((!existing.registration_id || String(existing.registration_id).startsWith('code:')) && registrationId) {
+      existing.registration_id = registrationId;
+    }
     existing.registration_code = row.registration_code || existing.registration_code;
+    if (codeToken) {
+      byCodeToken.set(codeToken, key);
+    }
     
     if (preferIncoming) {
       existing.sgpa = incomingSgpa > 0 ? incomingSgpa : currentSgpa;
@@ -466,18 +475,24 @@ const mergeGradeSummaries = (primaryRows = [], fallbackRows = []) => {
   let cumulativeCredits = 0;
 
   entries.forEach((row) => {
-    const incomingCgpa = numberOr(row.cgpa, 0);
+    const existingCgpa = numberOr(row.cgpa, 0);
     if (row.credits > 0 && row.sgpa > 0) {
       cumulativePoints += row.sgpa * row.credits;
       cumulativeCredits += row.credits;
     }
 
-    // Keep CGPA mathematically consistent with SGPA + credits whenever credit history exists.
+    // Prefer official portal CGPA when present; only derive when missing.
+    if (existingCgpa > 0) {
+      row.cgpa = existingCgpa;
+      return;
+    }
+
     if (cumulativeCredits > 0) {
       row.cgpa = cumulativePoints / cumulativeCredits;
-    } else {
-      row.cgpa = incomingCgpa > 0 ? incomingCgpa : row.sgpa;
+      return;
     }
+
+    row.cgpa = row.sgpa > 0 ? row.sgpa : 0;
   });
 
   return [...bySem.values()].sort((a, b) => {
@@ -731,6 +746,14 @@ const normalizeRegisteredSubjects = (payload) => {
 };
 
 const pickFirst = (obj, keys = []) => {
+  const normalizedKeyMap = Object.keys(obj || {}).reduce((acc, key) => {
+    const normalized = normalizeKey(key);
+    if (normalized && !acc[normalized]) {
+      acc[normalized] = key;
+    }
+    return acc;
+  }, {});
+
   const lowerKeyMap = Object.keys(obj || {}).reduce((acc, key) => {
     acc[String(key).toLowerCase()] = key;
     return acc;
@@ -738,10 +761,11 @@ const pickFirst = (obj, keys = []) => {
 
   for (const key of keys) {
     const directValue = obj?.[key];
+    const normalizedCandidate = normalizeKey(key);
     const resolvedKey =
       directValue !== undefined
         ? key
-        : lowerKeyMap[String(key).toLowerCase()] || null;
+        : lowerKeyMap[String(key).toLowerCase()] || normalizedKeyMap[normalizedCandidate] || null;
     const value = resolvedKey ? obj?.[resolvedKey] : undefined;
 
     if (value !== undefined && value !== null && String(value).trim() !== '') {
@@ -767,6 +791,78 @@ const extractScalarFields = (obj = {}, blockedKeys = []) => {
 };
 
 const normalizeKey = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const stripEmptyProfileValues = (record = {}) => {
+  return Object.fromEntries(
+    Object.entries(record || {}).filter(([, value]) => {
+      if (value === null || value === undefined) return false;
+      if (typeof value === 'string' && String(value).trim() === '') return false;
+      return true;
+    })
+  );
+};
+
+const findValueByNormalizedKeys = (obj = {}, keys = []) => {
+  const wanted = new Set((keys || []).map((key) => normalizeKey(key)).filter(Boolean));
+  if (!wanted.size) return null;
+
+  for (const [rawKey, value] of Object.entries(obj || {})) {
+    if (wanted.has(normalizeKey(rawKey))) return value;
+  }
+  return null;
+};
+
+const extractPhotoScalar = (value, depth = 0) => {
+  if (depth > 4 || value === null || value === undefined) return null;
+
+  if (typeof value === 'string') {
+    const text = String(value).trim();
+    return text || null;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const extracted = extractPhotoScalar(item, depth + 1);
+      if (extracted) return extracted;
+    }
+    return null;
+  }
+
+  if (typeof value !== 'object') return null;
+
+  const preferredKeys = [
+    'studentphoto',
+    'studentimage',
+    'profilephoto',
+    'photobase64',
+    'photo',
+    'profileimgurl',
+    'profileimageurl',
+    'studentphotourl',
+    'imageurl',
+    'photourl',
+    'image',
+    'img',
+    'url',
+    'base64',
+    'data'
+  ];
+
+  for (const key of preferredKeys) {
+    const candidate = findValueByNormalizedKeys(value, [key]);
+    const extracted = extractPhotoScalar(candidate, depth + 1);
+    if (extracted) return extracted;
+  }
+
+  for (const [rawKey, rawValue] of Object.entries(value || {})) {
+    const normalized = normalizeKey(rawKey);
+    if (!/(photo|image|img|base64|avatar|profile|signature)/.test(normalized)) continue;
+    const extracted = extractPhotoScalar(rawValue, depth + 1);
+    if (extracted) return extracted;
+  }
+
+  return null;
+};
 
 const collectObjectNodes = (source, depth = 0, maxDepth = 4) => {
   if (!source || depth > maxDepth) return [];
@@ -883,6 +979,21 @@ const mapProfile = (studentInfo = {}) => {
   const source = Array.isArray(studentInfo) ? studentInfo[0] || {} : studentInfo;
   const nodes = collectObjectNodes(source, 0, 5);
   const pick = (keys = [], contains = []) => pickProfileField(nodes, keys, contains);
+  const rawPhoto = pick(
+    [
+      'studentphoto',
+      'studentimage',
+      'profilephoto',
+      'photo',
+      'photobase64',
+      'profileimgurl',
+      'profileimageurl',
+      'studentphotourl',
+      'imageurl',
+      'photourl'
+    ],
+    ['profile photo', 'student photo', 'photo base64', 'profile image', 'image url', 'photo url']
+  );
 
   const normalized = {
     studentname: pick(['studentname', 'name', 'student_name'], ['student name', 'name']),
@@ -924,7 +1035,7 @@ const mapProfile = (studentInfo = {}) => {
     state: pick(['state', 'statename', 'cstate', 'cstatename', 'pstatename'], ['state']),
     pincode: pick(['pincode', 'zip', 'postalcode', 'cpostalcode', 'ppostalcode'], ['postal code', 'pincode', 'zip']),
     cdistrict: pick(['cdistrict'], ['district']),
-    studentphoto: pick(['studentphoto', 'studentimage', 'profilephoto', 'photo', 'photobase64'], ['profile photo', 'student photo', 'photo base64'])
+    studentphoto: extractPhotoScalar(rawPhoto) || extractPhotoScalar(source)
   };
 
   return {
@@ -1802,9 +1913,14 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
     // ── Process profile ──
     if (profileRes?.ok && statusSuccess(profileRes.data)) {
       setStep('profile', { status: 'ok', endpoint: '/StudentPortalAPI/studentpersinfo/getstudent-personalinformation', httpStatus: profileRes.status, responseStatus: profileRes.data?.status?.responseStatus || '' });
-      const studentInfo = profileRes.data?.response?.studentpersonalinformation || profileRes.data?.response?.studentinfo || extractBestProfileSource(profileRes.data);
-      if (studentInfo) {
-        dataset.profile = { ...(dataset.profile || {}), ...mapProfile(studentInfo) };
+      const responseRoot = profileRes.data?.response || {};
+      const studentInfo = responseRoot?.studentpersonalinformation || responseRoot?.studentinfo || extractBestProfileSource(profileRes.data);
+      if (studentInfo || responseRoot) {
+        const mergedProfile = {
+          ...stripEmptyProfileValues(mapProfile(studentInfo || {})),
+          ...stripEmptyProfileValues(mapProfile(responseRoot || {}))
+        };
+        dataset.profile = { ...(dataset.profile || {}), ...mergedProfile };
         dataset.realData = true;
       }
     } else {
@@ -1817,7 +1933,10 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
     const registration = gradeRegRes?.data ? firstRegistration(gradeRegRes.data) : null;
 
     if (gradeStudentInfo && registration?.registrationid) {
-      dataset.profile = { ...(dataset.profile || {}), ...mapProfile(gradeStudentInfo) };
+      dataset.profile = {
+        ...(dataset.profile || {}),
+        ...stripEmptyProfileValues(mapProfile(gradeStudentInfo))
+      };
       dataset.semesters = sortSemestersDesc(gradeRegistrations.length ? gradeRegistrations : normalizeSemesters([registration]));
     }
 
@@ -1833,7 +1952,12 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
       dataset.semesters = sortSemestersDesc(merged);
     }
     if (Array.isArray(attendanceHeaderRows) && attendanceHeaderRows.length) {
-      dataset.profile = { ...(dataset.profile || {}), ...mapAttendanceHeaderToProfile(attendanceHeaderRows[0], dataset.semesters[0]?.registration_code || null) };
+      dataset.profile = {
+        ...(dataset.profile || {}),
+        ...stripEmptyProfileValues(
+          mapAttendanceHeaderToProfile(attendanceHeaderRows[0], dataset.semesters[0]?.registration_code || null)
+        )
+      };
     }
     setStep('attendanceMeta', { status: attendanceMetaRes?.ok && statusSuccess(attendanceMetaRes.data) ? 'ok' : 'failed', endpoint: '/StudentPortalAPI/StudentClassAttendance/getstudentInforegistrationforattendence', httpStatus: attendanceMetaRes?.status, responseStatus: attendanceMetaRes?.data?.status?.responseStatus || '' });
 
@@ -1890,26 +2014,39 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
       )
       : [];
 
-    const sgpaPromise = safe((async () => {
-      const semesterCheckRes = await postPortal(relaySession, authContext,
-        '/StudentPortalAPI/studentsgpacgpa/checkIfstudentmasterexist',
-        { instituteid: authContext.instituteid, studentid: authContext.memberid, name: authContext.name, enrollmentno: authContext.enrollmentno });
-      const styleNumber = semesterCheckRes?.data?.response?.studentlov?.currentsemester || semesterCheckRes?.data?.response?.currentsemester;
-      if (!styleNumber || !(semesterCheckRes.ok && statusSuccess(semesterCheckRes.data))) return null;
-      const sgpaRes = await postPortal(relaySession, authContext,
-        '/StudentPortalAPI/studentsgpacgpa/getallsemesterdata',
-        { instituteid: authContext.instituteid, studentid: authContext.memberid, stynumber: styleNumber });
-      return sgpaRes;
-    })());
+    // ── SGPA/CGPA: Use the new portalGrades service (EXCLUSIVE source of truth) ──
+    let portalClient = null;
+    try {
+      portalClient = new PortalClient(relaySession, authContext);
+    } catch (_err) {
+      // Fallback: will use legacy flow if PortalClient can't be constructed
+    }
 
-    const [gradeCardResults, attendanceResults, examEventResults, sgpaRes] = await Promise.all([
+    const sgpaPromise = portalClient
+      ? safe(fetchOfficialGradeSummaries(portalClient, dataset.semesters))
+      : safe((async () => {
+          // Legacy fallback: direct postPortal calls
+          const semesterCheckRes = await postPortal(relaySession, authContext,
+            '/StudentPortalAPI/studentsgpacgpa/checkIfstudentmasterexist',
+            { instituteid: authContext.instituteid, studentid: authContext.memberid, name: authContext.name, enrollmentno: authContext.enrollmentno });
+          const styleNumber = semesterCheckRes?.data?.response?.studentlov?.currentsemester || semesterCheckRes?.data?.response?.currentsemester;
+          if (!styleNumber || !(semesterCheckRes.ok && statusSuccess(semesterCheckRes.data))) return [];
+          const sgpaRes = await postPortal(relaySession, authContext,
+            '/StudentPortalAPI/studentsgpacgpa/getallsemesterdata',
+            { instituteid: authContext.instituteid, studentid: authContext.memberid, stynumber: styleNumber });
+          if (!(sgpaRes?.ok && statusSuccess(sgpaRes.data))) return [];
+          const sgpaRows = sgpaRes.data?.response?.semesterdata || sgpaRes.data?.response?.sgpacgpalist || sgpaRes.data?.response?.semesterList || [];
+          return normalizeSgpaCgpaRows(Array.isArray(sgpaRows) ? sgpaRows : [], dataset.semesters);
+        })());
+
+    const [gradeCardResults, attendanceResults, examEventResults, officialGradeSummaries] = await Promise.all([
       Promise.all(gradeCardPromises),
       Promise.all(attendancePromises),
       Promise.all(examEventPromises),
       sgpaPromise
     ]);
 
-    // ── Process grade cards ──
+    // ── Process grade cards (subjects only — NOT for SGPA/CGPA) ──
     for (const result of gradeCardResults) {
       if (!result?.res?.ok || !statusSuccess(result.res.data)) continue;
       const sem = result.sem;
@@ -1927,17 +2064,12 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
         };
       }
     }
-    dataset.realData = dataset.realData || dataset.grades.length > 0 || Object.keys(dataset.gradeCards).length > 0;
-    dataset.grades = mergeGradeSummaries(dataset.grades, []);
+    dataset.realData = dataset.realData || Object.keys(dataset.gradeCards).length > 0;
 
-    // ── Process SGPA/CGPA ──
-    if (sgpaRes?.ok && statusSuccess(sgpaRes.data)) {
-      const sgpaRows = sgpaRes.data?.response?.semesterdata || sgpaRes.data?.response?.sgpacgpalist || sgpaRes.data?.response || [];
-      const normalized = normalizeSgpaCgpaRows(sgpaRows, dataset.semesters);
-      if (normalized.length) {
-        dataset.grades = mergeGradeSummaries(normalized, dataset.grades);
-        dataset.realData = true;
-      }
+    // ── Process SGPA/CGPA: official API values are the ONLY source ──
+    if (Array.isArray(officialGradeSummaries) && officialGradeSummaries.length) {
+      dataset.grades = mergeGradeSummaries(officialGradeSummaries, []);
+      dataset.realData = true;
     }
 
 
@@ -2007,35 +2139,16 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
     }
 
     // ── Finalize grade summaries ──
-    const gradeCardSummaries = normalizeGradeCardSummaries(dataset.semesters, dataset.gradeCards);
-    if (gradeCardSummaries.length) {
-      const gradeCardById = new Map(
-        gradeCardSummaries
-          .filter((row) => row?.registration_id)
-          .map((row) => [String(row.registration_id), row])
-      );
-      const gradeCardByCode = new Map(
-        gradeCardSummaries
-          .filter((row) => row?.registration_code)
-          .map((row) => [normalizeSemesterLabelToken(row.registration_code), row])
-      );
-
-      const reconciledPortalRows = (Array.isArray(dataset.grades) ? dataset.grades : []).map((row) => {
-        const byId = gradeCardById.get(String(row?.registration_id || ''));
-        const byCode = gradeCardByCode.get(normalizeSemesterLabelToken(row?.registration_code || ''));
-        const matched = byId || byCode;
-        if (!matched) return row;
-
-        return {
-          ...row,
-          sgpa: numberOr(matched?.sgpa, numberOr(row?.sgpa, 0)),
-          credits: numberOr(matched?.credits, numberOr(row?.credits, 0)),
-          earnedPoints: numberOr(matched?.earnedPoints, numberOr(row?.earnedPoints, 0))
-        };
-      });
-
-      dataset.grades = mergeGradeSummaries(reconciledPortalRows, gradeCardSummaries);
-      dataset.realData = true;
+    // NOTE: Grade card summaries are NO LONGER used for SGPA/CGPA computation.
+    // The official getallsemesterdata API is the sole source of truth.
+    // Grade cards only provide per-subject detail (grade, credits).
+    // Only add credit/earned point metadata from grade cards if the official grades are empty.
+    if ((!Array.isArray(dataset.grades) || !dataset.grades.length) && Object.keys(dataset.gradeCards || {}).length) {
+      const gradeCardSummaries = normalizeGradeCardSummaries(dataset.semesters, dataset.gradeCards);
+      if (gradeCardSummaries.length) {
+        dataset.grades = mergeGradeSummaries(gradeCardSummaries, []);
+        dataset.realData = true;
+      }
     }
 
     diagnostics.overall = dataset.realData ? 'partial-or-complete' : 'failed';
@@ -2083,6 +2196,7 @@ const hasRenderableGradesDataset = (dataset = {}) => {
 
 const refreshDatasetRealtime = async (session, req, options = {}) => {
   const { bypassThrottle = false } = options;
+  if (String(session?.dataset?.mode || '').toLowerCase() === 'public-demo') return false;
   if (!shouldRefreshRealtime(req)) return false;
 
   const ownerId = ownerKey(req);
@@ -2134,6 +2248,36 @@ const loginSdk = async (req, res) => {
   const { userId, relaySessionId = null } = req.body || {};
   if (!userId) {
     return res.status(400).json({ success: false, message: 'User ID is required' });
+  }
+
+  const authUserId = String(req.user?.userId || '').trim().toLowerCase();
+  const isLocalDemoUserId = authUserId.startsWith('demo.') && authUserId.endsWith('@jiitsphere.local');
+  const isDemoUser =
+    String(req.user?.role || '').toLowerCase() === 'demo' ||
+    Boolean(req.user?.demo) ||
+    String(req.user?.mode || '').toLowerCase() === 'public-demo' ||
+    isLocalDemoUserId;
+  if (isDemoUser) {
+    const ownerId = ownerKey(req);
+    const session = createOrUpdateSession({
+      ownerId,
+      userId: String(userId).trim(),
+      relaySessionId: null,
+      dataset: {
+        ...buildPublicDemoDataset(String(userId).trim()),
+        lastRealtimeSyncAt: Date.now()
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        sessionId: session.sessionId,
+        mode: session.dataset.mode,
+        realData: session.dataset.realData,
+        userId: session.userId
+      }
+    });
   }
 
   const ownerId = ownerKey(req);
@@ -2720,7 +2864,10 @@ const getProfileOnDemand = async (session, req) => {
 
     if (!candidates.length) continue;
 
-    const nextProfile = candidates.reduce((acc, candidate) => ({ ...acc, ...mapProfile(candidate) }), {});
+    const nextProfile = candidates.reduce(
+      (acc, candidate) => ({ ...acc, ...stripEmptyProfileValues(mapProfile(candidate)) }),
+      {}
+    );
     if (Object.keys(nextProfile).length) {
       merged = { ...merged, ...nextProfile };
       improved = true;
@@ -3022,9 +3169,17 @@ const getProfile = async (req, res) => {
   ];
   const usefulProfileCount = usefulProfileFields.filter((value) => value !== null && value !== undefined && String(value).trim() !== '').length;
 
+  const photoValue = profile.studentphoto;
+  const hasProfilePhoto =
+    photoValue !== null &&
+    photoValue !== undefined &&
+    String(photoValue).trim() !== '' &&
+    String(photoValue).trim() !== '-' &&
+    String(photoValue).trim().toLowerCase() !== 'null';
+
   const hasUsefulProfile = usefulProfileCount >= 4;
 
-  if (!hasUsefulProfile) {
+  if (!hasUsefulProfile || !hasProfilePhoto) {
     const onDemandProfile = await getProfileOnDemand(session, req);
     if (onDemandProfile) {
       return res.status(200).json({ success: true, data: onDemandProfile });
@@ -3387,11 +3542,19 @@ const downloadMarks = async (req, res) => {
     return res.status(400).json({ success: false, message: 'No active portal session' });
   }
 
-  const safeRegId = String(registration_id).replace(/[^a-zA-Z0-9_-]/g, '');
-  const safeRegCode = String(registration_code).replace(/[^a-zA-Z0-9_-]/g, '');
-  const safeInstId = String(authContext.instituteid).replace(/[^a-zA-Z0-9_-]/g, '');
+  const rawRegId = String(registration_id || '').trim();
+  const rawRegCode = String(registration_code || '').trim();
+  const rawInstituteId = String(authContext.instituteid || '').trim();
 
-  const pdfPath = `/StudentPortalAPI/studentsexamview/printstudent-exammarks/${safeInstId}/${safeRegId}/${safeRegCode}`;
+  if (!rawRegId || !rawRegCode || !rawInstituteId) {
+    return res.status(400).json({ success: false, message: 'Invalid marks semester payload' });
+  }
+
+  const regIdSegment = encodeURIComponent(rawRegId);
+  const regCodeSegment = encodeURIComponent(rawRegCode);
+  const instituteSegment = encodeURIComponent(rawInstituteId);
+
+  const pdfPath = `/StudentPortalAPI/studentsexamview/printstudent-exammarks/${instituteSegment}/${regIdSegment}/${regCodeSegment}`;
   const url = toPortalUrl(pdfPath);
 
   const headers = buildCommonHeaders(relaySession, authContext, 'application/json');
@@ -3420,7 +3583,8 @@ const downloadMarks = async (req, res) => {
   }
 
   const buffer = Buffer.from(await response.arrayBuffer());
-  const filename = `marks_${safeRegCode}.pdf`;
+  const safeFilenameSem = rawRegCode.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80) || 'semester';
+  const filename = `marks_${safeFilenameSem}.pdf`;
 
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -3567,6 +3731,25 @@ const getMarksData = async (req, res) => {
     return res.status(400).json({ success: false, message: 'registration_id and registration_code are required' });
   }
 
+  if (String(session?.dataset?.mode || '').toLowerCase() === 'public-demo') {
+    const rawRegId = String(registration_id || '').trim();
+    const rawRegCode = String(registration_code || '').trim();
+    const cacheKey = `${rawRegId}__${rawRegCode}`;
+    const marksCache = session.dataset?.marksParsedData && typeof session.dataset.marksParsedData === 'object'
+      ? session.dataset.marksParsedData
+      : {};
+
+    const direct = marksCache[cacheKey] || null;
+    const bySemesterId = direct || Object.entries(marksCache).find(([key]) => key.startsWith(`${rawRegId}__`))?.[1] || null;
+
+    return res.json({
+      success: true,
+      data: bySemesterId || { courses: [], exams: [], error: 'No demo marks available for this semester' },
+      cached: true,
+      demo: true
+    });
+  }
+
   const relaySessionId = session.dataset.relaySessionId;
   const ownerId = ownerKey(req);
   const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
@@ -3576,9 +3759,15 @@ const getMarksData = async (req, res) => {
     return res.status(400).json({ success: false, message: 'No active portal session' });
   }
 
-  const safeRegId = String(registration_id).replace(/[^a-zA-Z0-9_-]/g, '');
-  const safeRegCode = String(registration_code).replace(/[^a-zA-Z0-9_-]/g, '');
-  const cacheKey = `${safeRegId}_${safeRegCode}`;
+  const rawRegId = String(registration_id || '').trim();
+  const rawRegCode = String(registration_code || '').trim();
+  const rawInstituteId = String(authContext.instituteid || '').trim();
+
+  if (!rawRegId || !rawRegCode || !rawInstituteId) {
+    return res.status(400).json({ success: false, message: 'Invalid marks semester payload' });
+  }
+
+  const cacheKey = `${rawRegId}__${rawRegCode}`;
   const forceRefresh = parseBooleanLike(req?.query?.refresh, false);
   const marksCache = session.dataset?.marksParsedData && typeof session.dataset.marksParsedData === 'object'
     ? session.dataset.marksParsedData
@@ -3588,87 +3777,100 @@ const getMarksData = async (req, res) => {
     return res.json({ success: true, data: marksCache[cacheKey], cached: true });
   }
 
-  const safeInstId = String(authContext.instituteid).replace(/[^a-zA-Z0-9_-]/g, '');
-
-  const pdfPath = `/StudentPortalAPI/studentsexamview/printstudent-exammarks/${safeInstId}/${safeRegId}/${safeRegCode}`;
-  const url = toPortalUrl(pdfPath);
-
-  const headers = buildCommonHeaders(relaySession, authContext, 'application/json');
-  delete headers['Content-Type'];
-  headers.Accept = 'application/pdf, application/octet-stream, */*';
-
   try {
-    const { response, error } = await timedPortalFetch(url, { method: 'GET', headers });
-
-    if (error || !response?.ok) {
-      return res.json({ success: true, data: { courses: [], exams: [], error: 'No marks PDF available for this semester' } });
-    }
-
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('pdf') && !contentType.includes('octet-stream')) {
-      return res.json({ success: true, data: { courses: [], exams: [], error: 'Portal did not return a PDF' } });
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-
-    const { PDFParse } = require('pdf-parse');
-    const parser = new PDFParse({ data: buffer });
-
-    let parsed = null;
-
+    let portalClient = null;
     try {
-      const [textResult, tableResult] = await Promise.all([
-        parser.getText().catch(() => null),
-        parser.getTable().catch(() => null)
-      ]);
+      portalClient = new PortalClient(relaySession, authContext);
+    } catch (_clientErr) {
+      // Fall through to legacy fetch
+    }
 
-      const tableChunks = [];
-      if (Array.isArray(tableResult?.pages)) {
-        for (const page of tableResult.pages) {
-          const pageTables = Array.isArray(page?.tables) ? page.tables : [];
-          if (!pageTables.length) continue;
+    let parsed;
 
-          const chunk = parseMarksTables(pageTables);
-          if (Array.isArray(chunk?.courses) && chunk.courses.length) {
-            tableChunks.push(chunk);
+    if (portalClient) {
+      // Use the new portalMarks service
+      parsed = await fetchMarksFromPdf(portalClient, rawRegId, rawRegCode);
+    } else {
+      // Legacy fallback: inline fetch + parse (keeps old behavior)
+      const regIdSegment = encodeURIComponent(rawRegId);
+      const regCodeSegment = encodeURIComponent(rawRegCode);
+      const instituteSegment = encodeURIComponent(String(authContext.instituteid).trim());
+
+      const pdfPath = `/StudentPortalAPI/studentsexamview/printstudent-exammarks/${instituteSegment}/${regIdSegment}/${regCodeSegment}`;
+      const url = toPortalUrl(pdfPath);
+
+      const headers = buildCommonHeaders(relaySession, authContext, 'application/json');
+      delete headers['Content-Type'];
+      headers.Accept = 'application/pdf, application/octet-stream, */*';
+
+      const { response, error } = await timedPortalFetch(url, { method: 'GET', headers });
+
+      if (error || !response?.ok) {
+        return res.json({ success: true, data: { courses: [], exams: [], error: 'No marks PDF available for this semester' } });
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('pdf') && !contentType.includes('octet-stream')) {
+        return res.json({ success: true, data: { courses: [], exams: [], error: 'Portal did not return a PDF' } });
+      }
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const { PDFParse } = require('pdf-parse');
+      const parser = new PDFParse({ data: buffer });
+
+      try {
+        const [textResult, tableResult] = await Promise.all([
+          parser.getText().catch(() => null),
+          parser.getTable().catch(() => null)
+        ]);
+
+        const tableChunks = [];
+        if (Array.isArray(tableResult?.pages)) {
+          for (const page of tableResult.pages) {
+            const pageTables = Array.isArray(page?.tables) ? page.tables : [];
+            if (!pageTables.length) continue;
+            const chunk = parseMarksTables(pageTables);
+            if (Array.isArray(chunk?.courses) && chunk.courses.length) {
+              tableChunks.push(chunk);
+            }
           }
         }
-      }
 
-      const textChunks = [];
-      const pageTexts = Array.isArray(textResult?.pages)
-        ? textResult.pages.map((page) => String(page?.text || '')).filter((text) => text.trim())
-        : [];
+        const textChunks = [];
+        const pageTexts = Array.isArray(textResult?.pages)
+          ? textResult.pages.map((page) => String(page?.text || '')).filter((text) => text.trim())
+          : [];
 
-      if (pageTexts.length) {
-        textChunks.push(
-          ...pageTexts
-            .map((text) => parseMarksText(text))
-            .filter((chunk) => Array.isArray(chunk?.courses) && chunk.courses.length)
-        );
-      } else {
-        const fallbackText = String(textResult?.text || '');
-        if (fallbackText.trim()) {
-          const chunk = parseMarksText(fallbackText);
-          if (Array.isArray(chunk?.courses) && chunk.courses.length) {
-            textChunks.push(chunk);
+        if (pageTexts.length) {
+          textChunks.push(
+            ...pageTexts
+              .map((text) => parseMarksText(text))
+              .filter((chunk) => Array.isArray(chunk?.courses) && chunk.courses.length)
+          );
+        } else {
+          const fallbackText = String(textResult?.text || '');
+          if (fallbackText.trim()) {
+            const chunk = parseMarksText(fallbackText);
+            if (Array.isArray(chunk?.courses) && chunk.courses.length) {
+              textChunks.push(chunk);
+            }
           }
         }
-      }
 
-      const mergedChunks = [...tableChunks, ...textChunks];
-      if (mergedChunks.length) {
-        parsed = mergeParsedMarksChunks(mergedChunks);
-      }
+        const mergedChunks = [...tableChunks, ...textChunks];
+        if (mergedChunks.length) {
+          parsed = mergeParsedMarksChunks(mergedChunks);
+        }
 
-      if (!parsed || !Array.isArray(parsed.courses) || !parsed.courses.length) {
-        const rawText = Array.isArray(textResult?.pages)
-          ? textResult.pages.map((page) => String(page?.text || '')).join('\n')
-          : String(textResult?.text || '');
-        parsed = parseMarksText(rawText);
+        if (!parsed || !Array.isArray(parsed.courses) || !parsed.courses.length) {
+          const rawText = Array.isArray(textResult?.pages)
+            ? textResult.pages.map((page) => String(page?.text || '')).join('\n')
+            : String(textResult?.text || '');
+          parsed = parseMarksText(rawText);
+        }
+      } finally {
+        await parser.destroy().catch(() => null);
       }
-    } finally {
-      await parser.destroy().catch(() => null);
     }
 
     if (!parsed || typeof parsed !== 'object') {
@@ -3684,7 +3886,11 @@ const getMarksData = async (req, res) => {
     return res.json({ success: true, data: parsed });
   } catch (err) {
     console.error('[getMarksData] Error:', err.message);
-    return res.json({ success: true, data: { courses: [], exams: [], error: err.message } });
+    return res.json({
+      success: false,
+      error: { type: err.type || 'PARSE_ERROR', message: err.message },
+      data: { courses: [], exams: [] }
+    });
   }
 };
 

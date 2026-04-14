@@ -34,6 +34,30 @@ const makeDisplayName = (identifier) => {
     .join(' ');
 };
 
+const DEMO_USER_ID = 'dhirender.choudhary@jiitsphere.local';
+const DEMO_DISPLAY_NAME = 'Dhirender Choudhary';
+
+const normalizeDemoUser = (user = {}) => {
+  const normalizedUserId = String(user?.userId || '').trim().toLowerCase();
+  const isLocalDemoId = normalizedUserId.endsWith('@jiitsphere.local');
+  const isDemoUser =
+    Boolean(user?.demo) ||
+    String(user?.mode || '').toLowerCase() === 'public-demo' ||
+    (isLocalDemoId && normalizedUserId.startsWith('demo.')) ||
+    normalizedUserId === DEMO_USER_ID;
+
+  if (!isDemoUser) return user;
+
+  return {
+    ...user,
+    userId: DEMO_USER_ID,
+    name: DEMO_DISPLAY_NAME,
+    role: 'student',
+    demo: true,
+    mode: 'public-demo'
+  };
+};
+
 const login = (req, res) => {
   const { userId, email, password, portalMode = false } = req.body || {};
   const normalizedIdentifier = String(userId || email || '')
@@ -78,7 +102,37 @@ const login = (req, res) => {
 };
 
 const me = (req, res) => {
-  return res.status(200).json({ success: true, data: { user: req.user } });
+  return res.status(200).json({ success: true, data: { user: normalizeDemoUser(req.user || {}) } });
+};
+
+const demoLogin = (req, res) => {
+  if (!env.portalPublicDemoEnabled) {
+    return res.status(404).json({ success: false, message: 'Demo login is disabled' });
+  }
+
+  const defaultDemoId = DEMO_USER_ID;
+  const requested = String(req.body?.userId || '')
+    .trim()
+    .toLowerCase();
+  const safeDemoId = requested && requested.endsWith('@jiitsphere.local') ? requested : defaultDemoId;
+
+  const user = {
+    userId: safeDemoId,
+    name: DEMO_DISPLAY_NAME,
+    role: 'student',
+    demo: true,
+    mode: 'public-demo'
+  };
+
+  const token = sign(
+    {
+      ...user,
+      exp: Date.now() + 1000 * 60 * 60 * 24 * 7
+    },
+    env.authSecret
+  );
+
+  return res.status(200).json({ success: true, message: 'Demo login successful', data: { token, user } });
 };
 
 const analytics = (req, res) => {
@@ -91,6 +145,7 @@ const analytics = (req, res) => {
 
 module.exports = {
   login,
+  demoLogin,
   me,
   analytics
 };

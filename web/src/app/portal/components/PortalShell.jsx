@@ -47,6 +47,7 @@ export default function PortalShell({ token, onLogout }) {
   const [sdkSession, setSdkSession] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [cachedPhoto, setCachedPhoto] = useState('');
+  const [cachedProfileName, setCachedProfileName] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastRefreshedAt, setLastRefreshedAt] = useState(Date.now());
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -57,6 +58,27 @@ export default function PortalShell({ token, onLogout }) {
   const onExpired = useCallback(() => {
     onLogout();
   }, [onLogout]);
+
+  const syncCachedIdentity = useCallback(() => {
+    try {
+      const identityMode = String(window.localStorage.getItem('jaypee_buddy_identity_mode') || '').toLowerCase();
+      const inDemoSession = String(sdkSession?.mode || '').toLowerCase() === 'public-demo' || identityMode === 'demo';
+      const savedPhoto = window.localStorage.getItem('jaypee_buddy_cached_photo') || '';
+      const savedName = window.localStorage.getItem('jaypee_buddy_cached_profile_name') || '';
+
+      if (!inDemoSession && savedPhoto === '/demo-student-profile.png') {
+        window.localStorage.removeItem('jaypee_buddy_cached_photo');
+        setCachedPhoto('');
+      } else {
+        setCachedPhoto(savedPhoto);
+      }
+
+      setCachedProfileName(savedName);
+    } catch (_error) {
+      setCachedPhoto('');
+      setCachedProfileName('');
+    }
+  }, [sdkSession?.mode]);
 
   const triggerRefresh = useCallback(() => {
     setRefreshKey((k) => k + 1);
@@ -93,10 +115,18 @@ export default function PortalShell({ token, onLogout }) {
   }, [token, onExpired]);
 
   useEffect(() => {
-    try {
-      setCachedPhoto(window.localStorage.getItem('jaypee_buddy_cached_photo') || '');
-    } catch (e) {}
-  }, [activeTab]);
+    syncCachedIdentity();
+  }, [activeTab, syncCachedIdentity]);
+
+  useEffect(() => {
+    const handleIdentityUpdate = () => {
+      syncCachedIdentity();
+    };
+    window.addEventListener('jaypee-buddy-identity-updated', handleIdentityUpdate);
+    return () => {
+      window.removeEventListener('jaypee-buddy-identity-updated', handleIdentityUpdate);
+    };
+  }, [syncCachedIdentity]);
 
   useEffect(() => {
     const id = setInterval(triggerRefresh, AUTO_REFRESH_INTERVAL_MS);
@@ -127,6 +157,7 @@ export default function PortalShell({ token, onLogout }) {
 
   const semester = sdkSession?.latestSemester?.registration_id;
   const semesters = useMemo(() => sdkSession?.semesters || [], [sdkSession]);
+  const displayName = cachedProfileName || currentUser?.name || 'Student';
 
   const displayedTabs = currentUser?.role === 'admin' ? adminTabs : tabs;
 
@@ -208,11 +239,11 @@ export default function PortalShell({ token, onLogout }) {
                   {cachedPhoto ? (
                       <img src={cachedPhoto} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
-                      <span className="text-sm font-black text-foreground group-hover:text-primary transition-colors">{currentUser?.name?.charAt(0) || "S"}</span>
+                      <span className="text-sm font-black text-foreground group-hover:text-primary transition-colors">{displayName?.charAt(0) || "S"}</span>
                   )}
                </div>
                <div className="flex flex-col text-left flex-1 min-w-0">
-                  <span className="text-sm font-bold truncate group-hover:text-primary transition-colors">{currentUser?.name || "Student"}</span>
+                    <span className="text-sm font-bold truncate group-hover:text-primary transition-colors">{displayName}</span>
                   <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest truncate">View Profile</span>
                </div>
                <div 

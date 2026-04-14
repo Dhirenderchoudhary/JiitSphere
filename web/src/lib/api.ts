@@ -102,6 +102,21 @@ export const loginUser = async (payload: JsonObject) => {
   return data;
 };
 
+export const loginPortalDemo = async () => {
+  const response = await fetch(`${API_BASE_URL}/auth/demo-login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({})
+  });
+
+  const data = await parseJson<{ message?: string } & JsonObject>(response);
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to start demo session');
+  }
+
+  return data;
+};
+
 export const fetchPortalStatus = async (token: string) => {
   const profileResponse = await fetch(`${API_BASE_URL}/auth/me`, {
     headers: {
