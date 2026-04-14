@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 const MAX_RECENT = 50;
 const MAX_DURATION_SAMPLES = 3000;
+const RETENTION_DAYS = Math.max(7, Number(process.env.ANALYTICS_RETENTION_DAYS || 30));
+const MAX_UNIQUE_SET_SIZE = Math.max(1000, Number(process.env.ANALYTICS_MAX_UNIQUE_SET_SIZE || 200000));
+const MAX_BUCKET_SET_SIZE = Math.max(500, Number(process.env.ANALYTICS_MAX_BUCKET_SET_SIZE || 20000));
+const PRUNE_EVERY_N_REQUESTS = 250;
 
 const state = {
   startedAt: new Date().toISOString(),
@@ -123,6 +127,56 @@ const hourKey = (value = new Date()) => {
   return String(date.getHours()).padStart(2, '0');
 };
 
+const addToCappedSet = (targetSet, value, maxSize = MAX_UNIQUE_SET_SIZE) => {
+  if (!(targetSet instanceof Set)) return;
+  if (value === undefined || value === null || value === '') return;
+  if (targetSet.has(value)) return;
+  if (targetSet.size >= maxSize) {
+    const oldest = targetSet.values().next().value;
+    if (oldest !== undefined) {
+      targetSet.delete(oldest);
+    }
+  }
+  targetSet.add(value);
+};
+
+const pruneRetention = () => {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - RETENTION_DAYS);
+  const cutoffKey = dateKey(cutoff);
+
+  const pruneObjectByDateKey = (obj) => {
+    for (const key of Object.keys(obj || {})) {
+      if (key < cutoffKey) {
+        delete obj[key];
+      }
+    }
+  };
+
+  pruneObjectByDateKey(state.dailyRequests);
+  pruneObjectByDateKey(state.dailyUniqueIps);
+  pruneObjectByDateKey(state.dailyBySection);
+  pruneObjectByDateKey(state.dailySectionIps);
+  pruneObjectByDateKey(state.pageViews.dailyViews);
+  pruneObjectByDateKey(state.pageViews.dailyUniqueIps);
+  pruneObjectByDateKey(state.pageViews.dailySectionIps);
+
+  for (const key of Object.keys(state.hourlyVisitors || {})) {
+    const dayKey = String(key).split('_')[0] || '';
+    if (dayKey && dayKey < cutoffKey) {
+      delete state.hourlyVisitors[key];
+    }
+  }
+
+  for (const key of Object.keys(state.pageViews.hourlyIps || {})) {
+    const dayKey = String(key).split('_')[0] || '';
+    if (dayKey && dayKey < cutoffKey) {
+      delete state.pageViews.hourlyIps[key];
+      delete state.pageViews.hourlyViews[key];
+    }
+  }
+};
+
 const statusFamily = (statusCode) => {
   const code = Number(statusCode);
   if (code >= 200 && code < 300) return '2xx';
@@ -171,11 +225,11 @@ const trackRequest = ({ method, route, statusCode, durationMs, userId, ip, userA
   }
 
   if (userId) {
-    state.uniqueUsers.add(String(userId).toLowerCase());
+    addToCappedSet(state.uniqueUsers, String(userId).toLowerCase(), MAX_UNIQUE_SET_SIZE);
   }
 
   if (normalizedIp) {
-    state.uniqueIps.add(normalizedIp);
+    addToCappedSet(state.uniqueIps, normalizedIp, MAX_UNIQUE_SET_SIZE);
   }
 
   const day = dateKey(at);
@@ -184,7 +238,7 @@ const trackRequest = ({ method, route, statusCode, durationMs, userId, ip, userA
     state.dailyUniqueIps[day] = new Set();
   }
   if (normalizedIp) {
-    state.dailyUniqueIps[day].add(normalizedIp);
+    addToCappedSet(state.dailyUniqueIps[day], normalizedIp, MAX_BUCKET_SET_SIZE);
   }
 
   const section = route.includes('/portal') ? 'portal'
@@ -195,17 +249,17 @@ const trackRequest = ({ method, route, statusCode, durationMs, userId, ip, userA
   state.bySection[section] = (state.bySection[section] || 0) + 1;
   if (normalizedIp) {
     if (!state.sectionIps[section]) state.sectionIps[section] = new Set();
-    state.sectionIps[section].add(normalizedIp);
+    addToCappedSet(state.sectionIps[section], normalizedIp, MAX_BUCKET_SET_SIZE);
   }
   if (!state.dailyBySection[day]) state.dailyBySection[day] = {};
   state.dailyBySection[day][section] = (state.dailyBySection[day][section] || 0) + 1;
   if (!state.dailySectionIps[day]) state.dailySectionIps[day] = {};
   if (!state.dailySectionIps[day][section]) state.dailySectionIps[day][section] = new Set();
-  if (normalizedIp) state.dailySectionIps[day][section].add(normalizedIp);
+  if (normalizedIp) addToCappedSet(state.dailySectionIps[day][section], normalizedIp, MAX_BUCKET_SET_SIZE);
 
   const hKey = `${day}_${hourKey(at)}`;
   if (!state.hourlyVisitors[hKey]) state.hourlyVisitors[hKey] = new Set();
-  if (normalizedIp) state.hourlyVisitors[hKey].add(normalizedIp);
+  if (normalizedIp) addToCappedSet(state.hourlyVisitors[hKey], normalizedIp, MAX_BUCKET_SET_SIZE);
 
   state.recent.unshift({
     at: new Date(at).toISOString(),
@@ -221,6 +275,10 @@ const trackRequest = ({ method, route, statusCode, durationMs, userId, ip, userA
 
   if (state.recent.length > MAX_RECENT) {
     state.recent.length = MAX_RECENT;
+  }
+
+  if (state.totalRequests % PRUNE_EVERY_N_REQUESTS === 0) {
+    pruneRetention();
   }
 };
 
@@ -247,21 +305,21 @@ const trackPageView = ({ page, ip, userAgent, referrer, at = new Date() }) => {
   const pv = state.pageViews;
 
   pv.total += 1;
-  if (normalizedIp) pv.uniqueIps.add(normalizedIp);
+  if (normalizedIp) addToCappedSet(pv.uniqueIps, normalizedIp, MAX_UNIQUE_SET_SIZE);
 
   pv.dailyViews[day] = (pv.dailyViews[day] || 0) + 1;
   if (!pv.dailyUniqueIps[day]) pv.dailyUniqueIps[day] = new Set();
-  if (normalizedIp) pv.dailyUniqueIps[day].add(normalizedIp);
+  if (normalizedIp) addToCappedSet(pv.dailyUniqueIps[day], normalizedIp, MAX_BUCKET_SET_SIZE);
 
   pv.byPage[page] = (pv.byPage[page] || 0) + 1;
 
   pv.bySection[section] = (pv.bySection[section] || 0) + 1;
   if (!pv.sectionIps[section]) pv.sectionIps[section] = new Set();
-  if (normalizedIp) pv.sectionIps[section].add(normalizedIp);
+  if (normalizedIp) addToCappedSet(pv.sectionIps[section], normalizedIp, MAX_BUCKET_SET_SIZE);
 
   if (!pv.dailySectionIps[day]) pv.dailySectionIps[day] = {};
   if (!pv.dailySectionIps[day][section]) pv.dailySectionIps[day][section] = new Set();
-  if (normalizedIp) pv.dailySectionIps[day][section].add(normalizedIp);
+  if (normalizedIp) addToCappedSet(pv.dailySectionIps[day][section], normalizedIp, MAX_BUCKET_SET_SIZE);
 
   pv.byDevice[device] = (pv.byDevice[device] || 0) + 1;
   pv.byBrowser[browser] = (pv.byBrowser[browser] || 0) + 1;
@@ -270,7 +328,11 @@ const trackPageView = ({ page, ip, userAgent, referrer, at = new Date() }) => {
 
   pv.hourlyViews[hKey] = (pv.hourlyViews[hKey] || 0) + 1;
   if (!pv.hourlyIps[hKey]) pv.hourlyIps[hKey] = new Set();
-  if (normalizedIp) pv.hourlyIps[hKey].add(normalizedIp);
+  if (normalizedIp) addToCappedSet(pv.hourlyIps[hKey], normalizedIp, MAX_BUCKET_SET_SIZE);
+
+  if (state.totalRequests % PRUNE_EVERY_N_REQUESTS === 0) {
+    pruneRetention();
+  }
 };
 
 const getSnapshot = () => {

@@ -39,6 +39,26 @@ const parseRelayBody = async (response) => {
   return text;
 };
 
+const isLikelyPdfBuffer = (buffer) => {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 5) return false;
+  return buffer.subarray(0, 5).toString('utf8') === '%PDF-';
+};
+
+const timedPortalFetch = async (url, options = {}, timeoutMs = env.portalRequestTimeoutMs) => {
+  const timeout = Math.max(1000, Number(timeoutMs) || 12000);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, { ...(options || {}), signal: controller.signal });
+    return { response, error: null };
+  } catch (error) {
+    return { response: null, error };
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 const dateCode = (date = new Date(), timeZone = PORTAL_TIME_ZONE) => {
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone,
@@ -856,7 +876,7 @@ const extractPhotoScalar = (value, depth = 0) => {
 
   for (const [rawKey, rawValue] of Object.entries(value || {})) {
     const normalized = normalizeKey(rawKey);
-    if (!/(photo|image|img|base64|avatar|profile|signature)/.test(normalized)) continue;
+    if (!/(photo|image|img|base64|avatar|signature)/.test(normalized)) continue;
     const extracted = extractPhotoScalar(rawValue, depth + 1);
     if (extracted) return extracted;
   }
@@ -1021,8 +1041,12 @@ const mapProfile = (studentInfo = {}) => {
     studentid: pick(['studentid', 'student_id'], ['student id']),
     memberid: pick(['memberid', 'member_id'], ['member id']),
     branchid: pick(['branchid', 'branch_id'], ['branch id']),
-    branchcode: pick(['branchcode', 'branch_code'], ['branch code']),
-    branchdesc: pick(['branchdesc', 'branchdescription'], ['branch desc', 'branch description']),
+    branch: pick(['branch', 'branchname', 'specialization', 'stream'], ['branch', 'specialization', 'stream']),
+    branchcode: pick(['branchcode', 'branch_code', 'branchabbr', 'branchshortcode'], ['branch code', 'branch abbr']),
+    branchdesc: pick(
+      ['branchdesc', 'branchdescription', 'branchname', 'branch', 'specialization'],
+      ['branch desc', 'branch description', 'branch name', 'specialization']
+    ),
     programid: pick(['programid', 'program_id'], ['program id']),
     instituteid: pick(['instituteid', 'institute_id'], ['institute id']),
     clientid: pick(['clientid', 'client_id'], ['client id']),
@@ -1047,9 +1071,12 @@ const mapProfile = (studentInfo = {}) => {
 const mapAttendanceHeaderToProfile = (header = {}, latestSemesterCode = null) => ({
   studentname: pickFirst(header, ['name', 'studentname']),
   enrollmentno: pickFirst(header, ['enrollmentno', 'enrollment']),
-  program: pickFirst(header, ['programdesc', 'program', 'branchdesc']),
+  program: pickFirst(header, ['programdesc', 'program', 'programname']),
+  programdesc: pickFirst(header, ['programdesc', 'programdescription', 'programname']),
   semester: latestSemesterCode || null,
   studentid: pickFirst(header, ['studentid', 'student_id', 'memberid']),
+  branchdesc: pickFirst(header, ['branchdesc', 'branchdescription', 'branch', 'branchname']),
+  branchcode: pickFirst(header, ['branchcode', 'branch_code']),
   branchid: pickFirst(header, ['branchid', 'branch_id']),
   programid: pickFirst(header, ['programid', 'program_id'])
 });
@@ -1992,7 +2019,12 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
       ).then((res) => ({ sem, res })))
     ) : [];
 
-    const attendancePromises = (latestHeader?.stynumber && dataset.semesters.length) ? dataset.semesters.map((sem) => {
+    const maxAttendanceSemesters = Math.max(1, Number(env.portalBootstrapAttendanceSemesters || 1));
+    const attendanceHydrationSemesters = Array.isArray(dataset.semesters)
+      ? dataset.semesters.slice(0, maxAttendanceSemesters)
+      : [];
+
+    const attendancePromises = (latestHeader?.stynumber && attendanceHydrationSemesters.length) ? attendanceHydrationSemesters.map((sem) => {
       const stynumber = sem.stynumber || latestHeader?.stynumber;
       if (!sem?.registration_id || !sem?.registration_code || !stynumber) return null;
       return safe(Promise.all([
@@ -2223,7 +2255,9 @@ const refreshDatasetRealtime = async (session, req, options = {}) => {
     const authContext = buildAuthContextFromRelaySession(relaySession);
     if (!(relaySession && authContext?.instituteid)) return;
 
-    const hydratedDataset = await bootstrapDatasetFromPortal(relaySession, authContext);
+    const hydratedDataset = await bootstrapDatasetFromPortal(relaySession, authContext, {
+      includeExamHydration: false
+    });
     session.dataset = {
       ...session.dataset,
       ...hydratedDataset,
@@ -2283,6 +2317,10 @@ const loginSdk = async (req, res) => {
   const ownerId = ownerKey(req);
   const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
   const authContext = buildAuthContextFromRelaySession(relaySession);
+
+  if (!(relaySession && authContext?.instituteid)) {
+    return res.status(400).json({ success: false, message: 'No active portal session' });
+  }
 
   const hydratedDataset = {
     ...(await bootstrapDatasetFromPortal(relaySession, authContext, { includeExamHydration: false })),
@@ -3178,8 +3216,14 @@ const getProfile = async (req, res) => {
     String(photoValue).trim().toLowerCase() !== 'null';
 
   const hasUsefulProfile = usefulProfileCount >= 4;
+  const hasAnyProfile = Object.keys(profile || {}).length > 0;
 
   if (!hasUsefulProfile || !hasProfilePhoto) {
+    if (!forceRefresh && hasAnyProfile) {
+      getProfileOnDemand(session, req).catch(() => null);
+      return res.status(200).json({ success: true, data: profile, refreshing: true });
+    }
+
     const onDemandProfile = await getProfileOnDemand(session, req);
     if (onDemandProfile) {
       return res.status(200).json({ success: true, data: onDemandProfile });
@@ -3231,6 +3275,54 @@ const getMarksSemesters = async (req, res) => {
   let marksSemesters = Array.isArray(session?.dataset?.marksSemesters) ? session.dataset.marksSemesters : [];
   const fallbackSemesters = sortSemestersDesc(Array.isArray(session?.dataset?.semesters) ? session.dataset.semesters : []);
   const forceRefresh = parseBooleanLike(req?.query?.refresh, false);
+
+  const mergedMarksSemesterOptions = () => {
+    const byId = new Map();
+    const byCode = new Map();
+
+    const upsert = (row) => {
+      if (!row || typeof row !== 'object') return;
+
+      const registrationId = String(row?.registration_id || '').trim();
+      const registrationCode = String(row?.registration_code || '').trim();
+      const codeToken = normalizeSemesterLabelToken(registrationCode);
+
+      if (!registrationId && !registrationCode) return;
+
+      const existingById = registrationId ? byId.get(registrationId) : null;
+      const existingByCode = codeToken ? byCode.get(codeToken) : null;
+      const existing = existingById || existingByCode || null;
+
+      const merged = {
+        ...(existing || {}),
+        ...row,
+        registration_id: registrationId || existing?.registration_id || null,
+        registration_code: registrationCode || existing?.registration_code || null,
+        stynumber: row?.stynumber || existing?.stynumber || null
+      };
+
+      if (merged.registration_id) {
+        byId.set(String(merged.registration_id), merged);
+      }
+
+      const mergedCodeToken = normalizeSemesterLabelToken(merged.registration_code);
+      if (mergedCodeToken) {
+        byCode.set(mergedCodeToken, merged);
+      }
+    };
+
+    (marksSemesters || []).forEach(upsert);
+    (fallbackSemesters || []).forEach(upsert);
+
+    const mergedRows = [...byId.values()];
+    for (const row of byCode.values()) {
+      const idKey = String(row?.registration_id || '').trim();
+      if (idKey && byId.has(idKey)) continue;
+      mergedRows.push(row);
+    }
+
+    return sortSemestersDesc(mergedRows);
+  };
 
   const fetchAndStoreMarksSemesters = async () => {
     if (!(relaySession && authContext?.instituteid)) {
@@ -3293,17 +3385,17 @@ const getMarksSemesters = async (req, res) => {
 
   if (!forceRefresh && (marksSemesters.length || fallbackSemesters.length)) {
     fetchAndStoreMarksSemesters().catch(() => null);
-    const fastRows = marksSemesters.length ? marksSemesters : fallbackSemesters;
+    const fastRows = mergedMarksSemesterOptions();
     return res.status(200).json({ success: true, data: fastRows, refreshing: true });
   }
 
   await fetchAndStoreMarksSemesters();
 
-  if (!marksSemesters.length) {
-    marksSemesters = fallbackSemesters;
-  }
+  const finalRows = mergedMarksSemesterOptions();
+  session.dataset.marksSemesters = finalRows;
+  session.updatedAt = Date.now();
 
-  return res.status(200).json({ success: true, data: marksSemesters });
+  return res.status(200).json({ success: true, data: finalRows });
 };
 
 const getExams = async (req, res) => {
@@ -3577,18 +3669,26 @@ const downloadMarks = async (req, res) => {
     });
   }
 
-  const contentType = response.headers.get('content-type') || '';
-  if (!contentType.includes('pdf') && !contentType.includes('octet-stream')) {
+  const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const looksLikePdfMime = contentType.includes('pdf') || contentType.includes('octet-stream');
+
+  if (!looksLikePdfMime && !isLikelyPdfBuffer(buffer)) {
     return res.status(502).json({ success: false, message: 'Portal did not return a PDF' });
   }
 
-  const buffer = Buffer.from(await response.arrayBuffer());
+  if (!buffer.length) {
+    return res.status(502).json({ success: false, message: 'Portal returned an empty PDF' });
+  }
+
   const safeFilenameSem = rawRegCode.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80) || 'semester';
   const filename = `marks_${safeFilenameSem}.pdf`;
 
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.setHeader('Content-Length', buffer.length);
+  res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   return res.send(buffer);
 };
 
@@ -3806,15 +3906,25 @@ const getMarksData = async (req, res) => {
       const { response, error } = await timedPortalFetch(url, { method: 'GET', headers });
 
       if (error || !response?.ok) {
-        return res.json({ success: true, data: { courses: [], exams: [], error: 'No marks PDF available for this semester' } });
-      }
-
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('pdf') && !contentType.includes('octet-stream')) {
-        return res.json({ success: true, data: { courses: [], exams: [], error: 'Portal did not return a PDF' } });
+        return res.status(502).json({
+          success: false,
+          code: 'MARKS_PDF_UNAVAILABLE',
+          message: 'No marks PDF available for this semester'
+        });
       }
 
       const buffer = Buffer.from(await response.arrayBuffer());
+      const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+      const looksLikePdfMime = contentType.includes('pdf') || contentType.includes('octet-stream');
+
+      if (!looksLikePdfMime && !isLikelyPdfBuffer(buffer)) {
+        return res.status(502).json({
+          success: false,
+          code: 'MARKS_INVALID_PDF',
+          message: 'Portal did not return a PDF'
+        });
+      }
+
       const { PDFParse } = require('pdf-parse');
       const parser = new PDFParse({ data: buffer });
 
@@ -3885,11 +3995,10 @@ const getMarksData = async (req, res) => {
 
     return res.json({ success: true, data: parsed });
   } catch (err) {
-    console.error('[getMarksData] Error:', err.message);
-    return res.json({
+    return res.status(502).json({
       success: false,
-      error: { type: err.type || 'PARSE_ERROR', message: err.message },
-      data: { courses: [], exams: [] }
+      code: err.type || 'PARSE_ERROR',
+      message: 'Failed to parse marks PDF'
     });
   }
 };

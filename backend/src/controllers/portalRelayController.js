@@ -46,6 +46,15 @@ const portalHeaders = {
 };
 
 const RELAY_ATTEMPT_TIMEOUT_MS = Number(env.portalRequestTimeoutMs || 12000);
+const SAFE_RELAY_METHODS = new Set(['GET', 'POST']);
+const SAFE_RELAY_CONTENT_TYPES = new Set(['application/json', 'text/plain;charset=UTF-8']);
+
+const isSafePortalPath = (value) => {
+  const path = String(value || '').trim();
+  if (!path) return false;
+  if (/^https?:\/\//i.test(path)) return false;
+  return path.startsWith('/StudentPortalAPI/');
+};
 
 const startRelaySession = (req, res) => {
   const ownerId = req.user.userId || req.user.email || 'unknown';
@@ -109,8 +118,23 @@ const relayRequest = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Relay session not found' });
     }
 
-    const url = portalClient.toAbsoluteUrl(path || '.');
-    const outboundHeaders = { ...portalHeaders, ...headers };
+    const relayPath = String(path || '').trim();
+    if (!isSafePortalPath(relayPath)) {
+      return res.status(400).json({ success: false, message: 'Invalid relay path' });
+    }
+
+    const safeMethod = String(method || 'GET').trim().toUpperCase();
+    if (!SAFE_RELAY_METHODS.has(safeMethod)) {
+      return res.status(400).json({ success: false, message: 'Unsupported relay method' });
+    }
+
+    const url = portalClient.toAbsoluteUrl(relayPath);
+    const outboundHeaders = { ...portalHeaders };
+
+    const requestedContentType = String(headers?.['Content-Type'] || headers?.['content-type'] || '').trim();
+    if (requestedContentType && SAFE_RELAY_CONTENT_TYPES.has(requestedContentType)) {
+      outboundHeaders['Content-Type'] = requestedContentType;
+    }
 
     const cookieHeader = buildCookieHeader(session);
     if (cookieHeader) {
@@ -118,7 +142,7 @@ const relayRequest = async (req, res, next) => {
     }
 
     const response = await fetch(url, {
-      method,
+      method: safeMethod,
       headers: outboundHeaders,
       body: body ? JSON.stringify(body) : undefined
     });

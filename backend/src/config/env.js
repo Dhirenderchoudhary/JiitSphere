@@ -110,8 +110,9 @@ module.exports = {
   relayRateLimitWindowMs: Number(process.env.RELAY_RATE_LIMIT_WINDOW_MS || 60 * 1000),
   relayRateLimitMax: Number(process.env.RELAY_RATE_LIMIT_MAX || (isProduction ? 60 : 120)),
   maxUploadSizeMb: Number(process.env.MAX_UPLOAD_SIZE_MB || 200),
-  portalRealtimeDefault: parseBool(process.env.PORTAL_REALTIME_DEFAULT, true),
+  portalRealtimeDefault: parseBool(process.env.PORTAL_REALTIME_DEFAULT, false),
   portalRealtimeMinSyncIntervalMs: Number(process.env.PORTAL_REALTIME_MIN_SYNC_INTERVAL_MS || 30000),
+  portalBootstrapAttendanceSemesters: Number(process.env.PORTAL_BOOTSTRAP_ATTENDANCE_SEMESTERS || 1),
   portalRequestTimeoutMs: Number(process.env.PORTAL_REQUEST_TIMEOUT_MS || 12000),
   sessionMaxAgeMs: Number(process.env.SESSION_MAX_AGE_MS || 24 * 60 * 60 * 1000),
   sessionCleanupIntervalMs: Number(process.env.SESSION_CLEANUP_INTERVAL_MS || 15 * 60 * 1000)

@@ -1,10 +1,52 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5050/api/v1';
 const PORTAL_REALTIME_DEFAULT = String(process.env.NEXT_PUBLIC_PORTAL_REALTIME || 'false').toLowerCase() === 'true';
+const PORTAL_MARKS_DOWNLOAD_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_PORTAL_MARKS_DOWNLOAD_TIMEOUT_MS || 25000);
+const DEFAULT_API_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS || 20000);
+const DEFAULT_API_RETRIES = Math.max(0, Number(process.env.NEXT_PUBLIC_API_RETRIES || 1));
 
 type Primitive = string | number | boolean;
 type QueryValue = Primitive | null | undefined;
 type QueryParams = Record<string, QueryValue>;
 type JsonObject = Record<string, unknown>;
+type FetchWithTimeoutOptions = RequestInit & { timeoutMs?: number; retries?: number };
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isRetryableFetchError = (error: unknown): boolean => {
+  const err = error as { name?: string; message?: string };
+  if (!err) return false;
+  if (err.name === 'AbortError') return true;
+  return /failed to fetch|networkerror|network request failed/i.test(String(err.message || ''));
+};
+
+const fetchWithTimeout = async (url: string, options: FetchWithTimeoutOptions = {}): Promise<Response> => {
+  const {
+    timeoutMs = DEFAULT_API_TIMEOUT_MS,
+    retries = DEFAULT_API_RETRIES,
+    ...requestOptions
+  } = options;
+
+  let attempt = 0;
+  while (true) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), Math.max(3000, Number(timeoutMs) || DEFAULT_API_TIMEOUT_MS));
+
+    try {
+      return await fetch(url, {
+        ...requestOptions,
+        signal: controller.signal
+      });
+    } catch (error) {
+      if (attempt >= retries || !isRetryableFetchError(error)) {
+        throw error;
+      }
+      attempt += 1;
+      await sleep(150 * attempt);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+};
 
 /** Thrown when the backend returns 401. Callers should redirect to login. */
 export class SessionExpiredError extends Error {
@@ -51,9 +93,11 @@ const withRealtime = (params: QueryParams = {}, refresh = PORTAL_REALTIME_DEFAUL
 const sdkGet = async <T = JsonObject>(token: string, path: string, params: QueryParams = {}): Promise<T> => {
   const query = cleanParams(params);
   const url = `${API_BASE_URL}${path}${query ? `?${query}` : ''}`;
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: { Authorization: `Bearer ${token}` },
-    cache: 'no-store'
+    cache: 'no-store',
+    timeoutMs: DEFAULT_API_TIMEOUT_MS,
+    retries: DEFAULT_API_RETRIES
   });
   if (response.status === 401) throw new SessionExpiredError();
   const data = await parseJson<T & { message?: string }>(response);
@@ -267,15 +311,53 @@ export const fetchPortalFees = async (token: string, options: boolean | { debug?
 export const downloadPortalMarks = async (token: string, registration_id: string, registration_code: string) => {
   const query = cleanParams({ registration_id, registration_code });
   const url = `${API_BASE_URL}/portal/sdk/marks/download?${query}`;
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: 'no-store'
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(5000, PORTAL_MARKS_DOWNLOAD_TIMEOUT_MS));
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+      signal: controller.signal
+    });
+  } catch (error: unknown) {
+    const err = error as { name?: string };
+    if (err?.name === 'AbortError') {
+      throw new Error('Marks PDF request timed out. Please try again.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({} as { message?: string }));
     throw new Error(errorData.message || 'Failed to download marks PDF');
   }
-  return response.blob();
+
+  const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+  const blob = await response.blob();
+  const hasPdfMime = contentType.includes('pdf') || contentType.includes('octet-stream');
+
+  if (!hasPdfMime) {
+    const signature = await blob.slice(0, 5).text().catch(() => '');
+    if (!signature.startsWith('%PDF-')) {
+      const text = await blob.text().catch(() => '');
+      let parsedMessage = '';
+      if (text) {
+        try {
+          const parsed = JSON.parse(text) as { message?: string };
+          parsedMessage = String(parsed?.message || '').trim();
+        } catch (_error) {
+          parsedMessage = '';
+        }
+      }
+      throw new Error(parsedMessage || 'Portal returned an invalid PDF response');
+    }
+  }
+
+  return blob;
 };
 
 export const fetchPortalMarksData = async (

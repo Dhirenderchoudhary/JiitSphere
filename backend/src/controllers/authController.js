@@ -73,15 +73,37 @@ const login = (req, res) => {
     return res.status(400).json({ success: false, message: 'Invalid credential payload' });
   }
 
-  if (!portalMode && !env.userAllowAll && !allowedUsers[normalizedIdentifier]) {
+  if (portalMode) {
+    if (!/^[a-z0-9._@-]{4,120}$/i.test(normalizedIdentifier)) {
+      return res.status(400).json({ success: false, message: 'Invalid user ID format' });
+    }
+
+    const user = {
+      userId: normalizedIdentifier,
+      name: makeDisplayName(normalizedIdentifier),
+      role: 'portal-pending',
+      portalMode: true
+    };
+
+    const token = sign(
+      {
+        ...user,
+        scope: ['portal:relay', 'portal:sdk-login'],
+        exp: Date.now() + 1000 * 60 * 5
+      },
+      env.authSecret
+    );
+
+    return res.status(200).json({ success: true, message: 'Portal pre-auth successful', data: { token, user } });
+  }
+
+  if (!env.userAllowAll && !allowedUsers[normalizedIdentifier]) {
     return res.status(403).json({ success: false, message: 'User ID is not allowed for this portal' });
   }
 
-  if (!portalMode) {
-    const incomingHash = crypto.createHash('sha256').update(normalizedPassword).digest('hex');
-    if (!timingSafeHashEquals(incomingHash, env.userPasswordHash)) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
-    }
+  const incomingHash = crypto.createHash('sha256').update(normalizedPassword).digest('hex');
+  if (!timingSafeHashEquals(incomingHash, env.userPasswordHash)) {
+    return res.status(401).json({ success: false, message: 'Invalid credentials' });
   }
 
   const user = {

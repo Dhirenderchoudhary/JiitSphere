@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 const { PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const fsSync = require('fs');
 const fs = require('fs/promises');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
@@ -52,6 +53,18 @@ const writeBufferToLocalStorage = async ({ buffer, payload, originalFilename }) 
   return relativeKey;
 };
 
+const writeFileToLocalStorage = async ({ filePath, payload, originalFilename }) => {
+  if (!env.localMaterialsRoot) {
+    throw new Error('LOCAL_MATERIALS_ROOT is required when STORAGE_PROVIDER=local');
+  }
+
+  const relativeKey = createS3Key(payload, originalFilename);
+  const absolutePath = path.join(path.resolve(env.localMaterialsRoot), relativeKey);
+  await fs.mkdir(path.dirname(absolutePath), { recursive: true });
+  await fs.copyFile(filePath, absolutePath);
+  return relativeKey;
+};
+
 const uploadBufferToS3 = async ({ buffer, mimeType, payload, originalFilename, sourceRelativePath }) => {
   if (env.storageProvider === 'local') {
     const localKey = sourceRelativePath || (await writeBufferToLocalStorage({ buffer, payload, originalFilename }));
@@ -79,6 +92,40 @@ const uploadBufferToS3 = async ({ buffer, mimeType, payload, originalFilename, s
   };
 };
 
+const uploadFileToS3 = async ({ filePath, mimeType, payload, originalFilename, sourceRelativePath }) => {
+  if (!filePath) {
+    throw new Error('filePath is required for file upload');
+  }
+
+  if (env.storageProvider === 'local') {
+    const localKey = sourceRelativePath || (await writeFileToLocalStorage({ filePath, payload, originalFilename }));
+    return {
+      s3Key: localKey,
+      fileUrl: buildPublicUrl(localKey)
+    };
+  }
+
+  const s3Key = createS3Key(payload, originalFilename);
+  const command = new PutObjectCommand({
+    Bucket: env.awsS3Bucket,
+    Key: s3Key,
+    Body: fsSync.createReadStream(filePath),
+    ContentType: mimeType
+  });
+
+  await s3Client.send(command);
+
+  return {
+    s3Key,
+    fileUrl: buildPublicUrl(s3Key)
+  };
+};
+
+const safeDeleteLocalFile = async (filePath) => {
+  if (!filePath) return;
+  await fs.unlink(filePath).catch(() => null);
+};
+
 const deleteFromS3 = async (s3Key) => {
   if (env.storageProvider === 'local') {
     return;
@@ -94,6 +141,8 @@ const deleteFromS3 = async (s3Key) => {
 
 module.exports = {
   uploadBufferToS3,
+  uploadFileToS3,
   deleteFromS3,
+  safeDeleteLocalFile,
   buildPublicUrl
 };

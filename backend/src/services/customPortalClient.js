@@ -8,7 +8,7 @@ class CustomPortalClient {
   toAbsoluteUrl(path) {
     const rawPath = String(path || '').trim();
     if (/^https?:\/\//i.test(rawPath)) {
-      return rawPath;
+      throw new Error('Absolute URLs are not allowed');
     }
 
     // Root-prefixed paths should resolve against host origin, not /studentportal.

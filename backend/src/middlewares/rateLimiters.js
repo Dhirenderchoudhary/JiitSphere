@@ -17,21 +17,21 @@ const clientIp = (req) => {
 };
 
 const authKey = (req) => {
+  const ip = clientIp(req);
   const identifier = normalizeIdentifier(req.body?.userId || req.body?.email);
-  if (identifier) return `auth:${identifier}`;
-  return `auth-ip:${clientIp(req)}`;
+  return `auth:${ip}:${identifier || '-'}`;
 };
 
 const relayKey = (req) => {
+  const ip = clientIp(req);
   const identifier = normalizeIdentifier(req.user?.userId || req.user?.email || req.body?.userId || req.body?.email);
-  if (identifier) return `relay:${identifier}`;
-  return `relay-ip:${clientIp(req)}`;
+  return `relay:${ip}:${identifier || '-'}`;
 };
 
 const apiKey = (req) => {
-  const identifier = normalizeIdentifier(req.user?.userId || req.user?.email || req.body?.userId || req.body?.email);
-  if (identifier) return `api:${identifier}`;
-  return `api-ip:${clientIp(req)}`;
+  const ip = clientIp(req);
+  const identifier = normalizeIdentifier(req.user?.userId || req.user?.email);
+  return `api:${ip}:${identifier || '-'}`;
 };
 
 const authLimiter = rateLimit({

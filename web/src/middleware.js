@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 
 const STUDY_ACCESS_COOKIE = 'study_material_access';
-const ADMIN_AUTH_COOKIE = 'admin_auth';
 
 export function middleware(request) {
   const pathname = request.nextUrl.pathname;
@@ -42,12 +41,9 @@ export function middleware(request) {
     return NextResponse.next();
   }
 
-  // Admin route — require admin_auth cookie
+  // Admin UI has its own signed-cookie auth flow in API routes;
+  // bypass study-access lock so the admin login screen remains reachable.
   if (pathname.startsWith('/admin')) {
-    const isAdminAuth = request.cookies.get(ADMIN_AUTH_COOKIE)?.value === '1';
-    if (!isAdminAuth) {
-      return NextResponse.next();
-    }
     return NextResponse.next();
   }
 

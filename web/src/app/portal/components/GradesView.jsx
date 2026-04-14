@@ -491,7 +491,13 @@ export default function GradesView({ token, onExpired }) {
     const selectedSemId = String(selectedSem || '').trim();
     const fromGrades = gradeRowsBySemesterId[selectedSemId] || null;
 
-    if (fromGrades) return fromGrades;
+    if (fromGrades) {
+      return {
+        ...fromGrades,
+        registration_id: selectedSemester?.registration_id || fromGrades.registration_id,
+        registration_code: selectedSemester?.registration_code || fromGrades.registration_code
+      };
+    }
 
     const fromSem = selectedSemester;
     if (fromSem) return { registration_id: fromSem.registration_id, registration_code: fromSem.registration_code, sgpa: 0, cgpa: 0 };
@@ -752,7 +758,7 @@ export default function GradesView({ token, onExpired }) {
 
   const downloadMarksPdf = async () => {
     const rows = buildRowsForExport();
-    if (!rows.length) return;
+    if (!rows.length) return false;
 
     const [{ jsPDF }, { default: autoTable }] = await Promise.all([
       import('jspdf'),
@@ -786,6 +792,7 @@ export default function GradesView({ token, onExpired }) {
 
     const semPart = String(currentSummary?.registration_code || selectedSem || 'semester');
     doc.save(`marks-${semPart}.pdf`);
+    return true;
   };
 
   const downloadGradesPdf = async () => {
@@ -870,17 +877,38 @@ export default function GradesView({ token, onExpired }) {
     if (!currentSummary) return;
     setDownloadingMarks(true);
     try {
-      const blob = await downloadPortalMarks(token, currentSummary.registration_id, currentSummary.registration_code);
+      const portalRegistrationId = String(selectedSemester?.registration_id || currentSummary?.registration_id || '').trim();
+      const portalRegistrationCode = String(selectedSemester?.registration_code || currentSummary?.registration_code || '').trim();
+
+      if (!portalRegistrationId || !portalRegistrationCode) {
+        throw new Error('Selected semester is missing portal registration details');
+      }
+
+      const blob = await downloadPortalMarks(token, portalRegistrationId, portalRegistrationCode);
+      if (!blob || blob.size <= 0) {
+        throw new Error('Portal returned an empty marks PDF');
+      }
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `marks_${currentSummary.registration_code || selectedSem || 'semester'}.pdf`;
+      link.download = `marks_${portalRegistrationCode || selectedSem || 'semester'}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (err) {
-      setMessage(err?.message || 'Failed to download marks PDF from portal');
+      let fallbackDownloaded = false;
+      try {
+        fallbackDownloaded = await downloadMarksPdf();
+      } catch (_fallbackErr) {
+        fallbackDownloaded = false;
+      }
+
+      if (fallbackDownloaded) {
+        setMessage('Official portal PDF is unavailable right now. Downloaded generated marks PDF instead.');
+      } else {
+        setMessage(err?.message || 'Failed to download marks PDF from portal');
+      }
     } finally {
       setDownloadingMarks(false);
     }

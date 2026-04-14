@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 const Material = require('../models/Material');
 const asyncHandler = require('../middlewares/asyncHandler');
-const { uploadBufferToS3, deleteFromS3 } = require('../services/s3Service');
+const { uploadFileToS3, deleteFromS3, safeDeleteLocalFile } = require('../services/s3Service');
 const { getFileTypeFromName } = require('../utils/file');
 
 const createHttpError = (statusCode, message) => {
@@ -92,25 +92,29 @@ const createMaterial = asyncHandler(async (req, res) => {
 
   validateRequiredFields(req.body);
 
-  const uploadResult = await uploadBufferToS3({
-    buffer: req.file.buffer,
-    mimeType: req.file.mimetype,
-    payload: req.body,
-    originalFilename: req.file.originalname
-  });
+  try {
+    const uploadResult = await uploadFileToS3({
+      filePath: req.file.path,
+      mimeType: req.file.mimetype,
+      payload: req.body,
+      originalFilename: req.file.originalname
+    });
 
-  const material = await Material.create({
-    ...req.body,
-    year: Number(req.body.year),
-    semester: Number(req.body.semester),
-    fileType: getFileTypeFromName(req.file.originalname),
-    fileSizeBytes: req.file.size,
-    fileUrl: uploadResult.fileUrl,
-    s3Key: uploadResult.s3Key,
-    uploadedBy: req.adminEmail || 'admin'
-  });
+    const material = await Material.create({
+      ...req.body,
+      year: Number(req.body.year),
+      semester: Number(req.body.semester),
+      fileType: getFileTypeFromName(req.file.originalname),
+      fileSizeBytes: req.file.size,
+      fileUrl: uploadResult.fileUrl,
+      s3Key: uploadResult.s3Key,
+      uploadedBy: req.adminEmail || 'admin'
+    });
 
-  return res.status(201).json({ success: true, data: material });
+    return res.status(201).json({ success: true, data: material });
+  } finally {
+    await safeDeleteLocalFile(req.file.path);
+  }
 });
 
 const updateMaterial = asyncHandler(async (req, res) => {
@@ -148,26 +152,33 @@ const updateMaterial = asyncHandler(async (req, res) => {
   });
 
   if (req.file) {
-    await deleteFromS3(material.s3Key);
+    const oldS3Key = material.s3Key;
+    try {
+      const uploadResult = await uploadFileToS3({
+        filePath: req.file.path,
+        mimeType: req.file.mimetype,
+        payload: {
+          degree: material.degree,
+          branch: material.branch,
+          year: material.year,
+          semester: material.semester,
+          subject: material.subject,
+          resourceType: material.resourceType
+        },
+        originalFilename: req.file.originalname
+      });
 
-    const uploadResult = await uploadBufferToS3({
-      buffer: req.file.buffer,
-      mimeType: req.file.mimetype,
-      payload: {
-        degree: material.degree,
-        branch: material.branch,
-        year: material.year,
-        semester: material.semester,
-        subject: material.subject,
-        resourceType: material.resourceType
-      },
-      originalFilename: req.file.originalname
-    });
+      material.fileType = getFileTypeFromName(req.file.originalname);
+      material.fileSizeBytes = req.file.size;
+      material.fileUrl = uploadResult.fileUrl;
+      material.s3Key = uploadResult.s3Key;
 
-    material.fileType = getFileTypeFromName(req.file.originalname);
-    material.fileSizeBytes = req.file.size;
-    material.fileUrl = uploadResult.fileUrl;
-    material.s3Key = uploadResult.s3Key;
+      if (oldS3Key && oldS3Key !== material.s3Key) {
+        await deleteFromS3(oldS3Key);
+      }
+    } finally {
+      await safeDeleteLocalFile(req.file.path);
+    }
   }
 
   await material.save();

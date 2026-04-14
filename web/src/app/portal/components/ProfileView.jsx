@@ -68,7 +68,7 @@ const extractPhotoText = (value, depth = 0) => {
 
   for (const [rawKey, rawValue] of Object.entries(value || {})) {
     const keyNorm = normalizeToken(rawKey);
-    if (!/(photo|image|img|base64|avatar|profile|signature)/.test(keyNorm)) continue;
+    if (!/(photo|image|img|base64|avatar|signature)/.test(keyNorm)) continue;
     const extracted = extractPhotoText(rawValue, depth + 1);
     if (extracted) return extracted;
   }
@@ -77,11 +77,23 @@ const extractPhotoText = (value, depth = 0) => {
 };
 
 const normalizePhotoSrc = (rawValue) => {
-  const extracted = extractPhotoText(rawValue);
+  let extracted = extractPhotoText(rawValue);
   if (!extracted) return '';
 
-  const text = String(extracted).trim().replace(/^['"]|['"]$/g, '');
+  let text = String(extracted).trim().replace(/^['"]|['"]$/g, '');
   if (!text) return '';
+
+  // Some portal payloads return JSON-encoded strings for image metadata.
+  if ((text.startsWith('{') && text.endsWith('}')) || (text.startsWith('[') && text.endsWith(']'))) {
+    try {
+      const parsed = JSON.parse(text);
+      extracted = extractPhotoText(parsed);
+      text = String(extracted || '').trim().replace(/^['"]|['"]$/g, '');
+      if (!text) return '';
+    } catch (_error) {
+      // Keep original text if parsing fails.
+    }
+  }
 
   if (
     text.startsWith('data:image') ||
@@ -106,6 +118,14 @@ const normalizePhotoSrc = (rawValue) => {
     return `data:image/jpeg;base64,${compact.replace(/-/g, '+').replace(/_/g, '/')}`;
   }
 
+  if (text.startsWith('www.')) {
+    return `https://${text}`;
+  }
+
+  if (/^[A-Za-z0-9._/-]+\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(text)) {
+    return text.startsWith('/') ? text : `/${text}`;
+  }
+
   return '';
 };
 
@@ -113,14 +133,74 @@ export default function ProfileView({ token, onExpired }) {
   const [profile, setProfile] = useState(null);
   const [message, setMessage] = useState('');
   const [fallbackEnrollment, setFallbackEnrollment] = useState('');
+  const [cachedSidebarPhoto, setCachedSidebarPhoto] = useState('');
   const [profileTab, setProfileTab] = useState('personal');
 
+  const hasPhotoInPayload = (payload) => {
+    if (!payload || typeof payload !== 'object') return false;
+
+    const keyMap = Object.keys(payload || {}).reduce((acc, key) => {
+      acc[String(key).toLowerCase()] = key;
+      return acc;
+    }, {});
+
+    const keyNorm = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const findRawValue = (keys = [], contains = []) => {
+      for (const key of keys) {
+        const resolved = keyMap[String(key).toLowerCase()] || key;
+        const raw = payload?.[resolved];
+        if (raw !== undefined && raw !== null && String(raw).trim() !== '') return raw;
+      }
+      const normalizedTokens = contains.map((token) => keyNorm(token)).filter(Boolean);
+      for (const [rawKey, rawValue] of Object.entries(payload || {})) {
+        if (rawValue === undefined || rawValue === null || String(rawValue).trim() === '') continue;
+        const normalizedKey = keyNorm(rawKey);
+        if (normalizedTokens.some((token) => normalizedKey.includes(token))) {
+          return rawValue;
+        }
+      }
+      return null;
+    };
+
+    const rawPhoto = findRawValue(
+      [
+        'studentphoto',
+        'studentimage',
+        'profilephoto',
+        'photobase64',
+        'photo',
+        'studentphotourl',
+        'profileimgurl',
+        'profileimageurl',
+        'imageurl',
+        'photourl'
+      ],
+      ['student photo', 'profile photo', 'photo base64', 'image base64', 'profile image', 'image url', 'photo url']
+    );
+
+    return Boolean(normalizePhotoSrc(rawPhoto));
+  };
+
   useEffect(() => {
-    try {
-      setFallbackEnrollment(window.localStorage.getItem(LAST_PORTAL_USER_ID) || '');
-    } catch (_error) {
-      setFallbackEnrollment('');
-    }
+    const syncCachedIdentity = () => {
+      try {
+        setFallbackEnrollment(window.localStorage.getItem(LAST_PORTAL_USER_ID) || '');
+      } catch (_error) {
+        setFallbackEnrollment('');
+      }
+
+      try {
+        setCachedSidebarPhoto(window.localStorage.getItem('jaypee_buddy_cached_photo') || '');
+      } catch (_error) {
+        setCachedSidebarPhoto('');
+      }
+    };
+
+    syncCachedIdentity();
+    window.addEventListener('jaypee-buddy-identity-updated', syncCachedIdentity);
+    return () => {
+      window.removeEventListener('jaypee-buddy-identity-updated', syncCachedIdentity);
+    };
   }, []);
 
   useEffect(() => {
@@ -130,11 +210,32 @@ export default function ProfileView({ token, onExpired }) {
       setMessage('');
       setProfile(null);
       try {
-        const fresh = await fetchPortalProfile(token, false);
-        const data = fresh?.data || null;
+        // Fast path: render whatever is cached/session-backed immediately.
+        const fast = await fetchPortalProfile(token, false);
+        const data = fast?.data || null;
 
         if (!cancelled) {
           setProfile(data || { realData: false, message: 'No direct profile data available.' });
+        }
+
+        // Background path: force a realtime refresh when backend says it is still
+        // refreshing or when image is currently missing.
+        const shouldHydrateInBackground = Boolean(fast?.refreshing) || !hasPhotoInPayload(data);
+        if (shouldHydrateInBackground) {
+          fetchPortalProfile(token, true)
+            .then((freshResponse) => {
+              if (cancelled) return;
+              const refreshedData = freshResponse?.data || null;
+              if (refreshedData) {
+                setProfile(refreshedData);
+              }
+            })
+            .catch((err) => {
+              if (cancelled) return;
+              if (err instanceof SessionExpiredError) {
+                onExpired?.();
+              }
+            });
         }
       } catch (err) {
         if (!cancelled) {
@@ -195,8 +296,8 @@ export default function ProfileView({ token, onExpired }) {
     };
 
     const rawPhoto = findRawValue(
-      ['studentphoto', 'studentimage', 'profilephoto', 'photobase64', 'photo'],
-      ['student photo', 'profile photo', 'photo base64', 'image base64', 'profile image', 'image url']
+      ['studentphoto', 'studentimage', 'profilephoto', 'photobase64', 'photo', 'studentphotourl', 'profileimgurl', 'profileimageurl', 'imageurl', 'photourl'],
+      ['student photo', 'profile photo', 'photo base64', 'image base64', 'profile image', 'image url', 'photo url']
     );
     const rawName = findValue(
       ['studentname', 'name', 'student_name'],
@@ -278,11 +379,24 @@ export default function ProfileView({ token, onExpired }) {
   };
 
   const profilePhotoRaw = findRawProfileValue(
-    ['studentphoto', 'studentimage', 'profilephoto', 'photobase64', 'photo'],
+    ['studentphoto', 'studentimage', 'profilephoto', 'photobase64', 'photo', 'studentphotourl', 'profileimgurl', 'profileimageurl', 'imageurl', 'photourl'],
     ['student photo', 'profile photo', 'photo base64', 'image base64', 'profile image', 'image url']
   );
 
   const profilePhotoSrc = normalizePhotoSrc(profilePhotoRaw);
+  const displayPhotoSrc = profilePhotoSrc || cachedSidebarPhoto;
+
+  const branchDisplay =
+    profile.branchdesc ||
+    profile.branch ||
+    profile.branchcode ||
+    findProfileValue(['branchdesc', 'branch', 'branchname', 'branchcode'], ['branch']);
+
+  const programDisplay =
+    profile.program ||
+    profile.programdesc ||
+    profile.programcode ||
+    findProfileValue(['program', 'programdesc', 'programname'], ['program', 'course', 'degree']);
 
   const profileName = findProfileValue(['studentname', 'name'], ['student name']) || profile.studentname;
 
@@ -408,11 +522,11 @@ export default function ProfileView({ token, onExpired }) {
 
   const academicRows = [
     ['Enrollment', (profile.enrollmentno && String(profile.enrollmentno).length > 4 ? profile.enrollmentno : '') || fallbackEnrollment],
-    ['Program', profile.program || profile.programdesc || profile.programcode || findProfileValue([], ['program'])],
+    ['Program', programDisplay],
     ['Semester', profile.semester || profile.stynumber || profile.stymax],
     ['Section', profile.sectioncode],
     ['Batch', profile.batch || profile.academicyear || profile.admissionyear],
-    ['Branch', profile.branchcode || profile.branch || profile.branchdesc || findProfileValue([], ['branch'])],
+    ['Branch', branchDisplay],
     ['Registration No.', profile.registrationno],
     ['Institute Code', profile.institutecode],
     ['Academic Year', profile.academicyear],
@@ -467,7 +581,7 @@ export default function ProfileView({ token, onExpired }) {
     <div className="space-y-0">
       {/* Interactive 3D Identity Lanyard — rendered outside Card to avoid overflow:hidden clipping */}
       <LanyardBadge 
-        profilePhotoSrc={profilePhotoSrc}
+        profilePhotoSrc={displayPhotoSrc}
         profileName={profileName}
         enrollment={(profile.enrollmentno && String(profile.enrollmentno).length > 4 ? profile.enrollmentno : '') || fallbackEnrollment}
       />
@@ -481,9 +595,9 @@ export default function ProfileView({ token, onExpired }) {
           
           <div className="relative shrink-0">
              <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl overflow-hidden border border-border shadow-sm relative z-10 bg-muted">
-                 {profilePhotoSrc ? (
+                {displayPhotoSrc ? (
                     <Image
-                      src={profilePhotoSrc}
+                   src={displayPhotoSrc}
                       alt="Student Identity"
                       fill
                       unoptimized
@@ -524,7 +638,7 @@ export default function ProfileView({ token, onExpired }) {
                 <div className="flex flex-col gap-1">
                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Classification</span>
                    <span className="text-sm font-bold text-foreground truncate">
-                      {profile.program || 'Verified Entity'}
+                     {branchDisplay || programDisplay || 'Verified Entity'}
                    </span>
                 </div>
             </div>

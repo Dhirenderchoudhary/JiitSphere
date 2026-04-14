@@ -14,11 +14,6 @@ const YEAR_OPTIONS = [1, 2, 3, 4, 5];
 const SEMESTER_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const RESOURCE_TYPE_OPTIONS = ['Slides', 'Lectures', 'Tutorials', 'PYQs', 'Solutions'];
 
-function getCookie(name) {
-  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-  return match ? match[2] : null;
-}
-
 /* ── Admin Login ─────────────────────────────────────────────── */
 function AdminLogin({ onSuccess }) {
   const [id, setId] = useState('');
@@ -129,6 +124,7 @@ function ComboField({ label, value, onChange, options, placeholder }) {
 /* ── Main Admin Page ─────────────────────────────────────────── */
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
   const [form, setForm] = useState({
     title: '', degree: '', branch: '', year: '', semester: '', subject: '', resourceType: ''
   });
@@ -140,7 +136,30 @@ export default function AdminPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
-    if (getCookie('admin_auth') === '1') setAuthed(true);
+    let cancelled = false;
+
+    const checkAdminAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/admin', { cache: 'no-store' });
+        const payload = await response.json().catch(() => ({}));
+        if (!cancelled) {
+          setAuthed(Boolean(response.ok && payload?.authenticated));
+        }
+      } catch (_error) {
+        if (!cancelled) {
+          setAuthed(false);
+        }
+      } finally {
+        if (!cancelled) {
+          setAuthChecking(false);
+        }
+      }
+    };
+
+    checkAdminAuth();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -154,7 +173,16 @@ export default function AdminPage() {
   const handleLogout = async () => {
     await fetch('/api/auth/admin', { method: 'DELETE' });
     setAuthed(false);
+    setAuthChecking(false);
   };
+
+  if (authChecking) {
+    return (
+      <main className="flex min-h-screen items-center justify-center px-4 py-10">
+        <div className="text-sm font-semibold text-muted-foreground">Checking admin session...</div>
+      </main>
+    );
+  }
 
   if (!authed) return <AdminLogin onSuccess={() => setAuthed(true)} />;
 

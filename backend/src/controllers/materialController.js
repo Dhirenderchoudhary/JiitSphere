@@ -15,6 +15,7 @@ let filterOptionsCache = {
 };
 
 const browseOptionsCache = new Map();
+const browseInFlight = new Map();
 
 const createHttpError = (statusCode, message) => {
   const error = new Error(message);
@@ -191,25 +192,40 @@ const getBrowseOptions = asyncHandler(async (req, res) => {
     return res.json({ success: true, data: cached.data, cached: true });
   }
 
-  const [branches, years, semesters, subjects, resourceTypes] = await Promise.all([
-    Material.distinct('branch', query),
-    Material.distinct('year', query),
-    Material.distinct('semester', query),
-    Material.distinct('subject', query),
-    Material.distinct('resourceType', query)
-  ]);
+  const inFlight = browseInFlight.get(cacheKey);
+  if (inFlight) {
+    const data = await inFlight;
+    return res.json({ success: true, data, cached: true });
+  }
 
-  const data = {
-    branches: uniqueNaturalSort(branches),
-    years: years.sort((a, b) => a - b),
-    semesters: semesters.sort((a, b) => a - b),
-    subjects: uniqueNaturalSort(subjects),
-    resourceTypes: uniqueNaturalSort(resourceTypes)
-  };
+  const computePromise = (async () => {
+    const [branches, years, semesters, subjects, resourceTypes] = await Promise.all([
+      Material.distinct('branch', query),
+      Material.distinct('year', query),
+      Material.distinct('semester', query),
+      Material.distinct('subject', query),
+      Material.distinct('resourceType', query)
+    ]);
 
-  setBrowseCache(cacheKey, data);
+    const data = {
+      branches: uniqueNaturalSort(branches),
+      years: years.sort((a, b) => a - b),
+      semesters: semesters.sort((a, b) => a - b),
+      subjects: uniqueNaturalSort(subjects),
+      resourceTypes: uniqueNaturalSort(resourceTypes)
+    };
 
-  return res.json({ success: true, data });
+    setBrowseCache(cacheKey, data);
+    return data;
+  })();
+
+  browseInFlight.set(cacheKey, computePromise);
+  try {
+    const data = await computePromise;
+    return res.json({ success: true, data });
+  } finally {
+    browseInFlight.delete(cacheKey);
+  }
 });
 
 module.exports = {

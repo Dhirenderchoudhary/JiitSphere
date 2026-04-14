@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 const multer = require('multer');
+const os = require('os');
 const path = require('path');
 const env = require('../config/env');
 
@@ -22,8 +23,20 @@ const allowedExtensions = new Set([
   '.mp4', '.zip', '.xls', '.xlsx', '.txt'
 ]);
 
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, os.tmpdir()),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    const safeBase = path
+      .basename(file.originalname || 'upload', ext)
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .slice(0, 80) || 'upload';
+    cb(null, `${Date.now()}-${safeBase}${ext}`);
+  }
+});
+
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage,
   limits: { fileSize: env.maxUploadSizeMb * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname || '').toLowerCase();

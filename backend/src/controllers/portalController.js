@@ -8,8 +8,12 @@ const extract = (pattern, value) => {
 };
 
 const getPortalStatus = async (_req, res, next) => {
+  const controller = new AbortController();
+  const timeoutMs = 12000;
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    const response = await fetch(PORTAL_URL);
+    const response = await fetch(PORTAL_URL, { signal: controller.signal });
     const html = await response.text();
 
     const studentPortalVersion = extract(/Student Portal Version:\s*<\/?[^>]*>\s*([^<\n]+)/i, html);
@@ -36,6 +40,8 @@ const getPortalStatus = async (_req, res, next) => {
     });
   } catch (error) {
     return next(error);
+  } finally {
+    clearTimeout(timer);
   }
 };
 

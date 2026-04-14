@@ -34,7 +34,12 @@ const verify = (token, secret) => {
 
   try {
     const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
-    if (payload.exp && Date.now() > payload.exp) return null;
+    if (payload.exp !== undefined && payload.exp !== null) {
+      const expRaw = Number(payload.exp);
+      if (!Number.isFinite(expRaw)) return null;
+      const expMs = expRaw < 1_000_000_000_000 ? expRaw * 1000 : expRaw;
+      if (Date.now() > expMs) return null;
+    }
     return payload;
   } catch (_error) {
     return null;

@@ -3,12 +3,32 @@ const crypto = require('crypto');
 const env = require('../config/env');
 
 const relaySessions = new Map();
+const MAX_RELAY_SESSIONS = Math.max(100, Number(process.env.MAX_RELAY_SESSIONS || 5000));
+
+const lastActiveAt = (session) => Number(session?.updatedAt || session?.createdAt || 0);
+
+const evictOldestRelaySession = () => {
+  let oldestKey = null;
+  let oldestTs = Number.MAX_SAFE_INTEGER;
+
+  for (const [key, value] of relaySessions.entries()) {
+    const ts = lastActiveAt(value);
+    if (ts < oldestTs) {
+      oldestTs = ts;
+      oldestKey = key;
+    }
+  }
+
+  if (oldestKey) {
+    relaySessions.delete(oldestKey);
+  }
+};
 
 /* ── session TTL cleanup ─────────────────────────────────────────── */
 const purgeExpiredRelaySessions = () => {
   const now = Date.now();
   for (const [id, session] of relaySessions) {
-    if (now - session.createdAt > env.sessionMaxAgeMs) {
+    if (now - lastActiveAt(session) > env.sessionMaxAgeMs) {
       relaySessions.delete(id);
     }
   }
@@ -42,6 +62,10 @@ const toCookieHeader = (cookieMap) => {
 };
 
 const createRelaySession = (ownerId) => {
+  if (relaySessions.size >= MAX_RELAY_SESSIONS) {
+    evictOldestRelaySession();
+  }
+
   const sessionId = crypto.randomUUID();
   relaySessions.set(sessionId, {
     ownerId,
@@ -58,6 +82,7 @@ const ensureOwnedSession = (sessionId, ownerId) => {
   const session = getRelaySession(sessionId);
   if (!session) return null;
   if (session.ownerId !== ownerId) return null;
+  session.updatedAt = Date.now();
   return session;
 };
 

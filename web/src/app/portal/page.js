@@ -5,22 +5,25 @@ import { useRouter } from 'next/navigation';
 import { TOKEN_KEY, PORTAL_VERIFIED_KEY, LOGIN_AT_KEY } from './constants';
 import { PortalShell } from './components';
 
-/** Parse the `exp` field from a base64url JWT without any library. */
-const parseJwtExp = (token) => {
+/** Parse JWT exp and normalize to epoch milliseconds (supports seconds or ms). */
+const parseJwtExpMs = (token) => {
   try {
     const parts = String(token || '').split('.');
     if (parts.length !== 3) return null;
-    const padded = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = `${base64}${'='.repeat((4 - (base64.length % 4 || 4)) % 4)}`;
     const payload = JSON.parse(atob(padded));
-    return typeof payload?.exp === 'number' ? payload.exp : null;
+    const exp = Number(payload?.exp);
+    if (!Number.isFinite(exp) || exp <= 0) return null;
+    return exp > 1_000_000_000_000 ? exp : exp * 1000;
   } catch (_e) {
     return null;
   }
 };
 
 const isTokenExpired = (token) => {
-  const exp = parseJwtExp(token);
-  return exp !== null && Date.now() > exp * 1000;
+  const expMs = parseJwtExpMs(token);
+  return expMs !== null && Date.now() >= expMs;
 };
 
 export default function PortalPage() {
