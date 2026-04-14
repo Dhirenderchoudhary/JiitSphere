@@ -32,6 +32,7 @@ coverage/
 **/dist/
 **/build/
 **/coverage/
+.vercel/
 
 # Runtime/cache
 .tmp/
