@@ -230,6 +230,10 @@ export const fetchPortalExams = async (token: string, refresh = PORTAL_REALTIME_
   sdkGet(token, '/portal/sdk/exams', withRealtime({}, refresh));
 export const fetchPortalSubjects = async (token: string, semester: string, refresh = PORTAL_REALTIME_DEFAULT) =>
   sdkGet(token, '/portal/sdk/subjects', withRealtime({ semester }, refresh));
+export const fetchPortalMarksSemesters = async (token: string, refresh = PORTAL_REALTIME_DEFAULT) => {
+  const response = await sdkGet<{ data?: unknown }>(token, '/portal/sdk/marks/semesters', withRealtime({}, refresh));
+  return Array.isArray(response?.data) ? response.data : [];
+};
 
 export const fetchPortalFees = async (token: string, options: boolean | { debug?: boolean; refresh?: boolean } = false) => {
   const debug = typeof options === 'boolean' ? options : Boolean(options?.debug);
@@ -257,4 +261,23 @@ export const downloadPortalMarks = async (token: string, registration_id: string
     throw new Error(errorData.message || 'Failed to download marks PDF');
   }
   return response.blob();
+};
+
+export const fetchPortalMarksData = async (
+  token: string,
+  registration_id: string,
+  registration_code: string,
+  refresh = false
+) => {
+  const query = cleanParams({ registration_id, registration_code, ...(refresh ? { refresh: 1 } : {}) });
+  const url = `${API_BASE_URL}/portal/sdk/marks/data?${query}`;
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store'
+  });
+  if (!response.ok) {
+    throw new Error('Failed to fetch marks data');
+  }
+  const json = await response.json();
+  return json?.data || { courses: [], exams: [] };
 };

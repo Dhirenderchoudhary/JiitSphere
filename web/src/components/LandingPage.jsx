@@ -74,7 +74,7 @@ export default function LandingPage() {
               <h2 className="text-6xl md:text-8xl lg:text-9xl font-bold tracking-tightest leading-[0.95] text-foreground font-[var(--font-instrument-sans)]">
                  The academic <br />
                  <span className="text-primary font-medium tracking-tight">dashboard</span><br />
-                 <span className="italic opacity-90">for Jiit students.</span>
+                  <span className="opacity-90">for Jiit students.</span>
               </h2>
               
               <p className="max-w-2xl mx-auto text-lg md:text-xl text-muted-foreground leading-relaxed font-medium">

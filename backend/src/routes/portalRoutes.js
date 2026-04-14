@@ -19,10 +19,12 @@ const {
 	getSubjectAttendance,
 	getProfile,
 	getGrades,
+	getMarksSemesters,
 	getExams,
 	getSubjects,
 	getFees,
-	downloadMarks
+	downloadMarks,
+	getMarksData
 } = require('../controllers/portalSdkController');
 
 const router = express.Router();
@@ -41,9 +43,11 @@ router.get('/sdk/attendance/counts', authUser, relayLimiter, getAttendanceCounts
 router.get('/sdk/attendance/subject', authUser, relayLimiter, getSubjectAttendance);
 router.get('/sdk/profile', authUser, relayLimiter, getProfile);
 router.get('/sdk/grades', authUser, relayLimiter, getGrades);
+router.get('/sdk/marks/semesters', authUser, relayLimiter, getMarksSemesters);
 router.get('/sdk/exams', authUser, relayLimiter, getExams);
 router.get('/sdk/subjects', authUser, relayLimiter, getSubjects);
 router.get('/sdk/fees', authUser, relayLimiter, getFees);
 router.get('/sdk/marks/download', authUser, relayLimiter, downloadMarks);
+router.get('/sdk/marks/data', authUser, relayLimiter, getMarksData);
 
 module.exports = router;

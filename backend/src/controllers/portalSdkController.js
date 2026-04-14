@@ -333,23 +333,83 @@ const normalizeGradeRows = (rows = []) => {
   }));
 };
 
+const normalizeSemesterLabelToken = (value = '') =>
+  String(value || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+
+const findSemesterByLabel = (semesters = [], registrationLabel = '') => {
+  const labelToken = normalizeSemesterLabelToken(registrationLabel);
+  if (!labelToken || !Array.isArray(semesters) || !semesters.length) return null;
+
+  const direct = semesters.find(
+    (sem) => normalizeSemesterLabelToken(sem?.registration_code) === labelToken
+  );
+  if (direct) return direct;
+
+  const yearMatch = labelToken.match(/20\d{2}/);
+  const year = yearMatch ? yearMatch[0] : '';
+  const odd = labelToken.includes('ODD');
+  const even = labelToken.includes('EVE') || labelToken.includes('EVEN');
+
+  return semesters.find((sem) => {
+    const semToken = normalizeSemesterLabelToken(sem?.registration_code);
+    if (!semToken) return false;
+    if (labelToken.includes(semToken) || semToken.includes(labelToken)) return true;
+    if (!year || !semToken.includes(year)) return false;
+    if (odd) return semToken.includes('ODD');
+    if (even) return semToken.includes('EVE') || semToken.includes('EVEN');
+    return false;
+  }) || null;
+};
+
 const normalizeSgpaCgpaRows = (rows = [], semesters = []) => {
   if (!Array.isArray(rows)) return [];
 
+  const sortedSemesters = sortSemestersDesc(semesters || []);
+
   return rows.map((row, index) => {
-    const semLabel =
-      pickFirst(row, ['registrationcode', 'registration_code', 'registrationdesc', 'semestercode', 'semestername']) ||
-      semesters[index]?.registration_code ||
-      `Semester ${index + 1}`;
+    const semLabelFromRow = pickFirst(row, ['registrationcode', 'registration_code', 'registrationdesc', 'semestercode', 'semestername']) || null;
+    const regIdFromRow = pickFirst(row, ['registrationid', 'registration_id']);
+    const styFromRow = pickFirst(row, ['stynumber', 'sty_number', 'styno', 'sty_no', 'semesterno', 'semester_no', 'semester_number', 'currentsemester']);
+
+    const semesterById = regIdFromRow
+      ? sortedSemesters.find((sem) => String(sem?.registration_id) === String(regIdFromRow))
+      : null;
+    const semesterByStyle = semesterById || !styFromRow
+      ? null
+      : sortedSemesters.find((sem) => String(sem?.stynumber || '') === String(styFromRow));
+    const semesterByLabel = (semesterById || semesterByStyle)
+      ? null
+      : findSemesterByLabel(sortedSemesters, semLabelFromRow);
+
+    const semNumFromLabelMatch = String(semLabelFromRow || '').match(/\bSEM(?:ESTER)?\s*[-:]?\s*(\d+)\b/i);
+    const semNumFromLabel = semNumFromLabelMatch ? Number(semNumFromLabelMatch[1]) : NaN;
+    const semesterBySemNo = (semesterById || semesterByStyle || semesterByLabel || !Number.isFinite(semNumFromLabel))
+      ? null
+      : sortedSemesters.find((sem) => Number(sem?.stynumber) === semNumFromLabel);
+
+    const resolvedSemester = semesterById || semesterByStyle || semesterByLabel || semesterBySemNo;
+
+    if (!resolvedSemester) {
+      return null;
+    }
+
+    const sgpa = numberOr(pickFirst(row, ['sgpa', 'semestersgpa', 'semestergpa', 'sgpaobtained', 'stygpa', 'semgpa', 'semsgpa']), 0);
+    const cgpa = numberOr(pickFirst(row, ['cgpa', 'cumulativecgpa', 'overallcgpa', 'cumulativegpa', 'overallgpa', 'totalcgpa', 'semestercgpa']), 0);
+
+    if (!(sgpa > 0 || cgpa > 0)) {
+      return null;
+    }
 
     return {
-      registration_id: pickFirst(row, ['registrationid', 'registration_id']) || semesters[index]?.registration_id || `sem-${index + 1}`,
-      registration_code: semLabel,
-      sgpa: numberOr(pickFirst(row, ['sgpa', 'semestersgpa', 'semestergpa', 'sgpaobtained']), 0),
-      cgpa: numberOr(pickFirst(row, ['cgpa', 'cumulativecgpa', 'overallcgpa']), 0),
+      registration_id: resolvedSemester.registration_id,
+      registration_code: resolvedSemester.registration_code,
+      sgpa,
+      cgpa,
       raw: row
     };
-  });
+  }).filter(Boolean);
 };
 
 const mergeGradeSummaries = (primaryRows = [], fallbackRows = []) => {
@@ -366,6 +426,8 @@ const mergeGradeSummaries = (primaryRows = [], fallbackRows = []) => {
         registration_code: row.registration_code || 'Semester',
         sgpa: numberOr(row.sgpa, 0),
         cgpa: numberOr(row.cgpa, 0),
+        credits: numberOr(row.credits, 0),
+        earnedPoints: numberOr(row.earnedPoints, 0),
         raw: row.raw || null
       });
       return;
@@ -377,17 +439,46 @@ const mergeGradeSummaries = (primaryRows = [], fallbackRows = []) => {
     const currentCgpa = numberOr(existing.cgpa, 0);
 
     existing.registration_code = row.registration_code || existing.registration_code;
+    
     if (preferIncoming) {
-      existing.sgpa = incomingSgpa > 0 || currentSgpa <= 0 ? incomingSgpa : currentSgpa;
-      existing.cgpa = incomingCgpa > 0 || currentCgpa <= 0 ? incomingCgpa : currentCgpa;
+      existing.sgpa = incomingSgpa > 0 ? incomingSgpa : currentSgpa;
+      existing.cgpa = incomingCgpa > 0 ? incomingCgpa : currentCgpa;
     } else {
       existing.sgpa = currentSgpa > 0 ? currentSgpa : incomingSgpa;
       existing.cgpa = currentCgpa > 0 ? currentCgpa : incomingCgpa;
     }
+
+    // Preserve credits and earnedPoints (prefer higher values)
+    const incomingCredits = numberOr(row.credits, 0);
+    const incomingEarned = numberOr(row.earnedPoints, 0);
+    if (incomingCredits > 0) existing.credits = Math.max(existing.credits || 0, incomingCredits);
+    if (incomingEarned > 0) existing.earnedPoints = Math.max(existing.earnedPoints || 0, incomingEarned);
   };
 
   fallbackRows.forEach((row) => upsert(row, false));
   primaryRows.forEach((row) => upsert(row, true));
+
+  const entries = [...bySem.values()].sort((a, b) => {
+    return semesterSortScore(a.registration_code, a.registration_id) - semesterSortScore(b.registration_code, b.registration_id);
+  });
+
+  let cumulativePoints = 0;
+  let cumulativeCredits = 0;
+
+  entries.forEach((row) => {
+    const incomingCgpa = numberOr(row.cgpa, 0);
+    if (row.credits > 0 && row.sgpa > 0) {
+      cumulativePoints += row.sgpa * row.credits;
+      cumulativeCredits += row.credits;
+    }
+
+    // Keep CGPA mathematically consistent with SGPA + credits whenever credit history exists.
+    if (cumulativeCredits > 0) {
+      row.cgpa = cumulativePoints / cumulativeCredits;
+    } else {
+      row.cgpa = incomingCgpa > 0 ? incomingCgpa : row.sgpa;
+    }
+  });
 
   return [...bySem.values()].sort((a, b) => {
     const scoreA = semesterSortScore(a.registration_code, a.registration_id);
@@ -406,21 +497,57 @@ const normalizeGradeCardRows = (rows = []) => {
       programid: pickFirst(row, ['programid', 'program_id']),
       gradeid: pickFirst(row, ['gradeid', 'grade_id', 'grademasterid']),
       subjectid: pickFirst(row, ['subjectid', 'subject_id']),
-      subjectcode: pickFirst(row, ['subjectcode', 'individualsubjectcode']) || null,
-      subjectdesc: pickFirst(row, ['subjectdesc', 'subjectname']) || 'Subject',
-      credit: numberOr(pickFirst(row, ['credit', 'credits', 'subjectcredit']), 0),
+      subjectcode: pickFirst(row, ['subjectcode', 'individualsubjectcode', 'stsubjectcode', 'subcode', 'coursecode', 'subject_code']) || null,
+      subjectdesc: pickFirst(row, ['subjectdesc', 'subjectname', 'subjectdescription', 'coursename', 'subjecttitle']) || 'Subject',
+      credit: numberOr(pickFirst(row, ['earnedcredit', 'coursecreditpoint', 'credit', 'credits', 'subjectcredit', 'coursecredit', 'stcredit']), 0),
       marksobtained: pickFirst(row, [
         'marksobtained',
         'obtainedmarks',
         'totalobtainedmarks',
+        'weightageobtained',
+        'wtobtained',
+        'obtainedweightage',
+        'weightagescored',
         'internalmarksobtained',
         'externalmarksobtained',
         'obtained',
         'marks'
       ]),
-      totalmarks: pickFirst(row, ['totalmarks', 'maxmarks', 'maximummarks', 'outofmarks', 'maximum']),
-      grade: pickFirst(row, ['grade', 'lettergrade']) || '-',
-      gradepoint: pickFirst(row, ['gradepoint', 'grpoint', 'point']),
+      totalmarks: pickFirst(row, [
+        'totalmarks',
+        'maxmarks',
+        'maximummarks',
+        'outofmarks',
+        'maximum',
+        'weightagetotal',
+        'wttotal',
+        'totalweightage',
+        'maxweightage',
+        'totalmaxmarks'
+      ]),
+      grade: pickFirst(row, ['grade', 'lettergrade', 'stgrade', 'finalgrade']) || '-',
+      gradepoint: pickFirst(row, ['gradepoint', 'grpoint', 'point', 'stgradepoint', 'gpoint', 'gradepoints']),
+      assessment:
+        pickFirst(row, [
+          'assessment',
+          'assessmentname',
+          'assessmentdesc',
+          'gradecomponentname',
+          'examname',
+          'examdesc',
+          'testname',
+          'componentname',
+          'headname',
+          'assessmenttype',
+          'gradecomponent',
+          'eventname',
+          'eventdesc',
+          'assessmenthead'
+        ]) || null,
+      assessmentorder: numberOr(
+        pickFirst(row, ['assessmentorder', 'sequence', 'srno', 'orderid', 'serialno']),
+        0
+      ),
       raw: row
     }))
     .filter((row) => row.subjectdesc);
@@ -828,14 +955,38 @@ const normalizeGradeCardSummaries = (semesters = [], gradeCards = {}) => {
       const rows = Array.isArray(gradeCards[registrationId]) ? gradeCards[registrationId] : [];
       const sem = getSemesterById(semesters, registrationId);
 
+      // Group by subject to avoid double-counting credits from multiple assessment rows
+      const subjectMap = new Map();
+      rows.forEach((row) => {
+        const subjectKey = String(row?.subjectcode || row?.subjectdesc || '').trim();
+        if (!subjectKey) return;
+
+        const gp = numberOr(row?.gradepoint, NaN);
+        const credit = numberOr(row?.credit, 0);
+
+        if (!subjectMap.has(subjectKey)) {
+          subjectMap.set(subjectKey, { gradepoint: NaN, credit: 0 });
+        }
+
+        const subject = subjectMap.get(subjectKey);
+        // Use the first valid gradepoint we encounter for this subject
+        if (!Number.isFinite(subject.gradepoint) && Number.isFinite(gp)) {
+          subject.gradepoint = gp;
+        }
+        // Use the max credit value for this subject
+        if (credit > 0) {
+          subject.credit = Math.max(subject.credit, credit);
+        }
+      });
+
       let weightedPoints = 0;
       let totalCredits = 0;
       let plainPoints = 0;
       let plainCount = 0;
 
-      rows.forEach((row) => {
-        const gp = numberOr(row?.gradepoint, NaN);
-        const credit = numberOr(row?.credit, 0);
+      for (const subject of subjectMap.values()) {
+        const gp = subject.gradepoint;
+        const credit = subject.credit;
         if (Number.isFinite(gp)) {
           plainPoints += gp;
           plainCount += 1;
@@ -844,18 +995,25 @@ const normalizeGradeCardSummaries = (semesters = [], gradeCards = {}) => {
             totalCredits += credit;
           }
         }
-      });
+      }
 
       const sgpa = totalCredits > 0 ? weightedPoints / totalCredits : plainCount > 0 ? plainPoints / plainCount : 0;
+
+      // Skip semesters that only have assessment rows without grade points yet.
+      if (plainCount <= 0 && totalCredits <= 0) {
+        return null;
+      }
 
       return {
         registration_id: registrationId,
         registration_code: sem?.registration_code || registrationId,
         credits: totalCredits,
+        earnedPoints: weightedPoints,
         sgpa,
         cgpa: 0
       };
     })
+    .filter(Boolean)
     .sort((a, b) => semesterSortScore(a.registration_code, a.registration_id) - semesterSortScore(b.registration_code, b.registration_id));
 
   let cumulativePoints = 0;
@@ -874,7 +1032,9 @@ const normalizeGradeCardSummaries = (semesters = [], gradeCards = {}) => {
       registration_id: row.registration_id,
       registration_code: row.registration_code,
       sgpa: numberOr(row.sgpa, 0),
-      cgpa: numberOr(row.cgpa, 0)
+      cgpa: numberOr(row.cgpa, 0),
+      credits: row.credits,
+      earnedPoints: numberOr(row.earnedPoints, 0)
     }))
     .sort((a, b) => semesterSortScore(b.registration_code, b.registration_id) - semesterSortScore(a.registration_code, a.registration_id));
 };
@@ -1519,7 +1679,7 @@ const buildFeePayloadCandidatesForEndpoint = (endpoint, authContext, semesters =
     });
   }
 
-  // Known working payload contracts from jsjiit implementation.
+  // Known working payload contracts implementation.
   if (endpoint === '/StudentPortalAPI/studentfeeledger/loadfeesummary') {
     return [
       { instituteid: authContext.instituteid },
@@ -1632,7 +1792,7 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
           { encrypted: false })),
         safe(postPortal(relaySession, authContext,
           '/StudentPortalAPI/studentcommonsontroller/getsemestercode-withstudentexamevents',
-          { clientid: authContext.clientid, instituteid: authContext.instituteid })),
+          { clientid: authContext.clientid, instituteid: authContext.instituteid, memberid: authContext.memberid })),
         safe(postPortal(relaySession, authContext,
           '/StudentPortalAPI/studentfeeledger/loadfeesummary',
           { instituteid: authContext.instituteid },
@@ -1758,13 +1918,6 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
       if (normalizedCardRows.length) {
         dataset.gradeCards[sem.registration_id] = normalizedCardRows;
       }
-      const immediateGrades = normalizeGradeRows(gradeRows).map((row) => ({
-        ...row, registration_id: sem.registration_id, registration_code: sem.registration_code
-      }));
-      if (immediateGrades.length) {
-        dataset.grades = dataset.grades.filter((existing) => String(existing.registration_id) !== String(sem.registration_id));
-        dataset.grades.push(immediateGrades[0]);
-      }
       const subjects = normalizedCardRows.map((row) => row.subjectdesc).filter(Boolean);
       if (subjects.length) {
         dataset.subjects[sem.registration_id] = {
@@ -1786,6 +1939,7 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
         dataset.realData = true;
       }
     }
+
 
     // ── Process attendance & subjects per semester ──
     for (const result of attendanceResults) {
@@ -1855,7 +2009,32 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
     // ── Finalize grade summaries ──
     const gradeCardSummaries = normalizeGradeCardSummaries(dataset.semesters, dataset.gradeCards);
     if (gradeCardSummaries.length) {
-      dataset.grades = mergeGradeSummaries(dataset.grades, gradeCardSummaries);
+      const gradeCardById = new Map(
+        gradeCardSummaries
+          .filter((row) => row?.registration_id)
+          .map((row) => [String(row.registration_id), row])
+      );
+      const gradeCardByCode = new Map(
+        gradeCardSummaries
+          .filter((row) => row?.registration_code)
+          .map((row) => [normalizeSemesterLabelToken(row.registration_code), row])
+      );
+
+      const reconciledPortalRows = (Array.isArray(dataset.grades) ? dataset.grades : []).map((row) => {
+        const byId = gradeCardById.get(String(row?.registration_id || ''));
+        const byCode = gradeCardByCode.get(normalizeSemesterLabelToken(row?.registration_code || ''));
+        const matched = byId || byCode;
+        if (!matched) return row;
+
+        return {
+          ...row,
+          sgpa: numberOr(matched?.sgpa, numberOr(row?.sgpa, 0)),
+          credits: numberOr(matched?.credits, numberOr(row?.credits, 0)),
+          earnedPoints: numberOr(matched?.earnedPoints, numberOr(row?.earnedPoints, 0))
+        };
+      });
+
+      dataset.grades = mergeGradeSummaries(reconciledPortalRows, gradeCardSummaries);
       dataset.realData = true;
     }
 
@@ -1893,6 +2072,13 @@ const shouldRefreshRealtime = (req) => {
     return parseBooleanLike(req.query.refresh, false);
   }
   return env.portalRealtimeDefault;
+};
+
+const hasRenderableGradesDataset = (dataset = {}) => {
+  const hasSemesters = Array.isArray(dataset?.semesters) && dataset.semesters.length > 0;
+  const hasSummaries = Array.isArray(dataset?.grades) && dataset.grades.length > 0;
+  const hasGradeCards = dataset?.gradeCards && Object.keys(dataset.gradeCards).length > 0;
+  return hasSemesters || hasSummaries || hasGradeCards;
 };
 
 const refreshDatasetRealtime = async (session, req, options = {}) => {
@@ -1985,7 +2171,15 @@ const loginSdk = async (req, res) => {
 const getSdkSession = async (req, res) => {
   const session = ensureSession(req, res);
   if (!session) return undefined;
-  await refreshDatasetRealtime(session, req);
+
+  const shouldRealtime = shouldRefreshRealtime(req);
+  const hasCached = hasRenderableGradesDataset(session?.dataset);
+
+  if (shouldRealtime && hasCached) {
+    refreshDatasetRealtime(session, req).catch(() => null);
+  } else {
+    await refreshDatasetRealtime(session, req);
+  }
 
   return res.status(200).json({
     success: true,
@@ -2568,7 +2762,8 @@ const getExamsOnDemand = async (session, req) => {
     '/StudentPortalAPI/studentcommonsontroller/getsemestercode-withstudentexamevents',
     {
       clientid: authContext.clientid,
-      instituteid: authContext.instituteid
+      instituteid: authContext.instituteid,
+      memberid: authContext.memberid
     }
   );
 
@@ -2849,7 +3044,15 @@ const getGrades = async (req, res) => {
   const session = ensureSession(req, res);
   if (!session) return undefined;
 
-  await refreshDatasetRealtime(session, req);
+  const shouldRealtime = shouldRefreshRealtime(req);
+  const forceRealtime = parseBooleanLike(req?.query?.refresh, false);
+  const hasCached = hasRenderableGradesDataset(session?.dataset);
+
+  if (shouldRealtime && hasCached) {
+    refreshDatasetRealtime(session, req, { bypassThrottle: forceRealtime }).catch(() => null);
+  } else {
+    await refreshDatasetRealtime(session, req, { bypassThrottle: forceRealtime });
+  }
 
   return res.status(200).json({
     success: true,
@@ -2859,6 +3062,93 @@ const getGrades = async (req, res) => {
       gradeCards: session.dataset.gradeCards || {}
     }
   });
+};
+
+const getMarksSemesters = async (req, res) => {
+  const session = ensureSession(req, res);
+  if (!session) return undefined;
+
+  const ownerId = ownerKey(req);
+  const relaySessionId = session?.dataset?.relaySessionId;
+  const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
+  const authContext = buildAuthContextFromRelaySession(relaySession);
+
+  let marksSemesters = Array.isArray(session?.dataset?.marksSemesters) ? session.dataset.marksSemesters : [];
+  const fallbackSemesters = sortSemestersDesc(Array.isArray(session?.dataset?.semesters) ? session.dataset.semesters : []);
+  const forceRefresh = parseBooleanLike(req?.query?.refresh, false);
+
+  const fetchAndStoreMarksSemesters = async () => {
+    if (!(relaySession && authContext?.instituteid)) {
+      return marksSemesters;
+    }
+
+    const marksSemRes = await postPortal(
+      relaySession,
+      authContext,
+      '/StudentPortalAPI/studentcommonsontroller/getsemestercode-exammarks',
+      {
+        instituteid: authContext.instituteid,
+        studentid: authContext.memberid
+      }
+    );
+
+    if (!(marksSemRes?.ok && statusSuccess(marksSemRes.data))) {
+      return marksSemesters;
+    }
+
+    const rawRows = marksSemRes.data?.response?.semestercode || marksSemRes.data?.response?.semesterCodeinfo?.semestercode || [];
+    const normalizedRows = sortSemestersDesc(normalizeSemesters(rawRows));
+
+    if (!normalizedRows.length) {
+      return marksSemesters;
+    }
+
+    marksSemesters = normalizedRows;
+    session.dataset.marksSemesters = normalizedRows;
+
+    const merged = [...(Array.isArray(session.dataset.semesters) ? session.dataset.semesters : [])];
+    const byId = new Map(
+      merged
+        .filter((row) => row?.registration_id)
+        .map((row) => [String(row.registration_id), row])
+    );
+
+    for (const sem of normalizedRows) {
+      const key = String(sem?.registration_id || '');
+      if (!key) continue;
+
+      const existing = byId.get(key);
+      if (!existing) {
+        byId.set(key, sem);
+        continue;
+      }
+
+      byId.set(key, {
+        ...existing,
+        registration_code: existing.registration_code || sem.registration_code,
+        stynumber: existing.stynumber || sem.stynumber || null
+      });
+    }
+
+    session.dataset.semesters = sortSemestersDesc([...byId.values()]);
+    session.updatedAt = Date.now();
+
+    return marksSemesters;
+  };
+
+  if (!forceRefresh && (marksSemesters.length || fallbackSemesters.length)) {
+    fetchAndStoreMarksSemesters().catch(() => null);
+    const fastRows = marksSemesters.length ? marksSemesters : fallbackSemesters;
+    return res.status(200).json({ success: true, data: fastRows, refreshing: true });
+  }
+
+  await fetchAndStoreMarksSemesters();
+
+  if (!marksSemesters.length) {
+    marksSemesters = fallbackSemesters;
+  }
+
+  return res.status(200).json({ success: true, data: marksSemesters });
 };
 
 const getExams = async (req, res) => {
@@ -3138,6 +3428,664 @@ const downloadMarks = async (req, res) => {
   return res.send(buffer);
 };
 
+const finiteNumberOrNull = (value) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+};
+
+const mergeMarksExamEntry = (base = {}, incoming = {}) => {
+  const merged = { ...(base || {}) };
+  const candidate = incoming && typeof incoming === 'object' ? incoming : {};
+
+  ['obtainedWeightage', 'totalWeightage', 'obtainedMarks', 'fullMarks'].forEach((key) => {
+    const current = finiteNumberOrNull(merged[key]);
+    if (current !== null) return;
+    const next = finiteNumberOrNull(candidate[key]);
+    if (next !== null) merged[key] = next;
+  });
+
+  if (!merged.remarks && candidate.remarks) {
+    merged.remarks = candidate.remarks;
+  }
+
+  return merged;
+};
+
+const mergeParsedMarksChunks = (chunks = []) => {
+  const merged = { courses: [], exams: [], studentInfo: {} };
+  const byCourse = new Map();
+  const examsSet = new Set();
+
+  for (const chunk of chunks) {
+    if (!chunk || typeof chunk !== 'object') continue;
+
+    const info = chunk.studentInfo && typeof chunk.studentInfo === 'object' ? chunk.studentInfo : {};
+    for (const [key, value] of Object.entries(info)) {
+      if (value === null || value === undefined || String(value).trim() === '') continue;
+      if (!merged.studentInfo[key]) merged.studentInfo[key] = value;
+    }
+
+    const examNames = Array.isArray(chunk.exams) ? chunk.exams : [];
+    for (const examName of examNames) {
+      const text = String(examName || '').trim();
+      if (text) examsSet.add(text);
+    }
+
+    const courses = Array.isArray(chunk.courses) ? chunk.courses : [];
+    for (const course of courses) {
+      const code = String(course?.code || '').trim();
+      const name = String(course?.name || '').trim();
+      const key = code
+        ? `C:${code.toUpperCase()}`
+        : `N:${String(name || '').toUpperCase().replace(/[^A-Z0-9]/g, '')}`;
+      if (!key) continue;
+
+      if (!byCourse.has(key)) {
+        byCourse.set(key, {
+          name: name || code || 'SUBJECT',
+          code,
+          totalObtained: finiteNumberOrNull(course?.totalObtained),
+          totalFull: finiteNumberOrNull(course?.totalFull),
+          exams: {}
+        });
+      }
+
+      const existing = byCourse.get(key);
+      if (!existing.name && name) existing.name = name;
+      if (!existing.code && code) existing.code = code;
+
+      const incomingTotal = finiteNumberOrNull(course?.totalFull);
+      const incomingObtained = finiteNumberOrNull(course?.totalObtained);
+
+      if (existing.totalFull === null && incomingTotal !== null) {
+        existing.totalFull = incomingTotal;
+      } else if (existing.totalFull !== null && incomingTotal !== null) {
+        existing.totalFull = Math.max(existing.totalFull, incomingTotal);
+      }
+
+      if (existing.totalObtained === null && incomingObtained !== null) {
+        existing.totalObtained = incomingObtained;
+      } else if (existing.totalObtained !== null && incomingObtained !== null) {
+        existing.totalObtained = Math.max(existing.totalObtained, incomingObtained);
+      }
+
+      const exams = course?.exams && typeof course.exams === 'object' ? course.exams : {};
+      for (const [examName, marks] of Object.entries(exams)) {
+        const examKey = String(examName || '').trim();
+        if (!examKey) continue;
+        examsSet.add(examKey);
+        existing.exams[examKey] = mergeMarksExamEntry(existing.exams[examKey], marks);
+      }
+    }
+  }
+
+  merged.courses = [...byCourse.values()].map((course) => {
+    let totalFull = finiteNumberOrNull(course.totalFull);
+    let totalObtained = finiteNumberOrNull(course.totalObtained);
+
+    if (!(totalFull > 0)) {
+      let derivedFull = 0;
+      let derivedObtained = 0;
+      for (const marks of Object.values(course.exams || {})) {
+        const total = finiteNumberOrNull(marks?.totalWeightage) ?? finiteNumberOrNull(marks?.fullMarks);
+        const obtained = finiteNumberOrNull(marks?.obtainedWeightage) ?? finiteNumberOrNull(marks?.obtainedMarks);
+        if (!(total > 0)) continue;
+        derivedFull += total;
+        derivedObtained += obtained !== null ? Math.max(0, Math.min(obtained, total)) : 0;
+      }
+
+      if (derivedFull > 0) {
+        totalFull = derivedFull;
+        totalObtained = derivedObtained;
+      }
+    }
+
+    return {
+      ...course,
+      totalObtained: totalObtained !== null ? totalObtained : 0,
+      totalFull: totalFull !== null ? totalFull : 0
+    };
+  }).sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')));
+
+  merged.exams = [...examsSet];
+  if (!merged.exams.length) {
+    merged.exams = [...new Set(merged.courses.flatMap((course) => Object.keys(course?.exams || {})))];
+  }
+
+  return merged;
+};
+
+// ── Marks PDF parsing ──
+const getMarksData = async (req, res) => {
+  const session = getSessionByOwner(ownerKey(req));
+  if (!session?.dataset) {
+    return res.status(401).json({ success: false, message: 'Not logged in' });
+  }
+
+  const { registration_id, registration_code } = req.query;
+  if (!registration_id || !registration_code) {
+    return res.status(400).json({ success: false, message: 'registration_id and registration_code are required' });
+  }
+
+  const relaySessionId = session.dataset.relaySessionId;
+  const ownerId = ownerKey(req);
+  const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
+  const authContext = buildAuthContextFromRelaySession(relaySession);
+
+  if (!(relaySession && authContext?.instituteid)) {
+    return res.status(400).json({ success: false, message: 'No active portal session' });
+  }
+
+  const safeRegId = String(registration_id).replace(/[^a-zA-Z0-9_-]/g, '');
+  const safeRegCode = String(registration_code).replace(/[^a-zA-Z0-9_-]/g, '');
+  const cacheKey = `${safeRegId}_${safeRegCode}`;
+  const forceRefresh = parseBooleanLike(req?.query?.refresh, false);
+  const marksCache = session.dataset?.marksParsedData && typeof session.dataset.marksParsedData === 'object'
+    ? session.dataset.marksParsedData
+    : {};
+
+  if (!forceRefresh && marksCache[cacheKey]) {
+    return res.json({ success: true, data: marksCache[cacheKey], cached: true });
+  }
+
+  const safeInstId = String(authContext.instituteid).replace(/[^a-zA-Z0-9_-]/g, '');
+
+  const pdfPath = `/StudentPortalAPI/studentsexamview/printstudent-exammarks/${safeInstId}/${safeRegId}/${safeRegCode}`;
+  const url = toPortalUrl(pdfPath);
+
+  const headers = buildCommonHeaders(relaySession, authContext, 'application/json');
+  delete headers['Content-Type'];
+  headers.Accept = 'application/pdf, application/octet-stream, */*';
+
+  try {
+    const { response, error } = await timedPortalFetch(url, { method: 'GET', headers });
+
+    if (error || !response?.ok) {
+      return res.json({ success: true, data: { courses: [], exams: [], error: 'No marks PDF available for this semester' } });
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('pdf') && !contentType.includes('octet-stream')) {
+      return res.json({ success: true, data: { courses: [], exams: [], error: 'Portal did not return a PDF' } });
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    const { PDFParse } = require('pdf-parse');
+    const parser = new PDFParse({ data: buffer });
+
+    let parsed = null;
+
+    try {
+      const [textResult, tableResult] = await Promise.all([
+        parser.getText().catch(() => null),
+        parser.getTable().catch(() => null)
+      ]);
+
+      const tableChunks = [];
+      if (Array.isArray(tableResult?.pages)) {
+        for (const page of tableResult.pages) {
+          const pageTables = Array.isArray(page?.tables) ? page.tables : [];
+          if (!pageTables.length) continue;
+
+          const chunk = parseMarksTables(pageTables);
+          if (Array.isArray(chunk?.courses) && chunk.courses.length) {
+            tableChunks.push(chunk);
+          }
+        }
+      }
+
+      const textChunks = [];
+      const pageTexts = Array.isArray(textResult?.pages)
+        ? textResult.pages.map((page) => String(page?.text || '')).filter((text) => text.trim())
+        : [];
+
+      if (pageTexts.length) {
+        textChunks.push(
+          ...pageTexts
+            .map((text) => parseMarksText(text))
+            .filter((chunk) => Array.isArray(chunk?.courses) && chunk.courses.length)
+        );
+      } else {
+        const fallbackText = String(textResult?.text || '');
+        if (fallbackText.trim()) {
+          const chunk = parseMarksText(fallbackText);
+          if (Array.isArray(chunk?.courses) && chunk.courses.length) {
+            textChunks.push(chunk);
+          }
+        }
+      }
+
+      const mergedChunks = [...tableChunks, ...textChunks];
+      if (mergedChunks.length) {
+        parsed = mergeParsedMarksChunks(mergedChunks);
+      }
+
+      if (!parsed || !Array.isArray(parsed.courses) || !parsed.courses.length) {
+        const rawText = Array.isArray(textResult?.pages)
+          ? textResult.pages.map((page) => String(page?.text || '')).join('\n')
+          : String(textResult?.text || '');
+        parsed = parseMarksText(rawText);
+      }
+    } finally {
+      await parser.destroy().catch(() => null);
+    }
+
+    if (!parsed || typeof parsed !== 'object') {
+      parsed = { courses: [], exams: [], studentInfo: {} };
+    }
+
+    session.dataset.marksParsedData = {
+      ...marksCache,
+      [cacheKey]: parsed
+    };
+    session.updatedAt = Date.now();
+
+    return res.json({ success: true, data: parsed });
+  } catch (err) {
+    console.error('[getMarksData] Error:', err.message);
+    return res.json({ success: true, data: { courses: [], exams: [], error: err.message } });
+  }
+};
+
+/**
+ * Parse structured table data extracted from the marks PDF.
+ * Mimics the Python jiit_marks extractor (parse_report).
+ * Supports both shapes below:
+ *   - pdf-parse `getTable()` output: `string[][]`
+ *   - legacy shape: `{ rows: string[][] }`
+ */
+function parseMarksTables(tables) {
+  const result = { courses: [], exams: [], studentInfo: {} };
+
+  const tableRows = Array.isArray(tables)
+    ? tables
+        .map((table) => {
+          if (Array.isArray(table)) return table;
+          if (table && Array.isArray(table.rows)) return table.rows;
+          return [];
+        })
+        .filter((rows) => rows.length)
+    : [];
+
+  if (!tableRows.length) {
+    return result;
+  }
+
+  // Table 0: Student info
+  const infoRows = tableRows[0] || [];
+  if (infoRows.length) {
+    for (const row of infoRows) {
+      for (const cell of Array.isArray(row) ? row : []) {
+        const text = String(cell || '').trim();
+        if (text.includes(': ')) {
+          const [key, ...rest] = text.split(': ');
+          result.studentInfo[key.trim().toLowerCase().replace(/\s+/g, '_')] = rest.join(': ').trim();
+        }
+      }
+    }
+  }
+
+  const parseExamNamesFromHeader = (row = []) => {
+    const names = [];
+    for (let j = 1; j < row.length; j++) {
+      const cell = String(row[j] || '').trim();
+      if (!cell) continue;
+      if (names[names.length - 1] === cell) continue;
+      names.push(cell);
+    }
+    return names;
+  };
+
+  const parseRatio = (value) => {
+    const text = String(value || '').trim();
+    if (!text) return null;
+
+    const match = text.match(/(-?\d+(?:\.\d+)?)\s*\/\s*(-?\d+(?:\.\d+)?)/);
+    if (!match) return null;
+
+    const num = Number(match[1]);
+    const den = Number(match[2]);
+    if (!Number.isFinite(num) || !Number.isFinite(den)) return null;
+
+    return { num, den };
+  };
+
+  const globalExamNames = [];
+
+  for (const marksRows of tableRows) {
+    if (!Array.isArray(marksRows) || !marksRows.length) continue;
+
+    let headerIndex = marksRows.findIndex((row) =>
+      /^subject\b/i.test(String((Array.isArray(row) ? row[0] : '') || '').trim())
+    );
+
+    let activeExamNames = globalExamNames;
+    let startRow = 0;
+
+    if (headerIndex >= 0) {
+      const headerRow = Array.isArray(marksRows[headerIndex]) ? marksRows[headerIndex] : [];
+      const headerExamNames = parseExamNamesFromHeader(headerRow);
+      if (headerExamNames.length) {
+        activeExamNames = headerExamNames;
+        if (!globalExamNames.length) {
+          globalExamNames.push(...headerExamNames);
+        } else {
+          const union = [...new Set([...globalExamNames, ...headerExamNames])];
+          globalExamNames.splice(0, globalExamNames.length, ...union);
+        }
+      }
+
+      startRow = headerIndex + 1;
+      const subHeader = Array.isArray(marksRows[startRow]) ? marksRows[startRow] : [];
+      const subHeaderText = subHeader.map((cell) => String(cell || '').trim()).join(' ').toUpperCase();
+      if (/(OM|FM|OW|WT|OBTAINED|WEIGHTAGE|TOTAL)/.test(subHeaderText)) {
+        startRow += 1;
+      }
+    }
+
+    if (!activeExamNames.length) continue;
+
+    for (let r = startRow; r < marksRows.length; r++) {
+      const row = Array.isArray(marksRows[r]) ? marksRows[r] : [];
+      if (!row?.length) continue;
+
+      const maybeHeader = String(row[0] || '').trim();
+      if (/^subject\b/i.test(maybeHeader)) {
+        const headerExamNames = parseExamNamesFromHeader(row);
+        if (headerExamNames.length) {
+          activeExamNames = headerExamNames;
+          const union = [...new Set([...globalExamNames, ...headerExamNames])];
+          globalExamNames.splice(0, globalExamNames.length, ...union);
+        }
+        continue;
+      }
+
+      // First cell: subject name (code)
+      const nameCell = String(row[0] || '').trim();
+      if (!nameCell) continue;
+      if (/^(legend|result|overall|grand\s*total|sgpa|cgpa|gpa|total)$/i.test(nameCell)) continue;
+
+      // Parse: "SUBJECT NAME\n(CODE)" or "SUBJECT NAME\nCODE"
+      const nameParts = nameCell.split('\n');
+      const bracketCode = nameCell.match(/\(([A-Za-z0-9_-]+)\)\s*$/);
+      let code = bracketCode ? String(bracketCode[1] || '').trim() : '';
+      let name = bracketCode ? nameCell.replace(/\([A-Za-z0-9_-]+\)\s*$/, '').trim() : nameCell;
+
+      if (!code && nameParts.length > 1) {
+        const tail = String(nameParts[nameParts.length - 1] || '').trim().replace(/[()]/g, '');
+        if (/^[A-Za-z0-9_-]{4,}$/.test(tail)) {
+          code = tail;
+          name = nameParts.slice(0, -1).join(' ').trim() || tail;
+        }
+      }
+
+      const course = {
+        name: String(name || code || 'SUBJECT').toUpperCase(),
+        code,
+        totalObtained: 0,
+        totalFull: 0,
+        exams: {}
+      };
+
+      // Parse marks cells (pairs: marks, weightage for each exam)
+      const marksCells = row.slice(1).map((cell) => String(cell || '').trim());
+      let examIdx = 0;
+      let cellIdx = 0;
+
+      while (cellIdx < marksCells.length && examIdx < activeExamNames.length) {
+        const cell = marksCells[cellIdx] || '';
+
+        if (!cell) {
+          cellIdx += 1;
+          continue;
+        }
+
+        if (cell === '-') {
+          // No marks for this exam, skip 2 cells (marks + weightage)
+          course.exams[activeExamNames[examIdx]] = { remarks: 'not_published' };
+          examIdx++;
+          cellIdx += 2;
+          continue;
+        }
+
+        const marks = {};
+
+        // Cell should be "obtained/ total" for marks
+        if (cell === 'A') {
+          marks.remarks = 'absent';
+        } else {
+          const marksMatch = parseRatio(cell);
+          if (marksMatch) {
+            marks.obtainedMarks = marksMatch.num;
+            marks.fullMarks = marksMatch.den;
+          }
+        }
+
+        // Next cell: weightage "obtained/total"
+        cellIdx++;
+        if (cellIdx < marksCells.length) {
+          const weightCell = marksCells[cellIdx] || '';
+          const weightMatch = weightCell && weightCell !== '-' ? parseRatio(weightCell) : null;
+          if (weightMatch) {
+            marks.obtainedWeightage = weightMatch.num;
+            marks.totalWeightage = weightMatch.den;
+            course.totalObtained += marks.obtainedWeightage;
+            course.totalFull += marks.totalWeightage;
+          }
+        }
+
+        if (Object.keys(marks).length) {
+          course.exams[activeExamNames[examIdx]] = marks;
+        }
+
+        examIdx++;
+        cellIdx++;
+      }
+
+      if (Object.keys(course.exams).length) {
+        result.courses.push(course);
+      }
+    }
+  }
+
+  result.exams = [...globalExamNames];
+
+  return result;
+}
+
+function parseMarksText(text) {
+  const result = { courses: [], exams: [], studentInfo: {} };
+
+  // The PDF may contain multiple pages. Each page has exam data for one semester.
+  // We parse the raw text treating each page independently.
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // Extract student info
+  for (const line of lines) {
+    const nameMatch = line.match(/Name:\s*(.+?)(?:\s+Enrollment|$)/);
+    if (nameMatch && !result.studentInfo.name) result.studentInfo.name = nameMatch[1].trim();
+    const enrollMatch = line.match(/Enrollment No:\s*(\S+)/);
+    if (enrollMatch) result.studentInfo.enrollment_no = enrollMatch[1].trim();
+    const regMatch = line.match(/Registration Code:\s*(\S+)/);
+    if (regMatch) result.studentInfo.registration_code = regMatch[1].trim();
+  }
+
+  // Find the subject code header line to extract exam names
+  // Format: "Subject Code EXAM1 EXAM2 EXAM3..."
+  let examNames = [];
+  let headerIdx = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (/^Subject\s+Code\b/i.test(lines[i])) {
+      const after = lines[i].replace(/^Subject\s+Code\s*/i, '');
+      // Split exam names on 2+ spaces
+      examNames = after.split(/\s{2,}/).filter(Boolean).map(e => e.trim());
+      headerIdx = i;
+      break; // Use first occurrence only
+    }
+  }
+
+  if (!examNames.length || headerIdx < 0) return result;
+  result.exams = examNames;
+
+  // Skip OM/FM OW/WT sub-header line
+  const startIdx = headerIdx + 2;
+
+  // Now we must accumulate subject entries.
+  // A subject entry looks like:
+  //   SUBJECT NAME LINE 1        (maybe multi-line)
+  //   SUBJECT NAME LINE 2        (optional continuation)
+  //   (CODE) marks...             OR
+  //   (CODE)
+  //   marks on next line...
+  //
+  // Marks are tokens like "9.0/ 20.0" (OM/FM) "9.0/20.0" (OW/WT) or "-" for absent.
+  // Each exam event has 2 token-pairs (OM/FM + OW/WT) or 2 dashes.
+
+  // Gather all remaining lines from startIdx to "Legend"
+  const dataLines = [];
+  for (let i = startIdx; i < lines.length; i++) {
+    if (/^Legend\b/i.test(lines[i])) break;
+    if (/^Page \d+/i.test(lines[i])) break;
+    if (/^Jaypee Institute/i.test(lines[i])) break;
+    dataLines.push(lines[i]);
+  }
+
+  // Join all data into one string and split by subject code pattern
+  const joinedData = dataLines.join('\n');
+
+  // Match pattern: subject name(s) followed by (CODE) followed by marks
+  // Code pattern: parenthesized alphanumeric code like (15B11EC411)
+  const subjectPattern = /\((\d{2}[A-Za-z]\w+)\)/g;
+  let match;
+  const codePositions = [];
+
+  while ((match = subjectPattern.exec(joinedData)) !== null) {
+    codePositions.push({ code: match[1], index: match.index, endIndex: match.index + match[0].length });
+  }
+
+  for (let s = 0; s < codePositions.length; s++) {
+    const { code, index, endIndex } = codePositions[s];
+
+    // Name is everything before this code, after the previous code's marks end
+    const prevEnd = s > 0 ? codePositions[s - 1].endIndex : 0;
+    const namePart = joinedData.substring(prevEnd, index).trim();
+
+    // Clean up the name: remove marks data from previous entry that might leak in
+    // Take only the trailing non-numeric text lines
+    const nameChunks = namePart.split('\n');
+    const nameLinesCleaned = [];
+    for (let k = nameChunks.length - 1; k >= 0; k--) {
+      const chunk = nameChunks[k].trim();
+      if (!chunk) continue;
+      // If this chunk has marks data (fractions or just dashes), it's from prev entry
+      if (/^\s*[\d\.\s\/\-]+\s*$/.test(chunk)) break;
+      nameLinesCleaned.unshift(chunk);
+    }
+    const name = nameLinesCleaned.join(' ').trim() || code;
+
+    // Marks are everything after (CODE) until the next subject name starts
+    const nextNameStart = s < codePositions.length - 1
+      ? codePositions[s + 1].index
+      : joinedData.length;
+
+    // But we need to stop at the next subject name, not the next code
+    // The marks data is right after the code, possibly on the same line
+    let marksStr = joinedData.substring(endIndex, nextNameStart).trim();
+
+    // Remove any trailing subject name lines (text-only lines at the end)
+    const marksLines = marksStr.split('\n');
+    const cleanedMarksLines = [];
+    for (const ml of marksLines) {
+      const trimmed = ml.trim();
+      if (!trimmed) continue;
+      // If this is purely text (no digits or slashes), it's part of next subject name
+      if (/^[A-Za-z][A-Za-z\s&\-\/\.,]+$/.test(trimmed) && !trimmed.includes('/') && !/\d/.test(trimmed)) {
+        break;
+      }
+      cleanedMarksLines.push(trimmed);
+    }
+    marksStr = cleanedMarksLines.join(' ');
+
+    // Tokenize marks: split by whitespace
+    const tokens = marksStr.split(/\s+/).filter(Boolean);
+    const course = { name: name.toUpperCase(), code, totalObtained: 0, totalFull: 0, exams: {} };
+
+    let examIdx = 0;
+    let tokenIdx = 0;
+
+    while (tokenIdx < tokens.length && examIdx < examNames.length) {
+      const t = tokens[tokenIdx];
+
+      if (t === '-') {
+        // Dash means no data. Each exam has 2 pairs (OM/FM + OW/WT) = 4 values,
+        // but they appear as 2 dash tokens (one for OM/FM, one for OW/WT)
+        course.exams[examNames[examIdx]] = { remarks: 'not_published' };
+        tokenIdx++;
+        if (tokenIdx < tokens.length && tokens[tokenIdx] === '-') {
+          tokenIdx++;
+        }
+        examIdx++;
+        continue;
+      }
+
+      // Try to parse fraction: "obtained/ total" or "obtained/total"
+      // Fractions can be split across tokens: "9.0/" "20.0" or "9.0/20.0"
+      const parseFraction = (startIdx) => {
+        const tk = tokens[startIdx] || '';
+        // Full fraction in one token
+        const fullMatch = tk.match(/^(\d+\.?\d*)\s*\/\s*(\d+\.?\d*)$/);
+        if (fullMatch) return { num: parseFloat(fullMatch[1]), den: parseFloat(fullMatch[2]), consumed: 1 };
+
+        // Partial: "9.0/" + "20.0"
+        const partialMatch = tk.match(/^(\d+\.?\d*)\s*\/\s*$/);
+        if (partialMatch && startIdx + 1 < tokens.length) {
+          const nextTk = tokens[startIdx + 1];
+          const nextNum = parseFloat(nextTk);
+          if (Number.isFinite(nextNum)) {
+            return { num: parseFloat(partialMatch[1]), den: nextNum, consumed: 2 };
+          }
+        }
+
+        return null;
+      };
+
+      // Parse OM/FM
+      const omfm = parseFraction(tokenIdx);
+      if (!omfm) {
+        tokenIdx++;
+        continue;
+      }
+      tokenIdx += omfm.consumed;
+
+      const marks = {
+        obtainedMarks: omfm.num,
+        fullMarks: omfm.den
+      };
+
+      // Parse OW/WT
+      const owwt = parseFraction(tokenIdx);
+      if (owwt) {
+        tokenIdx += owwt.consumed;
+        marks.obtainedWeightage = owwt.num;
+        marks.totalWeightage = owwt.den;
+        course.totalObtained += marks.obtainedWeightage;
+        course.totalFull += marks.totalWeightage;
+      }
+
+      course.exams[examNames[examIdx]] = marks;
+      examIdx++;
+    }
+
+    if (Object.keys(course.exams).length > 0) {
+      result.courses.push(course);
+    }
+  }
+
+  return result;
+}
+
 module.exports = {
   loginSdk,
   getSdkSession,
@@ -3147,8 +4095,10 @@ module.exports = {
   getSubjectAttendance,
   getProfile,
   getGrades,
+  getMarksSemesters,
   getExams,
   getSubjects,
   getFees,
-  downloadMarks
+  downloadMarks,
+  getMarksData
 };
