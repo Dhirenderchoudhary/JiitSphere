@@ -22,8 +22,9 @@ export function middleware(request) {
     }
   }
 
-  // Allow lock page and static assets to avoid redirect loops.
+  // Allow landing page, lock page, and static assets to avoid redirect loops.
   if (
+    pathname === '/' ||
     pathname === '/study-access' ||
     pathname.startsWith('/superadmin') ||
     pathname.startsWith('/_next') ||
