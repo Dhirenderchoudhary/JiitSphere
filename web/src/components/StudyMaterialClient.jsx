@@ -6,7 +6,8 @@ import Link from 'next/link';
 import {
   ChevronRight, BookOpen, Download, RotateCcw, Sparkles,
   FileText, StickyNote, ClipboardList, PenTool, Layers,
-  GraduationCap, Calendar, GitBranch, BookMarked, ArrowRight, AlertTriangle
+  GraduationCap, Calendar, GitBranch, BookMarked, ArrowRight, AlertTriangle,
+  Target, LibraryBig, Rocket
 } from 'lucide-react';
 import CollegeBrand from 'components/CollegeBrand';
 import SignOutButton from 'components/SignOutButton';
@@ -14,16 +15,17 @@ import TopPanelTools from 'components/TopPanelTools';
 import { Badge } from 'components/ui/badge';
 import { Button } from 'components/ui/button';
 import { fetchBrowseOptions, fetchFilterOptions, fetchMaterials } from 'lib/api';
+import { toast } from 'sonner';
 
 /* ── constants ──────────────────────────────────────────────── */
 const GUEST_DOWNLOAD_LIMIT = 5;
 const STORAGE_KEY = 'guest_downloads';
 
 const YEAR_META = {
-  1: { label: '1st Year', sub: 'Foundation courses', icon: '🎯' },
-  2: { label: '2nd Year', sub: 'Core subjects', icon: '📚' },
-  3: { label: '3rd Year', sub: 'Advanced topics', icon: '🚀' },
-  4: { label: '4th Year', sub: 'Specializations', icon: '🎓' },
+  1: { label: '1st Year', sub: 'Foundation courses', icon: Target },
+  2: { label: '2nd Year', sub: 'Core subjects', icon: LibraryBig },
+  3: { label: '3rd Year', sub: 'Advanced topics', icon: Rocket },
+  4: { label: '4th Year', sub: 'Specializations', icon: GraduationCap },
 };
 const SEM_LABELS = { 1: 'Sem 1', 2: 'Sem 2', 3: 'Sem 3', 4: 'Sem 4', 5: 'Sem 5', 6: 'Sem 6', 7: 'Sem 7', 8: 'Sem 8' };
 
@@ -95,6 +97,7 @@ function incrementGuestDownloads() {
 async function triggerDownload(url, fallbackName) {
   try {
     const res = await fetch(url);
+    if (!res.ok) throw new Error('Download failed');
     const blob = await res.blob();
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -103,9 +106,16 @@ async function triggerDownload(url, fallbackName) {
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(blobUrl);
-  } catch {
-    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 150);
+  } catch (error) {
+    console.error('Download error:', error);
+    toast.error("Download blocked", {
+      description: "Direct download failed. Try opening the file in a new tab instead.",
+      action: {
+        label: "Open Tab",
+        onClick: () => window.open(url, '_blank')
+      }
+    });
   }
 }
 
@@ -121,7 +131,6 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [optionsError, setOptionsError] = useState('');
   const [optionsRefreshKey, setOptionsRefreshKey] = useState(0);
-  const [supportsRichEffects, setSupportsRichEffects] = useState(false);
   const [activeTab, setActiveTab] = useState(null);
   const [downloadsUsed, setDownloadsUsed] = useState(() => (isGuest ? getGuestDownloads() : 0));
 
@@ -129,29 +138,6 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
   const currentStepIndex = STEPS.findIndex((key) => !filters[key]);
   const currentStep = currentStepIndex === -1 ? 'done' : STEPS[currentStepIndex];
   const allSelected = currentStep === 'done';
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-
-    const mediaQuery = window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 1024px)');
-    const update = () => setSupportsRichEffects(mediaQuery.matches);
-    update();
-
-    if (typeof mediaQuery.addEventListener === 'function') {
-      mediaQuery.addEventListener('change', update);
-      return () => mediaQuery.removeEventListener('change', update);
-    }
-
-    mediaQuery.addListener(update);
-    return () => mediaQuery.removeListener(update);
-  }, []);
-
-  const handleSpotlightMove = useCallback((e) => {
-    if (!supportsRichEffects) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    e.currentTarget.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
-    e.currentTarget.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
-  }, [supportsRichEffects]);
 
   /* ── data fetching ────────────────────────────────────────── */
   useEffect(() => {
@@ -292,24 +278,36 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
         </div>
       </div>
 
-      {/* ── Hero ────────────────────────────────────────────────── */}
-      <section className="mesh-overlay relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary to-[#0f5d88] p-6 text-white shadow-glow md:p-8">
-        <div className="absolute inset-0 dot-grid opacity-[0.08]" />
-        <div className="relative z-10">
-          <p className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.15em] backdrop-blur-sm">
-            <Sparkles className="mr-2 h-3.5 w-3.5" /> JIIT Study Hub
+      {/* ── Header Area ───────────────────────────────── */}
+      <section className="mb-6 rounded-2xl border border-border bg-card p-6 shadow-sm md:p-8">
+        <div className="flex flex-col gap-4 max-w-3xl">
+          <div className="flex items-center gap-3">
+            <div className="flex bg-primary/10 p-2 rounded-lg">
+              <BookOpen className="h-5 w-5 text-primary" />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+              Study Material
+            </h1>
+          </div>
+          
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Filter by your current academic level sequentially to retrieve specific lectures, tutorials, and past year papers.
           </p>
-          <h2 className="mt-3 font-[var(--font-archivo)] text-2xl font-black leading-tight md:text-3xl">
-            Tap through to find your material
-          </h2>
-          <p className="mt-1.5 flex items-center gap-2 text-sm text-white/60">
-            {STEPS.map((s, i) => (
-              <span key={s} className="flex items-center gap-1.5">
-                {i > 0 && <ArrowRight className="h-3 w-3 text-white/30" />}
-                <span className={filters[s] ? 'text-white font-semibold' : ''}>{s.charAt(0).toUpperCase() + s.slice(1)}</span>
-              </span>
-            ))}
-          </p>
+          
+          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-muted/40 px-3 py-2 text-sm font-medium text-muted-foreground border border-border/50 w-max">
+            {STEPS.map((s, i) => {
+               const isActive = !!filters[s];
+               const isCurrent = currentStep === s;
+               return (
+                <span key={s} className="flex items-center gap-2">
+                  <span className={isActive ? 'text-foreground font-semibold' : isCurrent ? 'text-primary font-semibold' : ''}>
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                  </span>
+                  {i < STEPS.length - 1 && <ChevronRight className="h-3.5 w-3.5 opacity-50" />}
+                </span>
+               )
+             })}
+          </div>
         </div>
       </section>
 
@@ -378,19 +376,19 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
           {/* Year cards — big, visual */}
           {!optionsLoading && currentStep === 'year' && (
             <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
-              {optionMap.year.map((opt, i) => (
+              {optionMap.year.map((opt) => (
                 <button
                   key={opt.value}
                   onClick={() => selectOption('year', opt.value)}
                   aria-label={`Select ${opt.label}`}
-                  className={`spotlight-card gradient-border group relative rounded-2xl bg-card p-5 text-left shadow-sm transition-all duration-200 hover:shadow-lg hover:scale-[1.03] active:scale-[0.98] ${supportsRichEffects ? 'stagger-item' : ''}`}
-                  style={{ animationDelay: `${i * 80}ms` }}
-                  onMouseMove={supportsRichEffects ? handleSpotlightMove : undefined}
+                  className="group relative flex flex-col rounded-2xl border border-border bg-card p-6 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <span className="text-3xl">{opt.icon}</span>
-                  <p className="mt-3 text-base font-black group-hover:text-primary transition-colors">{opt.label}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{opt.sub}</p>
-                  <ArrowRight className="absolute bottom-4 right-4 h-4 w-4 text-muted-foreground/30 transition-all group-hover:text-primary group-hover:translate-x-0.5" />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-4 group-hover:bg-primary/20 transition-colors">
+                    {opt.icon && <opt.icon className="size-6" />}
+                  </div>
+                  <p className="text-base font-bold group-hover:text-primary transition-colors">{opt.label}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{opt.sub}</p>
+                  <ArrowRight className="absolute bottom-6 right-6 h-4 w-4 text-muted-foreground/30 transition-all group-hover:text-primary group-hover:translate-x-0.5" />
                 </button>
               ))}
             </div>
@@ -399,13 +397,12 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
           {/* Semester — pill buttons */}
           {!optionsLoading && currentStep === 'semester' && (
             <div className="flex flex-wrap gap-3">
-              {optionMap.semester.map((opt, i) => (
+              {optionMap.semester.map((opt) => (
                 <button
                   key={opt.value}
                   onClick={() => selectOption('semester', opt.value)}
                   aria-label={`Select ${opt.label}`}
-                  className={`group relative rounded-xl border border-border bg-card px-6 py-3 font-bold shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md hover:scale-[1.04] active:scale-[0.97] ${supportsRichEffects ? 'stagger-item' : ''}`}
-                  style={{ animationDelay: `${i * 60}ms` }}
+                  className="group relative rounded-xl border border-border bg-card px-6 py-3 font-bold shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md hover:scale-[1.04] active:scale-[0.97]"
                 >
                   <span className="group-hover:text-primary transition-colors">{opt.label}</span>
                 </button>
@@ -421,13 +418,15 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
                   key={opt.value}
                   onClick={() => selectOption('branch', opt.value)}
                   aria-label={`Select branch ${opt.label}`}
-                  className={`spotlight-card group relative overflow-hidden rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-lg hover:scale-[1.03] active:scale-[0.98] ${supportsRichEffects ? 'stagger-item' : ''}`}
-                  style={{ animationDelay: `${i * 70}ms` }}
-                  onMouseMove={supportsRichEffects ? handleSpotlightMove : undefined}
+                  className="group relative flex items-center justify-between rounded-2xl border border-border bg-card p-5 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <GitBranch className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                  <p className="mt-2 text-sm font-black group-hover:text-primary transition-colors">{opt.label}</p>
-                  <ArrowRight className="absolute bottom-3 right-3 h-4 w-4 text-muted-foreground/20 group-hover:text-primary transition-all group-hover:translate-x-0.5" />
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
+                        <GitBranch className="h-5 w-5" />
+                    </div>
+                    <p className="text-sm font-bold group-hover:text-primary transition-colors">{opt.label}</p>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground/20 group-hover:text-primary transition-all group-hover:translate-x-0.5" />
                 </button>
               ))}
             </div>
@@ -436,13 +435,12 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
           {/* Subject — list-style cards */}
           {!optionsLoading && currentStep === 'subject' && (
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {optionMap.subject.map((opt, i) => (
+              {optionMap.subject.map((opt) => (
                 <button
                   key={opt.value}
                   onClick={() => selectOption('subject', opt.value)}
                   aria-label={`Select subject ${opt.label}`}
-                  className={`group flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md hover:bg-primary/5 ${supportsRichEffects ? 'stagger-item' : ''}`}
-                  style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}
+                  className="group flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md hover:bg-primary/5"
                 >
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -552,9 +550,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
                       {items.map((item, i) => (
                         <div
                           key={item._id}
-                          className={`spotlight-card group rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-200 ${meta.cardHover} hover:shadow-md ${supportsRichEffects ? 'stagger-item' : ''}`}
-                          style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}
-                          onMouseMove={supportsRichEffects ? handleSpotlightMove : undefined}
+                          className="group rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md"
                         >
                           <div className="mb-3">
                             <h4 className="line-clamp-2 text-sm font-bold leading-snug">{item.title}</h4>
@@ -576,7 +572,9 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
                                 className="flex-1"
                                 onClick={() => {
                                   if (isGuest) setDownloadsUsed(incrementGuestDownloads());
-                                  triggerDownload(item.fileUrl, `${item.title || item.subject}.${item.fileType}`);
+                                  const filename = `${item.title || item.subject}.${item.fileType}`;
+                                  toast.info(`Downloading...`, { description: filename });
+                                  triggerDownload(item.fileUrl, filename);
                                 }}
                               >
                                 <Download className="mr-1.5 h-3.5 w-3.5" /> Download

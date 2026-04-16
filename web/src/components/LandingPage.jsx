@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import Navbar from 'components/Navbar';
 import { Badge } from 'components/ui/badge';
+import { Button } from 'components/ui/button';
 import { cn } from 'lib/utils';
 
 const container = {
@@ -137,9 +138,9 @@ export default function LandingPage() {
                       Attendance, grades, exams, and fees in one place.
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 text-sm font-bold text-primary group-hover:gap-3 transition-all duration-300">
+                  <Button className="gap-2 group-hover:gap-3 transition-all duration-300">
                     Enter Portal <ArrowRight className="h-4 w-4" />
-                  </div>
+                  </Button>
                 </div>
               </div>
             </Link>
@@ -188,9 +189,9 @@ export default function LandingPage() {
                       1,300+ slides, PYQs, and solutions indexed by course.
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 text-sm font-bold text-primary group-hover:gap-3 transition-all duration-300">
+                  <Button className="gap-2 group-hover:gap-3 transition-all duration-300">
                     Browse Library <ArrowRight className="h-4 w-4" />
-                  </div>
+                  </Button>
                 </div>
               </div>
             </Link>

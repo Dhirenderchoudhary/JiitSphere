@@ -6,6 +6,7 @@ import { BookOpen, CalendarDays, Download, GraduationCap } from 'lucide-react';
 import { Badge } from 'components/ui/badge';
 import { Button } from 'components/ui/button';
 import { Card, CardContent } from 'components/ui/card';
+import { toast } from 'sonner';
 
 const GUEST_DOWNLOAD_LIMIT = 5;
 const STORAGE_KEY = 'guest_downloads';
@@ -23,6 +24,7 @@ function incrementGuestDownloads() {
 async function triggerDownload(url, fallbackName) {
   try {
     const res = await fetch(url);
+    if (!res.ok) throw new Error('Download failed');
     const blob = await res.blob();
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -31,10 +33,16 @@ async function triggerDownload(url, fallbackName) {
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(blobUrl);
-  } catch {
-    // fallback: open in new tab
-    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 150);
+  } catch (error) {
+    console.error('Download error:', error);
+    toast.error("Download blocked", {
+      description: "Direct download failed. Try opening the file in a new tab instead.",
+      action: {
+        label: "Open Tab",
+        onClick: () => window.open(url, '_blank')
+      }
+    });
   }
 }
 
@@ -96,7 +104,9 @@ export default function MaterialList({ items, isGuest = false }) {
                     size="lg"
                     onClick={() => {
                       if (isGuest) setDownloadsUsed(incrementGuestDownloads());
-                      triggerDownload(item.fileUrl, `${item.title || item.subject}.${item.fileType}`);
+                      const filename = `${item.title || item.subject}.${item.fileType}`;
+                      toast.info(`Downloading...`, { description: filename });
+                      triggerDownload(item.fileUrl, filename);
                     }}
                   >
                     <Download className="mr-2 h-4 w-4" /> Download Now

@@ -1,16 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Share2 } from 'lucide-react';
+import { Smartphone, Share2 } from 'lucide-react';
 import { Button } from 'components/ui/button';
+import { toast } from 'sonner';
 
 const isIosUserAgent = (userAgent = '') => /iphone|ipad|ipod/i.test(userAgent);
 const isSafariBrowser = (userAgent = '') => /safari/i.test(userAgent) && !/crios|fxios|edgios|android/i.test(userAgent);
 
 export default function InstallAppButton({ className = '' }) {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [hintOpen, setHintOpen] = useState(false);
-  const [hintText, setHintText] = useState('');
   const [isIosSafari, setIsIosSafari] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
 
@@ -23,12 +22,25 @@ export default function InstallAppButton({ className = '' }) {
     const onBeforeInstallPrompt = (event) => {
       event.preventDefault();
       setDeferredPrompt(event);
+      
+      // Proactive invite via Toast
+      toast("Install JiitSphere App", {
+        description: "Experience JiitSphere as a native app on your home screen.",
+        action: {
+          label: "Install Now",
+          onClick: () => {
+             event.prompt();
+             setDeferredPrompt(null);
+          }
+        },
+        duration: 10000
+      });
     };
 
     const onInstalled = () => {
       setDeferredPrompt(null);
-      setHintOpen(false);
       setIsStandalone(true);
+      toast.success("App installed successfully! Enjoy JiitSphere.");
     };
 
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
@@ -42,52 +54,48 @@ export default function InstallAppButton({ className = '' }) {
   const shouldRender = useMemo(() => !isStandalone, [isStandalone]);
 
   const handleInstall = async () => {
+    // If we have the native prompt, show a toast to trigger it
     if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const choice = await deferredPrompt.userChoice;
-      if (choice?.outcome === 'accepted') {
-        setDeferredPrompt(null);
-      }
+      toast("Ready to Install?", {
+        description: "This will add JiitSphere to your home screen or dock.",
+        action: {
+          label: "Install",
+          onClick: () => {
+             deferredPrompt.prompt();
+             setDeferredPrompt(null);
+          }
+        }
+      });
       return;
     }
 
     if (isIosSafari) {
-      setHintText('On iPhone/iPad Safari: tap Share, then "Add to Home Screen".');
-      setHintOpen((prev) => !prev);
+      toast.info("Install on iOS", {
+        description: 'Tap the Share icon, then scroll down and select "Add to Home Screen".',
+        duration: 8000
+      });
       return;
     }
 
-    setHintText('Open browser menu and choose "Install app" or "Add to Home screen".');
-    setHintOpen((prev) => !prev);
+    toast.info("Installation", {
+      description: 'Open your browser menu and choose "Install app" or "Add to Home screen" to continue.',
+      duration: 6000
+    });
   };
 
   if (!shouldRender) return null;
 
   return (
-    <div className="relative">
-      <Button
-        type="button"
-        variant="secondary"
-        size="icon"
-        onClick={handleInstall}
-        className={className}
-        aria-label="Install app"
-        title="Install app"
-      >
-        <Download className="h-4 w-4" />
-      </Button>
-      {hintOpen ? (
-        <div className="absolute right-0 top-12 z-40 w-64 rounded-xl border border-border bg-card/95 p-3 text-xs text-muted-foreground shadow-lg backdrop-blur">
-          <p className="font-semibold text-foreground">Install this app</p>
-          <p className="mt-1">{hintText}</p>
-          {isIosSafari ? (
-            <p className="mt-2 inline-flex items-center gap-1.5 text-foreground">
-              <Share2 className="h-3.5 w-3.5" />
-              Use Safari Share menu
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
+    <Button
+      type="button"
+      variant="secondary"
+      size="icon"
+      onClick={handleInstall}
+      className={className}
+      aria-label="Install app"
+      title="Install app"
+    >
+      <Smartphone className="h-4 w-4" />
+    </Button>
   );
 }
