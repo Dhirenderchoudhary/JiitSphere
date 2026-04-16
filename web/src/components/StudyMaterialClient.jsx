@@ -6,7 +6,8 @@ import Link from 'next/link';
 import {
   ChevronRight, BookOpen, Download, RotateCcw, Sparkles,
   FileText, StickyNote, ClipboardList, PenTool, Layers,
-  GraduationCap, Calendar, GitBranch, BookMarked, ArrowRight, AlertTriangle
+  GraduationCap, Calendar, GitBranch, BookMarked, ArrowRight, AlertTriangle,
+  Target, LibraryBig, Rocket
 } from 'lucide-react';
 import CollegeBrand from 'components/CollegeBrand';
 import SignOutButton from 'components/SignOutButton';
@@ -21,10 +22,10 @@ const GUEST_DOWNLOAD_LIMIT = 5;
 const STORAGE_KEY = 'guest_downloads';
 
 const YEAR_META = {
-  1: { label: '1st Year', sub: 'Foundation courses', icon: '🎯' },
-  2: { label: '2nd Year', sub: 'Core subjects', icon: '📚' },
-  3: { label: '3rd Year', sub: 'Advanced topics', icon: '🚀' },
-  4: { label: '4th Year', sub: 'Specializations', icon: '🎓' },
+  1: { label: '1st Year', sub: 'Foundation courses', icon: Target },
+  2: { label: '2nd Year', sub: 'Core subjects', icon: LibraryBig },
+  3: { label: '3rd Year', sub: 'Advanced topics', icon: Rocket },
+  4: { label: '4th Year', sub: 'Specializations', icon: GraduationCap },
 };
 const SEM_LABELS = { 1: 'Sem 1', 2: 'Sem 2', 3: 'Sem 3', 4: 'Sem 4', 5: 'Sem 5', 6: 'Sem 6', 7: 'Sem 7', 8: 'Sem 8' };
 
@@ -382,8 +383,8 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
                   aria-label={`Select ${opt.label}`}
                   className="group relative flex flex-col rounded-2xl border border-border bg-card p-6 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-2xl mb-4 group-hover:bg-primary/20 transition-colors">
-                    {opt.icon}
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-4 group-hover:bg-primary/20 transition-colors">
+                    {opt.icon && <opt.icon className="size-6" />}
                   </div>
                   <p className="text-base font-bold group-hover:text-primary transition-colors">{opt.label}</p>
                   <p className="text-xs text-muted-foreground mt-1">{opt.sub}</p>
