@@ -5,6 +5,7 @@ import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import ServiceWorkerRegistration from 'components/ServiceWorkerRegistration';
 import PageTracker from 'components/PageTracker';
+import { Toaster } from 'components/ui/sonner';
 import { Inter, Instrument_Sans } from 'next/font/google';
 
 const inter = Inter({
@@ -56,8 +57,8 @@ export default function RootLayout({ children }) {
           {`
             (function() {
               try {
-                const theme = localStorage.getItem('jiitsphere-theme') || 'dark';
-                const accentName = localStorage.getItem('jiitsphere-accent') || 'yellow';
+                const theme = 'dark';
+                const accentName = 'yellow';
                 
                 // Set Theme Class
                 if (theme === 'dark') {
@@ -91,6 +92,7 @@ export default function RootLayout({ children }) {
         <ServiceWorkerRegistration />
         <PageTracker />
         <div className="flex-1">{children}</div>
+        <Toaster />
         <Analytics />
         <SpeedInsights />
       </body>

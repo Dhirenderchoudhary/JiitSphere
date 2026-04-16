@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { LogOut, RefreshCw, BarChart2 } from 'lucide-react';
+import { LogOut, RefreshCw, BarChart2, Menu, ChevronDown } from 'lucide-react';
 import TopPanelTools from 'components/TopPanelTools';
 import { Button } from 'components/ui/button';
 import { fetchMe, fetchPortalSdkSession } from 'lib/api';
 import { SessionExpiredError } from 'lib/api';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from 'lib/utils';
 import {
   tabs,
@@ -44,6 +44,7 @@ const formatAgo = (ms) => {
 
 export default function PortalShell({ token, onLogout }) {
   const [activeTab, setActiveTab] = useState('attendance');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sdkSession, setSdkSession] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [cachedPhoto, setCachedPhoto] = useState('');
@@ -270,17 +271,53 @@ export default function PortalShell({ token, onLogout }) {
                  <span className="font-black text-xl font-[var(--font-instrument-sans)] tracking-tighter text-foreground pr-2 border-r border-border/50 hidden sm:block">JiitSphere</span>
               </Link>
               
-              <div className="flex flex-col min-w-0 justify-center">
-                 <div className="relative flex items-center bg-secondary/40 hover:bg-secondary/70 border border-border/60 rounded-xl transition-colors shadow-sm overflow-hidden">
-                     <select
-                        className="text-sm font-bold text-foreground bg-transparent border-none outline-none appearance-none cursor-pointer py-1.5 sm:py-2 pl-3 pr-8 relative truncate max-w-[140px] sm:max-w-[200px] w-full"
-                        value={activeTab}
-                        onChange={(e) => setActiveTab(e.target.value)}
-                        style={{ backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="currentColor" viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>')`, backgroundPosition: 'right 8px center', backgroundRepeat: 'no-repeat'}}
-                     >
-                         {displayedTabs.map(t => <option key={t.id} value={t.id} className="bg-background text-foreground">{t.label}</option>)}
-                     </select>
-                 </div>
+              <div className="flex flex-col min-w-0 justify-center lg:hidden relative">
+                 <button 
+                     onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                     className="flex items-center gap-2 px-3 py-2 bg-secondary/40 hover:bg-secondary/70 border border-border/60 rounded-xl transition-colors shadow-sm"
+                 >
+                     <Menu className="w-4 h-4 text-foreground" />
+                     <span className="text-sm font-bold truncate max-w-[100px] sm:max-w-[150px]">
+                         {displayedTabs.find(t => t.id === activeTab)?.label || 'Menu'}
+                     </span>
+                     <ChevronDown className="w-3.5 h-3.5 text-muted-foreground opacity-70" />
+                 </button>
+
+                 <AnimatePresence>
+                     {mobileMenuOpen && (
+                         <>
+                             <motion.div 
+                                 initial={{ opacity: 0 }}
+                                 animate={{ opacity: 1 }}
+                                 exit={{ opacity: 0 }}
+                                 className="fixed inset-0 z-40 bg-background/50 backdrop-blur-sm lg:hidden"
+                                 onClick={() => setMobileMenuOpen(false)}
+                             />
+                             <motion.div 
+                                 initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                                 animate={{ opacity: 1, y: 0, scale: 1 }}
+                                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                                 transition={{ duration: 0.2 }}
+                                 className="absolute top-12 left-0 w-64 bg-card border border-border shadow-2xl rounded-2xl z-50 overflow-hidden flex flex-col p-2 space-y-1 lg:hidden origin-top-left"
+                             >
+                                 {displayedTabs.map(t => {
+                                     const TIcon = t.icon;
+                                     const isActive = t.id === activeTab;
+                                     return (
+                                         <button
+                                             key={t.id}
+                                             onClick={() => { setActiveTab(t.id); setMobileMenuOpen(false); }}
+                                             className={cn("flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors w-full text-left", isActive ? "bg-primary/10 text-primary" : "hover:bg-muted/50 text-foreground")}
+                                         >
+                                             <TIcon className="w-4 h-4" />
+                                             {t.label}
+                                         </button>
+                                     )
+                                 })}
+                             </motion.div>
+                         </>
+                     )}
+                 </AnimatePresence>
               </div>
            </div>
            
@@ -303,7 +340,7 @@ export default function PortalShell({ token, onLogout }) {
       </main>
 
       {/* Mobile Bottom Navigation Fallback (Visible only < lg screens) */}
-      <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 flex w-[min(92vw,400px)] items-center gap-1 p-1.5 bg-card/90 backdrop-blur-xl border border-border shadow-2xl rounded-2xl z-50">
+      <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 flex w-[min(96vw,420px)] justify-between items-center bg-card/90 backdrop-blur-xl border border-border shadow-2xl rounded-2xl z-50 p-1.5 gap-1">
         {displayedTabs.slice(0, 5).map((tab) => {
           const Icon = tab.icon;
           const active = tab.id === activeTab;
@@ -311,12 +348,26 @@ export default function PortalShell({ token, onLogout }) {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={cn("flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-[10px] font-bold transition-all relative", active ? "text-primary" : "text-muted-foreground")}
+              className={cn("flex flex-1 flex-col items-center justify-center rounded-xl py-2.5 transition-all relative", active ? "text-primary bg-primary/5" : "text-muted-foreground hover:bg-muted/50")}
             >
               <Icon className={cn("h-5 w-5 transition-transform", active && "scale-110")} />
             </button>
           );
         })}
+        
+        {/* Mobile Profile Navigation Link */}
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={cn("flex flex-1 flex-col items-center justify-center rounded-xl py-2.5 transition-all relative", activeTab === 'profile' ? "bg-primary/5" : "hover:bg-muted/50")}
+        >
+            <div className={cn("w-[22px] h-[22px] rounded-full overflow-hidden border-2 transition-all flex items-center justify-center bg-secondary", activeTab === 'profile' ? "border-primary scale-110" : "border-border")}>
+               {cachedPhoto ? (
+                   <img src={cachedPhoto} alt="Profile" className="w-full h-full object-cover" />
+               ) : (
+                   <span className="text-[10px] font-black text-foreground leading-none">{displayName?.charAt(0) || "S"}</span>
+               )}
+            </div>
+        </button>
       </nav>
     </div>
   );
