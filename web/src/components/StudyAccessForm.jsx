@@ -29,20 +29,57 @@ export default function StudyAccessForm({ nextPath = '/study-material' }) {
   const [loading, setLoading] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [authError, setAuthError] = useState('');
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    if (searchParams?.get('error') === 'AccessDenied') {
-      setAccessDenied(true);
+  const mapAuthError = (code) => {
+    const value = String(code || '').trim();
+    if (!value) return '';
+    if (value === 'AccessDenied') {
+      return 'Only @mail.jiit.ac.in accounts are allowed for study material access.';
     }
+    if (value === 'OAuthSignin' || value === 'OAuthCallback' || value === 'OAuthCreateAccount') {
+      return 'Google sign-in failed. Please retry in a moment.';
+    }
+    if (value === 'OAuthAccountNotLinked') {
+      return 'This Google account is not linked for study material access.';
+    }
+    if (value === 'Configuration') {
+      return 'Sign-in is temporarily unavailable. Please contact support.';
+    }
+    return 'Sign-in could not be completed. Please try again.';
+  };
+
+  useEffect(() => {
+    const error = searchParams?.get('error') || '';
+    setAccessDenied(error === 'AccessDenied');
+    setAuthError(error ? mapAuthError(error) : '');
   }, [searchParams]);
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setAccessDenied(false);
+    setAuthError('');
     try {
-      await signIn('google', { callbackUrl: nextPath });
+      const result = await signIn('google', {
+        callbackUrl: nextPath,
+        redirect: false
+      });
+
+      if (result?.error) {
+        setAuthError(mapAuthError(result.error));
+        return;
+      }
+
+      if (result?.url) {
+        window.location.assign(result.url);
+        return;
+      }
+
+      setAuthError('Google sign-in did not return a redirect URL. Please retry.');
     } catch (_err) {
+      setAuthError('Google sign-in is temporarily unavailable. Please retry.');
+    } finally {
       setLoading(false);
     }
   };
@@ -79,6 +116,13 @@ export default function StudyAccessForm({ nextPath = '/study-material' }) {
         {/* Card */}
         <Card className="bg-card/90 dark:bg-card/80 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.18)] backdrop-blur">
           <CardContent className="space-y-5 p-6">
+
+          {authError ? (
+            <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/50">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-400" />
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">{authError}</p>
+            </div>
+          ) : null}
 
           {/* Error banner — wrong account domain */}
           {accessDenied ? (

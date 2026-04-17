@@ -218,7 +218,11 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
         setHistoryDetail({ loading: false, rows: response?.data?.studentAttdsummarylist || [] });
       } catch (err) {
         if (err instanceof SessionExpiredError) { onExpired?.(); return; }
-        setHistoryDetail({ loading: false, rows: [], error: 'Failed to fetch' });
+                setHistoryDetail({
+                    loading: false,
+                    rows: [],
+                    error: err?.message || 'Unable to load attendance details right now. Please retry.'
+                });
       }
   }
 

@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ChevronRight, BookOpen, Download, RotateCcw, Sparkles,
   FileText, StickyNote, ClipboardList, PenTool, Layers,
   GraduationCap, Calendar, GitBranch, BookMarked, ArrowRight, AlertTriangle,
-  Target, LibraryBig, Rocket
+  Target, LibraryBig, Rocket, LogOut
 } from 'lucide-react';
 import CollegeBrand from 'components/CollegeBrand';
 import SignOutButton from 'components/SignOutButton';
@@ -123,18 +124,23 @@ async function triggerDownload(url, fallbackName) {
 const STEPS = ['year', 'semester', 'branch', 'subject'];
 
 export default function StudyMaterialClient({ user = null, isGuest = false }) {
+  const router = useRouter();
   const [options, setOptions] = useState({});
   const [filters, setFilters] = useState({ degree: 'BTech' });
   const [materials, setMaterials] = useState([]);
   const [materialsError, setMaterialsError] = useState('');
   const [loading, setLoading] = useState(false);
   const [optionsLoading, setOptionsLoading] = useState(true);
+  const [browseOptionsLoading, setBrowseOptionsLoading] = useState(false);
   const [optionsError, setOptionsError] = useState('');
   const [optionsRefreshKey, setOptionsRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState(null);
   const [downloadsUsed, setDownloadsUsed] = useState(() => (isGuest ? getGuestDownloads() : 0));
+  const [guestSignOutLoading, setGuestSignOutLoading] = useState(false);
+  const browseRequestIdRef = useRef(0);
 
   const limitReached = isGuest && downloadsUsed >= GUEST_DOWNLOAD_LIMIT;
+  const stepOptionsLoading = optionsLoading || browseOptionsLoading;
   const currentStepIndex = STEPS.findIndex((key) => !filters[key]);
   const currentStep = currentStepIndex === -1 ? 'done' : STEPS[currentStepIndex];
   const allSelected = currentStep === 'done';
@@ -156,14 +162,28 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
   }, [optionsRefreshKey]);
 
   useEffect(() => {
-    if (!filters.year) return;
+    if (!filters.year) {
+      setBrowseOptionsLoading(false);
+      return;
+    }
 
+    const requestId = browseRequestIdRef.current + 1;
+    browseRequestIdRef.current = requestId;
     setOptionsError('');
+    setBrowseOptionsLoading(true);
 
     fetchBrowseOptions({ degree: filters.degree, year: filters.year, semester: filters.semester, branch: filters.branch, subject: filters.subject })
-      .then((data) => setOptions((prev) => ({ ...prev, ...(data.data || {}) })))
+      .then((data) => {
+        if (browseRequestIdRef.current !== requestId) return;
+        setOptions((prev) => ({ ...prev, ...(data.data || {}) }));
+      })
       .catch((error) => {
+        if (browseRequestIdRef.current !== requestId) return;
         setOptionsError(error?.message || 'Failed to load browse options.');
+      })
+      .finally(() => {
+        if (browseRequestIdRef.current !== requestId) return;
+        setBrowseOptionsLoading(false);
       });
   }, [filters.degree, filters.year, filters.semester, filters.branch, filters.subject]);
 
@@ -193,6 +213,25 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
 
   /* ── handlers ─────────────────────────────────────────────── */
   const selectOption = (key, value) => {
+    if (key === 'year' || key === 'semester' || key === 'branch') {
+      setOptions((prev) => {
+        const next = { ...prev };
+        if (key === 'year') {
+          next.semesters = [];
+          next.branches = [];
+          next.subjects = [];
+        } else if (key === 'semester') {
+          next.branches = [];
+          next.subjects = [];
+        } else if (key === 'branch') {
+          next.subjects = [];
+        }
+        return next;
+      });
+      setOptionsError('');
+      setBrowseOptionsLoading(true);
+    }
+
     setFilters((prev) => {
       const next = { ...prev, [key]: key === 'year' || key === 'semester' ? Number(value) : value };
       const stepIdx = STEPS.indexOf(key);
@@ -202,6 +241,24 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
   };
 
   const goBackTo = (key) => {
+    if (key === 'year' || key === 'semester' || key === 'branch') {
+      setOptions((prev) => {
+        const next = { ...prev };
+        if (key === 'year') {
+          next.semesters = [];
+          next.branches = [];
+          next.subjects = [];
+        } else if (key === 'semester') {
+          next.branches = [];
+          next.subjects = [];
+        } else if (key === 'branch') {
+          next.subjects = [];
+        }
+        return next;
+      });
+      setBrowseOptionsLoading(true);
+    }
+
     setFilters((prev) => {
       const next = { ...prev };
       const stepIdx = STEPS.indexOf(key);
@@ -218,6 +275,26 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
     setMaterials([]);
     setMaterialsError('');
     setActiveTab(null);
+    setOptions({});
+    setOptionsError('');
+    setBrowseOptionsLoading(false);
+  };
+
+  const handleGuestSignOut = async () => {
+    setGuestSignOutLoading(true);
+    try {
+      await fetch('/api/auth/guest/signout', { method: 'POST' });
+    } catch {
+      // ignore and still proceed with local cleanup
+    } finally {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // ignore localStorage failures
+      }
+      setGuestSignOutLoading(false);
+      router.replace('/study-access?next=/study-material');
+    }
   };
 
   /* ── group materials ──────────────────────────────────────── */
@@ -270,8 +347,20 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
               <SignOutButton />
             </div>
           ) : isGuest ? (
-            <div className="flex items-center gap-2 rounded-full border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/50 px-3 py-1.5 text-xs font-medium shadow-sm">
+            <div className="flex items-center gap-2 rounded-full border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/50 px-2 py-1.5 text-xs font-medium shadow-sm">
               <span className="text-amber-700 dark:text-amber-300">Guest Mode</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 px-2 text-amber-700 hover:text-amber-900 dark:text-amber-300 dark:hover:text-amber-100"
+                onClick={handleGuestSignOut}
+                disabled={guestSignOutLoading}
+                title="Exit guest mode"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                <span>{guestSignOutLoading ? 'Exiting...' : 'Sign out'}</span>
+              </Button>
             </div>
           ) : null}
           <TopPanelTools />
@@ -344,7 +433,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
             <p className="mt-0.5 text-sm text-muted-foreground">{stepSubtext[currentStep]}</p>
           </div>
 
-          {optionsLoading ? (
+          {stepOptionsLoading ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-live="polite" aria-busy="true">
               {Array.from({ length: 4 }).map((_, index) => (
                 <div key={index} className="h-24 animate-pulse rounded-2xl border border-border bg-card/70" />
@@ -352,7 +441,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
             </div>
           ) : null}
 
-          {!optionsLoading && optionsError ? (
+          {!stepOptionsLoading && optionsError ? (
             <div className="mb-4 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300">
               <div className="flex items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -374,7 +463,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
           ) : null}
 
           {/* Year cards — big, visual */}
-          {!optionsLoading && currentStep === 'year' && (
+          {!stepOptionsLoading && currentStep === 'year' && (
             <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
               {optionMap.year.map((opt) => (
                 <button
@@ -395,7 +484,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
           )}
 
           {/* Semester — pill buttons */}
-          {!optionsLoading && currentStep === 'semester' && (
+          {!stepOptionsLoading && currentStep === 'semester' && (
             <div className="flex flex-wrap gap-3">
               {optionMap.semester.map((opt) => (
                 <button
@@ -411,7 +500,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
           )}
 
           {/* Branch — colored cards */}
-          {!optionsLoading && currentStep === 'branch' && (
+          {!stepOptionsLoading && currentStep === 'branch' && (
             <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
               {optionMap.branch.map((opt, i) => (
                 <button
@@ -433,7 +522,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
           )}
 
           {/* Subject — list-style cards */}
-          {!optionsLoading && currentStep === 'subject' && (
+          {!stepOptionsLoading && currentStep === 'subject' && (
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {optionMap.subject.map((opt) => (
                 <button
@@ -454,7 +543,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
             </div>
           )}
 
-          {!optionsLoading && (optionMap[currentStep] || []).length === 0 && !optionsError && (
+          {!stepOptionsLoading && (optionMap[currentStep] || []).length === 0 && !optionsError && (
             <div className="rounded-2xl border border-dashed border-border bg-card/50 p-10 text-center">
               <p className="text-sm text-muted-foreground">No options available for this selection yet. Try another filter or refresh.</p>
             </div>

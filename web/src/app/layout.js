@@ -24,6 +24,9 @@ export const metadata = {
   title: 'JiitSphere',
   description: 'Study material & student portal for JIIT students',
   manifest: '/manifest.webmanifest',
+  other: {
+    'mobile-web-app-capable': 'yes'
+  },
   icons: {
     icon: [
       { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },

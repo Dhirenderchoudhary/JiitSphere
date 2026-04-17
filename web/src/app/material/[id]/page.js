@@ -1,4 +1,5 @@
-import { fetchMaterialById } from 'lib/api';
+import { headers } from 'next/headers';
+import { notFound } from 'next/navigation';
 import CollegeBrand from 'components/CollegeBrand';
 import HistoryBackButton from 'components/HistoryBackButton';
 import { Badge } from 'components/ui/badge';
@@ -15,8 +16,47 @@ function getViewerUrl(fileUrl, fileType) {
   return `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`;
 }
 
+const normalizeSiteUrl = (value) => String(value || '').trim().replace(/\/+$/, '');
+
+const resolveOrigin = () => {
+  const h = headers();
+  const host = h.get('x-forwarded-host') || h.get('host') || '';
+  const proto = h.get('x-forwarded-proto') || 'http';
+  if (host) return `${proto}://${host}`;
+
+  return (
+    normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
+    normalizeSiteUrl(process.env.NEXTAUTH_URL) ||
+    'http://localhost:3000'
+  );
+};
+
+const fetchMaterialByIdServer = async (id) => {
+  const origin = resolveOrigin();
+  const response = await fetch(`${origin}/api/backend/materials/${encodeURIComponent(String(id || ''))}`, {
+    cache: 'no-store'
+  });
+
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+
+  if (response.status === 404) {
+    notFound();
+  }
+
+  if (!response.ok || !payload?.data) {
+    throw new Error(payload?.message || 'Failed to load material');
+  }
+
+  return payload;
+};
+
 export default async function MaterialViewerPage({ params }) {
-  const response = await fetchMaterialById(params.id);
+  const response = await fetchMaterialByIdServer(params.id);
   const material = response.data;
   const viewerUrl = getViewerUrl(material.fileUrl, material.fileType);
 

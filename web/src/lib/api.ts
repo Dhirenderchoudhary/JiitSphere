@@ -1,4 +1,5 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5050/api/v1';
+const BACKEND_PROXY_BASE_URL = '/api/backend';
+const PORTAL_PROXY_BASE_URL = '/api/portal-auth';
 const PORTAL_REALTIME_DEFAULT = String(process.env.NEXT_PUBLIC_PORTAL_REALTIME || 'false').toLowerCase() === 'true';
 const PORTAL_MARKS_DOWNLOAD_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_PORTAL_MARKS_DOWNLOAD_TIMEOUT_MS || 25000);
 const DEFAULT_API_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS || 20000);
@@ -85,20 +86,63 @@ const authHeader = (token: string): Record<string, string> => ({
   'Content-Type': 'application/json'
 });
 
+const portalUrl = (path: string, params: QueryParams = {}): string => {
+  const query = cleanParams(params);
+  return `${PORTAL_PROXY_BASE_URL}${path}${query ? `?${query}` : ''}`;
+};
+
+const backendUrl = (path: string, params: QueryParams = {}): string => {
+  const query = cleanParams(params);
+  return `${BACKEND_PROXY_BASE_URL}${path}${query ? `?${query}` : ''}`;
+};
+
+const portalFetch = async (path: string, options: FetchWithTimeoutOptions = {}, params: QueryParams = {}): Promise<Response> =>
+  fetchWithTimeout(portalUrl(path, params), {
+    cache: 'no-store',
+    ...options,
+    timeoutMs: options.timeoutMs || DEFAULT_API_TIMEOUT_MS,
+    retries: options.retries ?? DEFAULT_API_RETRIES
+  });
+
+const portalJsonRequest = async <T = JsonObject>(
+  path: string,
+  options: FetchWithTimeoutOptions = {},
+  params: QueryParams = {}
+): Promise<T> => {
+  const response = await portalFetch(path, options, params);
+  const data = await parseJson<T & { message?: string }>(response);
+  if (!response.ok) throw new Error(data.message || 'Portal request failed');
+  return data;
+};
+
+const backendJsonRequest = async <T = JsonObject>(
+  path: string,
+  options: FetchWithTimeoutOptions = {},
+  params: QueryParams = {}
+): Promise<T> => {
+  const response = await fetchWithTimeout(backendUrl(path, params), {
+    cache: 'no-store',
+    ...options,
+    timeoutMs: options.timeoutMs || DEFAULT_API_TIMEOUT_MS,
+    retries: options.retries ?? DEFAULT_API_RETRIES
+  });
+  const data = await parseJson<T & { message?: string }>(response);
+  if (!response.ok) throw new Error(data.message || 'Backend request failed');
+  return data;
+};
+
 const withRealtime = (params: QueryParams = {}, refresh = PORTAL_REALTIME_DEFAULT): QueryParams => ({
   ...(params || {}),
   ...(refresh ? { refresh: 1 } : {})
 });
 
 const sdkGet = async <T = JsonObject>(token: string, path: string, params: QueryParams = {}): Promise<T> => {
-  const query = cleanParams(params);
-  const url = `${API_BASE_URL}${path}${query ? `?${query}` : ''}`;
-  const response = await fetchWithTimeout(url, {
+  const response = await portalFetch(path, {
     headers: { Authorization: `Bearer ${token}` },
     cache: 'no-store',
     timeoutMs: DEFAULT_API_TIMEOUT_MS,
     retries: DEFAULT_API_RETRIES
-  });
+  }, params);
   if (response.status === 401) throw new SessionExpiredError();
   const data = await parseJson<T & { message?: string }>(response);
   if (!response.ok) throw new Error(data.message || 'SDK request failed');
@@ -106,104 +150,66 @@ const sdkGet = async <T = JsonObject>(token: string, path: string, params: Query
 };
 
 export const fetchFilterOptions = async () => {
-  const response = await fetch(`${API_BASE_URL}/materials/filters/options`, { cache: 'no-store' });
-  if (!response.ok) throw new Error('Failed to fetch filter options');
-  return parseJson(response);
+  return backendJsonRequest('/materials/filters/options');
 };
 
 export const fetchBrowseOptions = async (params: QueryParams) => {
-  const query = cleanParams(params);
-  const response = await fetch(`${API_BASE_URL}/materials/filters/browse?${query}`, { cache: 'no-store' });
-  if (!response.ok) throw new Error('Failed to fetch browse options');
-  return parseJson(response);
+  return backendJsonRequest('/materials/filters/browse', {}, params);
 };
 
 export const fetchMaterials = async (params: QueryParams) => {
-  const query = cleanParams(params);
-  const response = await fetch(`${API_BASE_URL}/materials?${query}`, { cache: 'no-store' });
-  if (!response.ok) throw new Error('Failed to fetch materials');
-  return parseJson(response);
+  return backendJsonRequest('/materials', {}, params);
 };
 
 export const fetchMaterialById = async (id: string) => {
-  const response = await fetch(`${API_BASE_URL}/materials/${id}`, { cache: 'no-store' });
-  if (!response.ok) throw new Error('Failed to fetch material');
-  return parseJson(response);
+  return backendJsonRequest(`/materials/${id}`);
 };
 
 export const loginUser = async (payload: JsonObject) => {
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+  return portalJsonRequest('/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-
-  const data = await parseJson<{ message?: string } & JsonObject>(response);
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to login');
-  }
-
-  return data;
 };
 
 export const loginPortalDemo = async () => {
-  const response = await fetch(`${API_BASE_URL}/auth/demo-login`, {
+  return portalJsonRequest('/auth/demo-login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({})
   });
-
-  const data = await parseJson<{ message?: string } & JsonObject>(response);
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to start demo session');
-  }
-
-  return data;
 };
 
 export const fetchPortalStatus = async (token: string) => {
-  const profileResponse = await fetch(`${API_BASE_URL}/auth/me`, {
+  const profile = await portalJsonRequest<{ data?: { user?: unknown } }>('/auth/me', {
     headers: {
       Authorization: `Bearer ${token}`
-    },
-    cache: 'no-store'
+    }
   });
-  if (!profileResponse.ok) throw new Error('Session expired');
-  const profile = await parseJson<{ data?: { user?: unknown } }>(profileResponse);
 
-  const response = await fetch(`${API_BASE_URL}/portal/status`, {
+  const status = await portalJsonRequest<JsonObject>('/portal/status', {
     headers: {
       Authorization: `Bearer ${token}`
-    },
-    cache: 'no-store'
+    }
   });
-  if (!response.ok) throw new Error('Failed to fetch portal status');
-  const status = await parseJson<JsonObject>(response);
   return { ...status, user: profile?.data?.user || null };
 };
 
 export const fetchMe = async (token: string) => {
-  const response = await fetch(`${API_BASE_URL}/auth/me`, {
+  return portalJsonRequest('/auth/me', {
     headers: {
       Authorization: `Bearer ${token}`
-    },
-    cache: 'no-store'
+    }
   });
-  const data = await parseJson<{ message?: string } & JsonObject>(response);
-  if (!response.ok) throw new Error(data.message || 'Failed to fetch user profile');
-  return data;
 };
 
 export const fetchAdminAnalytics = async (token: string) => {
-  const response = await fetch(`${API_BASE_URL}/auth/analytics`, {
+  return portalJsonRequest('/auth/analytics', {
     headers: {
       Authorization: `Bearer ${token}`
-    },
-    cache: 'no-store'
+    }
   });
-  const data = await parseJson<{ message?: string } & JsonObject>(response);
-  if (!response.ok) throw new Error(data.message || 'Failed to fetch analytics');
-  return data;
 };
 
 export const fetchStudyAnalytics = async () => {
@@ -214,57 +220,42 @@ export const fetchStudyAnalytics = async () => {
 };
 
 export const startPortalRelaySession = async (token: string) => {
-  const response = await fetch(`${API_BASE_URL}/portal/relay/start`, {
+  return portalJsonRequest('/portal/relay/start', {
     method: 'POST',
     headers: authHeader(token)
   });
-  const data = await parseJson<{ message?: string } & JsonObject>(response);
-  if (!response.ok) throw new Error(data.message || 'Failed to start relay session');
-  return data;
 };
 
 export const fetchPortalRelayCaptcha = async (token: string, payload: JsonObject = {}) => {
-  const response = await fetch(`${API_BASE_URL}/portal/relay/captcha`, {
+  return portalJsonRequest('/portal/relay/captcha', {
     method: 'POST',
     headers: authHeader(token),
     body: JSON.stringify(payload)
   });
-  const data = await parseJson<{ message?: string } & JsonObject>(response);
-  if (!response.ok) throw new Error(data.message || 'Failed to fetch portal captcha');
-  return data;
 };
 
 export const tryPortalRelayLogin = async (token: string, payload: JsonObject) => {
-  const response = await fetch(`${API_BASE_URL}/portal/relay/try-login`, {
+  return portalJsonRequest('/portal/relay/try-login', {
     method: 'POST',
     headers: authHeader(token),
     body: JSON.stringify(payload)
   });
-  const data = await parseJson<{ message?: string } & JsonObject>(response);
-  if (!response.ok) throw new Error(data.message || 'Relay login failed');
-  return data;
 };
 
 export const portalRelayRequest = async (token: string, payload: JsonObject) => {
-  const response = await fetch(`${API_BASE_URL}/portal/relay/request`, {
+  return portalJsonRequest('/portal/relay/request', {
     method: 'POST',
     headers: authHeader(token),
     body: JSON.stringify(payload)
   });
-  const data = await parseJson<{ message?: string } & JsonObject>(response);
-  if (!response.ok) throw new Error(data.message || 'Relay request failed');
-  return data;
 };
 
 export const portalSdkLogin = async (token: string, payload: JsonObject) => {
-  const response = await fetch(`${API_BASE_URL}/portal/sdk/login`, {
+  return portalJsonRequest('/portal/sdk/login', {
     method: 'POST',
     headers: authHeader(token),
     body: JSON.stringify(payload)
   });
-  const data = await parseJson<{ message?: string } & JsonObject>(response);
-  if (!response.ok) throw new Error(data.message || 'SDK login failed');
-  return data;
 };
 
 export const fetchPortalSdkSession = async (token: string, refresh = PORTAL_REALTIME_DEFAULT) =>
@@ -285,12 +276,10 @@ export const fetchPortalProfile = async (token: string, refresh = PORTAL_REALTIM
   sdkGet(token, '/portal/sdk/profile', withRealtime({}, refresh));
 
 export const fetchPortalProfilePhotoBlob = async (token: string, source: string) => {
-  const query = cleanParams({ source });
-  const url = `${API_BASE_URL}/portal/sdk/profile/photo?${query}`;
-  const response = await fetch(url, {
+  const response = await portalFetch('/portal/sdk/profile/photo', {
     headers: { Authorization: `Bearer ${token}` },
     cache: 'no-store'
-  });
+  }, { source });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({} as { message?: string }));
     throw new Error(errorData.message || 'Failed to fetch official portal profile photo');
@@ -329,18 +318,15 @@ export const fetchPortalFees = async (token: string, options: boolean | { debug?
 };
 
 export const downloadPortalMarks = async (token: string, registration_id: string, registration_code: string) => {
-  const query = cleanParams({ registration_id, registration_code });
-  const url = `${API_BASE_URL}/portal/sdk/marks/download?${query}`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), Math.max(5000, PORTAL_MARKS_DOWNLOAD_TIMEOUT_MS));
 
   let response: Response;
   try {
-    response = await fetch(url, {
+    response = await portalFetch('/portal/sdk/marks/download', {
       headers: { Authorization: `Bearer ${token}` },
-      cache: 'no-store',
       signal: controller.signal
-    });
+    }, { registration_id, registration_code });
   } catch (error: unknown) {
     const err = error as { name?: string };
     if (err?.name === 'AbortError') {
@@ -386,14 +372,13 @@ export const fetchPortalMarksData = async (
   registration_code: string,
   refresh = false
 ) => {
-  const query = cleanParams({ registration_id, registration_code, ...(refresh ? { refresh: 1 } : {}) });
-  const url = `${API_BASE_URL}/portal/sdk/marks/data?${query}`;
-  const response = await fetch(url, {
+  const response = await portalFetch('/portal/sdk/marks/data', {
     headers: { Authorization: `Bearer ${token}` },
     cache: 'no-store'
-  });
+  }, { registration_id, registration_code, ...(refresh ? { refresh: 1 } : {}) });
   if (!response.ok) {
-    throw new Error('Failed to fetch marks data');
+    const errorData = await response.json().catch(() => ({} as { message?: string }));
+    throw new Error(errorData.message || 'Failed to fetch marks data');
   }
   const json = await response.json();
   return json?.data || { courses: [], exams: [] };

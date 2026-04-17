@@ -4,11 +4,29 @@ const STUDY_ACCESS_COOKIE = 'study_material_access';
 
 export function middleware(request) {
   const pathname = request.nextUrl.pathname;
+  const isStudyMaterialRoute = pathname === '/study-material' || pathname.startsWith('/study-material/');
+
+  const trustedHosts = new Set();
+  const hostHeader = request.headers.get('host');
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const requestHost = request.nextUrl.host;
+  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || '';
+
+  if (hostHeader) trustedHosts.add(hostHeader);
+  if (forwardedHost) trustedHosts.add(forwardedHost);
+  if (requestHost) trustedHosts.add(requestHost);
+
+  if (configuredSiteUrl) {
+    try {
+      trustedHosts.add(new URL(configuredSiteUrl).host);
+    } catch {
+      // ignore malformed site URL
+    }
+  }
 
   // ── CSRF origin check for mutating API requests ───────────────
   if (pathname.startsWith('/api') && request.method !== 'GET' && request.method !== 'HEAD') {
     const origin = request.headers.get('origin');
-    const host = request.headers.get('host');
     if (origin) {
       let originHost;
       try {
@@ -16,7 +34,7 @@ export function middleware(request) {
       } catch {
         originHost = '';
       }
-      if (originHost !== host) {
+      if (!originHost || !trustedHosts.has(originHost)) {
         return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
       }
     }
@@ -42,9 +60,9 @@ export function middleware(request) {
     return NextResponse.next();
   }
 
-  // Admin UI has its own signed-cookie auth flow in API routes;
-  // bypass study-access lock so the admin login screen remains reachable.
-  if (pathname.startsWith('/admin')) {
+  // Only Study Material routes use the study-access lock.
+  // Portal, login, and other app areas should not be redirected there.
+  if (!isStudyMaterialRoute) {
     return NextResponse.next();
   }
 

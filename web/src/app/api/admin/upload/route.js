@@ -3,7 +3,11 @@ import { rateLimit } from 'lib/rateLimit';
 import { ADMIN_COOKIE_NAME, verifyAdminCookieToken } from 'lib/adminAuthCookie';
 
 const limiter = rateLimit({ name: 'admin-upload', windowMs: 60 * 1000, max: 30 });
-const BACKEND_BASE_URL = process.env.INTERNAL_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5050/api/v1';
+const DEV_BACKEND_BASE_URL = 'http://localhost:5050/api/v1';
+const resolveBackendBaseUrl = () =>
+  process.env.INTERNAL_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  (process.env.NODE_ENV !== 'production' ? DEV_BACKEND_BASE_URL : '');
 
 export async function POST(request) {
   const limited = limiter(request);
@@ -17,14 +21,15 @@ export async function POST(request) {
 
   const adminApiKey = process.env.ADMIN_API_KEY;
   const adminEmail = process.env.ADMIN_EMAIL;
+  const backendBaseUrl = resolveBackendBaseUrl();
 
-  if (!adminApiKey || !adminEmail) {
+  if (!adminApiKey || !adminEmail || !backendBaseUrl) {
     return NextResponse.json({ success: false, message: 'Service unavailable' }, { status: 503 });
   }
 
   const formData = await request.formData();
 
-  const response = await fetch(`${BACKEND_BASE_URL}/admin/materials`, {
+  const response = await fetch(`${backendBaseUrl}/admin/materials`, {
     method: 'POST',
     headers: {
       'x-admin-key': adminApiKey,
