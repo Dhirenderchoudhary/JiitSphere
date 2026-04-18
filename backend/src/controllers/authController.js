@@ -89,7 +89,7 @@ const login = (req, res) => {
       {
         ...user,
         scope: ['portal:relay', 'portal:sdk-login'],
-        exp: Date.now() + 1000 * 60 * 5
+        exp: Date.now() + env.portalTokenMaxAgeMs
       },
       env.authSecret
     );
