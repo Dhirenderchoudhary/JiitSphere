@@ -97,9 +97,11 @@ export const authOptions = {
     },
     async redirect({ url, baseUrl }) {
       const safeBaseUrl = normalizeSiteUrl(baseUrl) || resolvedSiteUrl;
+      
+      console.log('Redirect callback:', { url, baseUrl, safeBaseUrl });
+    
       if (!url) return safeBaseUrl;
       if (url.startsWith('/')) return `${safeBaseUrl}${url}`;
-
       try {
         const target = new URL(url);
         const base = new URL(safeBaseUrl);
