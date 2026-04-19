@@ -264,13 +264,21 @@ export const deriveCountsFromPercent = (row, targetPct) => {
   const target = Number(targetPct || 0);
   if (!percent) return null;
 
+  const isPlausiblePair = (attended, total, expectedPercent) => {
+    if (!Number.isFinite(attended) || !Number.isFinite(total)) return false;
+    if (total <= 0 || total > 500) return false;
+    if (attended < 0 || attended > total) return false;
+    const reconstructed = (attended / total) * 100;
+    return Math.abs(reconstructed - expectedPercent) <= 0.6;
+  };
+
   if (target && percent > target && Number(row?.canmissclasses || 0) > 0) {
     const m = Number(row.canmissclasses);
     const denominator = (percent * 100) / target - 100;
     if (denominator > 0) {
       const total = Math.round((m * 100) / denominator);
       const attended = Math.round((percent * total) / 100);
-      if (total > 0 && attended >= 0 && attended <= total) {
+      if (isPlausiblePair(attended, total, percent)) {
         return { attended, total, source: 'derived-can-miss' };
       }
     }
@@ -282,25 +290,15 @@ export const deriveCountsFromPercent = (row, targetPct) => {
     if (delta > 0) {
       const total = Math.round((n * 100) / delta);
       const attended = Math.round((percent * total) / 100);
-      if (total > 0 && attended >= 0 && attended <= total) {
+      if (isPlausiblePair(attended, total, percent)) {
         return { attended, total, source: 'derived-need-attend' };
       }
     }
   }
 
-  let best = null;
-  let bestError = Infinity;
-  for (let total = 5; total <= 60; total += 1) {
-    const attended = Math.round((percent * total) / 100);
-    if (attended < 0 || attended > total) continue;
-    const p = (attended / total) * 100;
-    const err = Math.abs(p - percent);
-    if (err < bestError) {
-      bestError = err;
-      best = { attended, total, source: 'derived-percent' };
-    }
-  }
-  return best;
+  // Avoid fabricating counts from percentage-only data for student-critical metrics.
+  // We return null unless portal gives enough deterministic hints.
+  return null;
 };
 
 export const resolveAttendanceCounts = (row, targetPct, options = {}) => {

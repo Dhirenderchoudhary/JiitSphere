@@ -718,12 +718,47 @@ const normalizeGradeCardRows = (rows = []) => {
 const normalizeSubjectDailyRows = (rows = []) => {
   if (!Array.isArray(rows)) return [];
 
+  const normalizePresence = (value) => {
+    const text = String(value || '').trim();
+    if (!text) return 'Unknown';
+
+    const compact = text.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!compact) return 'Unknown';
+
+    if (
+      compact === 'p' ||
+      compact === 'pr' ||
+      compact === 'present' ||
+      compact === '1' ||
+      compact === 'true' ||
+      compact === 'y' ||
+      compact === 'yes' ||
+      compact.startsWith('present') ||
+      compact.includes('attended')
+    ) {
+      return 'Present';
+    }
+
+    if (
+      compact === 'a' ||
+      compact === 'ab' ||
+      compact === 'absent' ||
+      compact === '0' ||
+      compact === 'false' ||
+      compact === 'n' ||
+      compact === 'no' ||
+      compact.startsWith('absent') ||
+      compact.includes('missed')
+    ) {
+      return 'Absent';
+    }
+
+    return 'Unknown';
+  };
+
   return rows.map((row) => {
     const presentRaw = pickFirst(row, ['present', 'attendance', 'status', 'attendancestatus', 'ispresent']);
-    let present = String(presentRaw || '').trim();
-    if (!present) present = 'Unknown';
-    if (/^(p|present|1|true)$/i.test(present)) present = 'Present';
-    if (/^(a|absent|0|false)$/i.test(present)) present = 'Absent';
+    const present = normalizePresence(presentRaw);
 
     return {
       datetime: pickFirst(row, ['datetime', 'attendancedate', 'date', 'classdate', 'dateofclass']) || '-',
@@ -2606,8 +2641,21 @@ const mapWithConcurrency = async (items = [], concurrency = 1, mapper) => {
 
 const computeDailyCountSummary = (rows = []) => {
   const list = Array.isArray(rows) ? rows : [];
-  const total = list.length;
-  const attended = list.filter((entry) => String(entry?.present || '').toLowerCase() === 'present').length;
+  const toPresence = (value) => {
+    const compact = String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!compact) return 'unknown';
+    if (compact === 'present' || compact === 'p' || compact === '1' || compact.startsWith('present') || compact.includes('attended')) {
+      return 'present';
+    }
+    if (compact === 'absent' || compact === 'a' || compact === '0' || compact.startsWith('absent') || compact.includes('missed')) {
+      return 'absent';
+    }
+    return 'unknown';
+  };
+
+  const normalized = list.map((entry) => toPresence(entry?.present)).filter((value) => value === 'present' || value === 'absent');
+  const total = normalized.length;
+  const attended = normalized.filter((value) => value === 'present').length;
   return { attended, total };
 };
 
