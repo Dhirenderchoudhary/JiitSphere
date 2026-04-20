@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: jiitsphere-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node src/server.js
+    healthCheckPath: /health
+    autoDeploy: true
+
+  - type: web
+    name: jiitsphere-web
+    env: node
+    rootDir: web
+    buildCommand: npm install && NEXT_RUNTIME_PREP_MODE=build node scripts/prepare-next-runtime.cjs && npx next build
+    startCommand: NEXT_RUNTIME_PREP_MODE=start node scripts/prepare-next-runtime.cjs && npx next start -p $PORT
+    autoDeploy: true
