@@ -97,6 +97,8 @@ const proxyRequest = async (request, { params }) => {
         responseHeaders.set(key, value);
       }
     });
+    // Upstream bodies may be transparently decompressed by fetch; avoid stale lengths.
+    responseHeaders.delete('content-length');
     responseHeaders.set('cache-control', 'no-store');
 
     if (NO_BODY_STATUSES.has(upstream.status)) {
