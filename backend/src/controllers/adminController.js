@@ -54,14 +54,14 @@ const listMaterialsAdmin = asyncHandler(async (req, res) => {
   } = req.query;
 
   const query = {};
-  if (degree) query.degree = degree;
-  if (branch) query.branch = branch;
+  if (degree) query.degree = String(degree);
+  if (branch) query.branch = String(branch);
   const parsedYear = parseOptionalInt(year, 'year', { min: 1, max: 5 });
   const parsedSemester = parseOptionalInt(semester, 'semester', { min: 1, max: 10 });
   if (parsedYear !== null) query.year = parsedYear;
   if (parsedSemester !== null) query.semester = parsedSemester;
-  if (subject) query.subject = subject;
-  if (resourceType) query.resourceType = resourceType;
+  if (subject) query.subject = String(subject);
+  if (resourceType) query.resourceType = String(resourceType);
   if (includeUnpublished !== 'true') query.isPublished = true;
 
   const pageNumber = parsePositiveInt(page, 'page', 1, { min: 1, max: 100000 });

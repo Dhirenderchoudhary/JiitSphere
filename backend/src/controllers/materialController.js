@@ -83,14 +83,14 @@ const getMaterials = asyncHandler(async (req, res) => {
 
   const query = { isPublished: true };
 
-  if (degree) query.degree = degree;
-  if (branch) query.branch = branch;
+  if (degree) query.degree = String(degree);
+  if (branch) query.branch = String(branch);
   const parsedYear = parseOptionalInt(year, 'year', { min: 1, max: 5 });
   const parsedSemester = parseOptionalInt(semester, 'semester', { min: 1, max: 10 });
   if (parsedYear !== null) query.year = parsedYear;
   if (parsedSemester !== null) query.semester = parsedSemester;
-  if (subject) query.subject = subject;
-  if (resourceType) query.resourceType = resourceType;
+  if (subject) query.subject = String(subject);
+  if (resourceType) query.resourceType = String(resourceType);
 
   if (search) {
     const trimmedSearch = String(search).trim().slice(0, 120);
@@ -171,13 +171,13 @@ const getFilterOptions = asyncHandler(async (_req, res) => {
 
 const getBrowseOptions = asyncHandler(async (req, res) => {
   const query = { isPublished: true };
-  if (req.query.degree) query.degree = req.query.degree;
-  if (req.query.branch) query.branch = req.query.branch;
+  if (req.query.degree) query.degree = String(req.query.degree);
+  if (req.query.branch) query.branch = String(req.query.branch);
   const parsedYear = parseOptionalInt(req.query.year, 'year', { min: 1, max: 5 });
   const parsedSemester = parseOptionalInt(req.query.semester, 'semester', { min: 1, max: 10 });
   if (parsedYear !== null) query.year = parsedYear;
   if (parsedSemester !== null) query.semester = parsedSemester;
-  if (req.query.subject) query.subject = req.query.subject;
+  if (req.query.subject) query.subject = String(req.query.subject);
 
   const cacheKey = JSON.stringify({
     degree: query.degree || '',

@@ -28,12 +28,14 @@ const login = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'ID and password are required' });
   }
 
-  if (id !== SUPERADMIN_ID) {
-    return res.status(401).json({ success: false, message: 'Invalid credentials' });
-  }
-
   const inputHash = crypto.createHash('sha256').update(password).digest('hex');
-  if (!timingSafeEqual(inputHash, SUPERADMIN_PASSWORD_HASH)) {
+  const idMatch = timingSafeEqual(
+    crypto.createHash('sha256').update(String(id)).digest('hex'),
+    crypto.createHash('sha256').update(SUPERADMIN_ID).digest('hex')
+  );
+  const pwMatch = timingSafeEqual(inputHash, SUPERADMIN_PASSWORD_HASH);
+
+  if (!idMatch || !pwMatch) {
     return res.status(401).json({ success: false, message: 'Invalid credentials' });
   }
 

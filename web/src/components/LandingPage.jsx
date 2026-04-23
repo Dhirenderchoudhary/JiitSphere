@@ -36,7 +36,7 @@ import { Button } from 'components/ui/button';
 import { cn } from 'lib/utils';
 
 const container = {
-  hidden: { opacity: 0 },
+  hidden: { opacity: 1 },
   show: {
     opacity: 1,
     transition: {
@@ -47,7 +47,7 @@ const container = {
 };
 
 const item = {
-  hidden: { opacity: 0, y: 15 },
+  hidden: { opacity: 1, y: 0 },
   show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } }
 };
 

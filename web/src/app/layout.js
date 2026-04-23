@@ -1,6 +1,5 @@
 import './globals.css';
 import { cn } from 'lib/utils';
-import Script from 'next/script';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import ServiceWorkerRegistration from 'components/ServiceWorkerRegistration';
@@ -48,50 +47,19 @@ export const viewport = {
   ]
 };
 
+const themeScript = `(function(){try{var r=document.documentElement;r.classList.add('dark');r.style.setProperty('--primary','45 93% 47%');r.style.setProperty('--primary-foreground','0 0% 0%');r.style.setProperty('--ring','45 93% 47%');}catch(e){}})();`;
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className={cn(
         "flex min-h-screen flex-col bg-background",
         inter.variable,
         instrumentSans.variable
       )}>
-        <Script id="theme-init" strategy="beforeInteractive">
-          {`
-            (function() {
-              try {
-                const theme = 'dark';
-                const accentName = 'yellow';
-                
-                // Set Theme Class
-                if (theme === 'dark') {
-                  document.documentElement.classList.add('dark');
-                } else {
-                  document.documentElement.classList.remove('dark');
-                }
-
-                // Set Accent Variables
-                const root = document.documentElement;
-                if (theme === 'light') {
-                  root.style.setProperty('--primary', '0 0% 0%');
-                  root.style.setProperty('--primary-foreground', '0 0% 100%');
-                  root.style.setProperty('--ring', '0 0% 0%');
-                } else {
-                  const accents = {
-                    'yellow': { p: '45 93% 47%', f: '0 0% 0%' },
-                    'blue': { p: '217 91% 60%', f: '0 0% 100%' },
-                    'red': { p: '0 84% 60%', f: '0 0% 100%' },
-                    'grey': { p: '240 5% 34%', f: '0 0% 100%' }
-                  };
-                  const acc = accents[accentName] || accents['yellow'];
-                  root.style.setProperty('--primary', acc.p);
-                  root.style.setProperty('--primary-foreground', acc.f);
-                  root.style.setProperty('--ring', acc.p);
-                }
-              } catch (e) {}
-            })();
-          `}
-        </Script>
         <ServiceWorkerRegistration />
         <PageTracker />
         <div className="flex-1">{children}</div>
