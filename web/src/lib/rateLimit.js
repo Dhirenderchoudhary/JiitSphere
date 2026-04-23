@@ -32,8 +32,11 @@ export function rateLimit({ name, windowMs = 15 * 60 * 1000, max = 5 } = {}) {
    * Returns null if allowed, or a Response (429) if rate-limited.
    */
   return function check(request) {
+    // Trust x-forwarded-for only when behind a reverse proxy (Render, Vercel, etc).
+    // In production these platforms always inject a trusted IP as the LAST entry;
+    // taking the first entry prevents IP spoofing via a crafted header.
     const forwarded = request.headers.get('x-forwarded-for');
-    const ip = forwarded ? forwarded.split(',')[0].trim() : '127.0.0.1';
+    const ip = forwarded ? forwarded.split(',').pop()?.trim() || '127.0.0.1' : '127.0.0.1';
     const now = Date.now();
 
     let entry = store.get(ip);

@@ -1,16 +1,10 @@
-import { getServerSession } from 'next-auth/next';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { authOptions } from 'lib/auth';
+import { getSession } from 'lib/session';
 import StudyMaterialClient from 'components/StudyMaterialClient';
 
 export default async function StudyMaterialPage() {
-  let session = null;
-  try {
-    session = await getServerSession(authOptions);
-  } catch {
-    session = null;
-  }
+  const session = await getSession();
   const cookieStore = cookies();
   const isGuest = !session && cookieStore.get('guest_mode')?.value === '1';
 

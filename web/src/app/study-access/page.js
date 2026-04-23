@@ -1,7 +1,6 @@
 import { Suspense } from 'react';
-import { getServerSession } from 'next-auth/next';
 import { redirect } from 'next/navigation';
-import { authOptions } from 'lib/auth';
+import { getSession } from 'lib/session';
 import StudyAccessForm from 'components/StudyAccessForm';
 
 const sanitizeNextPath = (rawPath) => {
@@ -16,7 +15,7 @@ const sanitizeNextPath = (rawPath) => {
 };
 
 export default async function StudyAccessPage({ searchParams }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const nextPath = sanitizeNextPath(searchParams?.next);
 
   if (session) {

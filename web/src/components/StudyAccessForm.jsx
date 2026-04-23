@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { AlertCircle, ShieldCheck, UserRound } from 'lucide-react';
@@ -56,32 +55,12 @@ export default function StudyAccessForm({ nextPath = '/study-material' }) {
     setAuthError(error ? mapAuthError(error) : '');
   }, [searchParams]);
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = () => {
     setLoading(true);
     setAccessDenied(false);
     setAuthError('');
-    try {
-      const result = await signIn('google', {
-        callbackUrl: nextPath,
-        redirect: false
-      });
-
-      if (result?.error) {
-        setAuthError(mapAuthError(result.error));
-        return;
-      }
-
-      if (result?.url) {
-        window.location.assign(result.url);
-        return;
-      }
-
-      setAuthError('Google sign-in did not return a redirect URL. Please retry.');
-    } catch (_err) {
-      setAuthError('Google sign-in is temporarily unavailable. Please retry.');
-    } finally {
-      setLoading(false);
-    }
+    const url = `/api/auth/google/start?next=${encodeURIComponent(nextPath)}`;
+    window.location.href = url;
   };
 
   const handleGuestLogin = async () => {

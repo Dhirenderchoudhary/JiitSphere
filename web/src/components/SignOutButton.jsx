@@ -11,14 +11,12 @@ const LOGIN_AT_KEY = 'jaypee_buddy_login_at';
 export default function SignOutButton({ className = '' }) {
   const router = useRouter();
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     window.localStorage.removeItem(TOKEN_KEY);
     window.localStorage.removeItem(PORTAL_VERIFIED_KEY);
     window.localStorage.removeItem(LOGIN_AT_KEY);
-    
-    // Notify app of identity change
     window.dispatchEvent(new Event('jaypee-buddy-identity-updated'));
-    
+    await fetch('/api/auth/signout', { method: 'POST' }).catch(() => null);
     router.replace('/');
   };
 
