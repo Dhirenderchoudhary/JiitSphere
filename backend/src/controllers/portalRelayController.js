@@ -338,13 +338,17 @@ const runEncryptedLoginFlow = async ({
       continue;
     }
 
-    const tokenPayload = JSON.stringify({
-      otppwd,
-      username: portalUsername,
-      passwordotpvalue: password,
-      Modulename: 'STUDENTMODULE',
-      random
-    });
+    const tokenResponsePayload =
+      pretokenPayload?.response && typeof pretokenPayload.response === 'object'
+        ? { ...pretokenPayload.response }
+        : { otppwd, random };
+
+    delete tokenResponsePayload.rejectedData;
+    tokenResponsePayload.username = portalUsername;
+    tokenResponsePayload.passwordotpvalue = password;
+    tokenResponsePayload.Modulename = 'STUDENTMODULE';
+
+    const tokenPayload = JSON.stringify(tokenResponsePayload);
 
     const encryptedGenerateToken = encryptPortalPayload(
       tokenPayload,
@@ -353,13 +357,13 @@ const runEncryptedLoginFlow = async ({
     );
 
     const tokenAttempt = await executeRelayAttempt(session, {
-      path: '/StudentPortalAPI/token/generatetoken',
+      path: '/StudentPortalAPI/token/generatewebtoken',
       method: 'POST',
       contentType,
       rawBody: encryptedGenerateToken
     });
     tokenAttempt.strategy = strategy;
-    tokenAttempt.phase = 'generatetoken';
+    tokenAttempt.phase = 'generatewebtoken';
     tokenAttempt.timeZoneVariant = variant.timeZone;
     attempts.push(tokenAttempt);
 

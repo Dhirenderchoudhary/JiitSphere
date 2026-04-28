@@ -27,10 +27,10 @@ class CustomPortalClient {
       username: userId,
       usertype,
       password,
-      captcha: { captcha }
+      captcha: { captcha, hidden: 'gmBctEffdSg=' }
     };
 
-    const tokenEndpoints = ['generate', 'pretoken-check', 'generatetoken'];
+    const tokenEndpoints = ['generatewebtoken', 'pretoken-check'];
     tokenEndpoints.forEach((endpoint) => {
       candidates.push({
         path: `/StudentPortalAPI/token/${endpoint}`,
