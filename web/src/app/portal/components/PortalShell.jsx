@@ -194,7 +194,32 @@ export default function PortalShell({ token, onLogout }) {
         </div>
         
         {/* Navigation Wrapper / Custom Contextual Sidebar */}
-        {customSidebar ? customSidebar : (
+        {customSidebar ? (
+          <>
+            {/* Compact icon-only tab row when custom sidebar is active */}
+            <div className="px-4 pt-4 pb-2 flex items-center gap-1 border-b border-border/50 shrink-0">
+              {displayedTabs.map((tab) => {
+                const Icon = tab.icon;
+                const active = tab.id === activeTab;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    title={tab.label}
+                    className={cn(
+                      "flex-1 flex items-center justify-center p-2.5 rounded-lg transition-all",
+                      active ? "bg-primary/10 text-primary" : "text-muted-foreground/50 hover:bg-muted/50 hover:text-foreground"
+                    )}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </button>
+                );
+              })}
+            </div>
+            {/* Custom Contextual Sidebar */}
+            {customSidebar}
+          </>
+        ) : (
           <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar mt-6">
             <div className="px-6 py-2 mb-2">
                <span className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-[0.2em]">Platform Core</span>
@@ -238,6 +263,7 @@ export default function PortalShell({ token, onLogout }) {
            >
                <div className="w-10 h-10 shrink-0 rounded-full bg-secondary border border-border shadow-sm flex items-center justify-center overflow-hidden group-hover:border-primary/20 transition-colors">
                   {cachedPhoto ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={cachedPhoto} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
                       <span className="text-sm font-black text-foreground group-hover:text-primary transition-colors">{displayName?.charAt(0) || "S"}</span>
@@ -362,6 +388,7 @@ export default function PortalShell({ token, onLogout }) {
         >
             <div className={cn("w-[22px] h-[22px] rounded-full overflow-hidden border-2 transition-all flex items-center justify-center bg-secondary", activeTab === 'profile' ? "border-primary scale-110" : "border-border")}>
                {cachedPhoto ? (
+                   /* eslint-disable-next-line @next/next/no-img-element */
                    <img src={cachedPhoto} alt="Profile" className="w-full h-full object-cover" />
                ) : (
                    <span className="text-[10px] font-black text-foreground leading-none">{displayName?.charAt(0) || "S"}</span>

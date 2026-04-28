@@ -1009,10 +1009,12 @@ export default function GradesView({ token, onExpired }) {
                           </p>
                           <p className="text-[9px] font-medium text-muted-foreground">Grade</p>
                         </div>
-                        <div className="text-center">
-                          <p className="text-sm font-black tracking-tight text-sky-300">{subject.marksText}</p>
-                          <p className="text-[9px] font-medium text-muted-foreground">{subject.marksPercent || 'Marks'}</p>
-                        </div>
+                        {subject.marksText && subject.marksText !== '-' && subject.marksText !== '0/0' && (
+                          <div className="text-center">
+                            <p className="text-sm font-black tracking-tight text-sky-300">{subject.marksText}</p>
+                            <p className="text-[9px] font-medium text-muted-foreground">{subject.marksPercent || 'Marks'}</p>
+                          </div>
+                        )}
                         <div className="text-center">
                           <p className="text-xl font-black tracking-tight text-foreground">
                             {toDisplayNumber(subject.credit, 0)}

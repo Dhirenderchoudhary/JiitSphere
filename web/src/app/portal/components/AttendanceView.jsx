@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import {
   fetchPortalAttendance,
   fetchPortalAttendanceCounts,
@@ -15,6 +15,7 @@ import {
   toPercent,
   resolveAttendanceCounts,
   buildAttendanceGuidance,
+  missOrNeedText,
   dateScore
 } from '../utils';
 import { Clock, Filter, ArrowUpRight, ArrowDownRight, FolderOpen, AlertCircle, CheckCircle2, Activity, Settings } from 'lucide-react';
@@ -213,7 +214,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
     return () => { cancelled = true; };
   }, [attendance, selectedSem, token, onExpired]);
 
-  const selectSubject = async (row, openDrawer = false) => {
+  const selectSubject = useCallback(async (row, openDrawer = false) => {
       const activeCode = String(row?.subjectcode || row?.individualsubjectcode || '').trim();
       setActiveSubject(row);
       setHistoryDetail({ loading: true, rows: [] });
@@ -224,29 +225,57 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
         setHistoryDetail({ loading: false, rows: response?.data?.studentAttdsummarylist || [] });
       } catch (err) {
         if (err instanceof SessionExpiredError) { onExpired?.(); return; }
-                setHistoryDetail({
-                    loading: false,
-                    rows: [],
-                    error: err?.message || 'Unable to load attendance details right now. Please retry.'
-                });
+        setHistoryDetail({
+            loading: false,
+            rows: [],
+            error: err?.message || 'Unable to load attendance details right now. Please retry.'
+        });
       }
-  }
+  }, [token, selectedSem, onExpired]);
 
   // --- Aggregate Math Logic ---
+  // Helper: get attended + total from a row's L/T/P fields (available immediately from portal)
+  const rowCounts = useCallback((row) => {
+    const resolved = resolveAttendanceCounts(row, targetAttendancePct, { allowDerived: true });
+    if (resolved?.total > 0) return { attended: resolved.attended, total: resolved.total };
+
+    const lc = Number(row?.Lclass || 0);
+    const la = Number(row?.Lattended || 0);
+    const tc = Number(row?.Tclass || 0);
+    const ta = Number(row?.Tattended || 0);
+    const pc = Number(row?.Pclass || 0);
+    const pa = Number(row?.Pattended || 0);
+    return { attended: la + ta + pa, total: lc + tc + pc };
+  }, [targetAttendancePct]);
+
   const aggregateMetrics = useMemo(() => {
     if (!attendance.length) return null;
     let tC = 0; let tA = 0;
 
     attendance.forEach(row => {
         const code = String(row?.subjectcode || row?.individualsubjectcode || '').trim();
+        // Prefer subjectCounts if loaded, otherwise use row's L+T+P fields
         if (subjectCounts[code] && subjectCounts[code].total > 0) {
             tC += subjectCounts[code].total; tA += subjectCounts[code].attended;
+        } else {
+            const rc = rowCounts(row);
+            if (rc.total > 0) {
+                tC += rc.total; tA += rc.attended;
+            }
         }
     });
 
-    if (tC === 0) return null;
+    if (tC === 0) {
+      // Final fallback: compute average from the LTpercantage values
+      const pcts = attendance.map(r => Number(r?.LTpercantage || 0)).filter(p => p > 0);
+      if (pcts.length) {
+        const avg = pcts.reduce((s, p) => s + p, 0) / pcts.length;
+        return { attended: 0, total: 0, pct: avg, fallback: true };
+      }
+      return null;
+    }
     return { attended: tA, total: tC, pct: (tA / tC) * 100 };
-  }, [attendance, subjectCounts]);
+  }, [attendance, subjectCounts, rowCounts]);
 
   const targetVal = Number(targetAttendancePct || 75);
 
@@ -331,7 +360,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                               <div className="flex items-center justify-between mt-2">
                                   <span className="text-[9px] font-mono tracking-wider opacity-60 bg-foreground/5 px-1.5 py-0.5 rounded uppercase">{subjectCode}</span>
                                   <span className="text-[10px] font-bold text-muted-foreground">
-                                      {countState?.total ? `${countState.attended} / ${countState.total}` : '...'}
+                                      {countState && !countState.loading ? `${countState.attended} / ${countState.total}` : (() => { const rc = rowCounts(row); return rc.total >= 0 ? `${rc.attended} / ${rc.total}` : '...'; })()}
                                   </span>
                               </div>
                           </button>
@@ -343,13 +372,15 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
       setCustomSidebar(sidebarJsx);
 
       return () => setCustomSidebar(null);
-    }, [attendance, subjectCounts, activeCode, isDetailView, targetVal, setCustomSidebar, meta?.semesters, selectedSem]);
+    }, [attendance, subjectCounts, activeCode, isDetailView, targetVal, setCustomSidebar, meta?.semesters, selectedSem, selectSubject, rowCounts]);
 
   if (isDetailView) {
       const cState = subjectCounts[activeCode];
       layoutPct = Number(activeSubject.LTpercantage || 0);
-      layoutTotal = Number(cState?.total || 0);
-      layoutAttended = Number(cState?.attended || 0);
+      // Use subjectCounts if loaded, otherwise derive from row's L+T+P fields
+      const rc = rowCounts(activeSubject);
+      layoutTotal = Number(cState?.total || rc.total || 0);
+      layoutAttended = Number(cState?.attended || rc.attended || 0);
       const ratioParam = layoutTotal > 0 ? { attended: layoutAttended, total: layoutTotal } : undefined;
       layoutGuidance = buildAttendanceGuidance(activeSubject, targetVal, ratioParam);
       layoutSafe = layoutPct >= targetVal;
@@ -358,7 +389,11 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
       layoutTotal = aggregateMetrics.total;
       layoutAttended = aggregateMetrics.attended;
       layoutSafe = layoutPct >= targetVal;
-      layoutGuidance = layoutSafe ? "Global aggregate safe" : "Global aggregate at risk";
+      if (layoutTotal > 0) {
+        layoutGuidance = missOrNeedText(layoutAttended, layoutTotal, targetVal);
+      } else {
+        layoutGuidance = `Avg across ${attendance.length} subjects`;
+      }
   }
 
   const dashboardHeader = (
@@ -381,13 +416,15 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                  </div>
                  {aggregateMetrics || isDetailView ? (
                     <SegmentedArch pct={layoutPct} />
+                 ) : attendance.length > 0 ? (
+                    <div className="h-[120px] flex items-center justify-center text-xs font-mono uppercase tracking-widest text-muted-foreground animate-pulse">Computing metrics...</div>
                  ) : (
-                    <div className="h-[120px] flex items-center justify-center text-sm font-medium text-muted-foreground">Loading topology...</div>
+                    <div className="h-[120px] flex items-center justify-center text-xs font-medium text-muted-foreground">No attendance data yet</div>
                  )}
              </div>
 
              {/* Status and Volume Details */}
-             { (aggregateMetrics || isDetailView) && (
+             { (aggregateMetrics || isDetailView) ? (
                  <div className="flex-1 flex flex-row items-center w-full border-t border-border/40 pt-4 md:border-t-0 md:pt-0 md:border-l md:border-border md:pl-6 gap-4 sm:gap-6 md:gap-10">
 
                     {/* Status */}
@@ -401,7 +438,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                             {layoutSafe ? "Secure" : "Critical"}
                         </span>
                         <p className="text-[9px] sm:text-[10px] font-medium text-foreground line-clamp-2 leading-tight opacity-80 max-w-[200px]">
-                            {isDetailView ? layoutGuidance : (aggregateMetrics ? `${aggregateMetrics.attended} Total Classes` : 'Analyzing...')}
+                            {isDetailView ? layoutGuidance : (layoutGuidance || 'Analyzing...')}
                         </p>
                     </div>
 
@@ -411,20 +448,37 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                     <div className="flex-1 flex flex-col justify-center h-full">
                         <div className="flex items-center gap-1.5 text-muted-foreground mb-1.5">
                             <Activity className="w-3.5 h-3.5" />
-                            <h3 className="text-[10px] font-bold uppercase tracking-wider">Volume</h3>
+                            <h3 className="text-[10px] font-bold uppercase tracking-wider">{isDetailView ? 'Volume' : 'Overview'}</h3>
                         </div>
-                        <div className="flex items-baseline gap-1 mb-1.5">
-                            <span className="text-xl md:text-2xl font-black tracking-tighter text-foreground leading-none">{layoutAttended}</span>
-                            <span className="text-[10px] sm:text-xs font-bold text-muted-foreground">/ {layoutTotal}</span>
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-1 sm:gap-3 text-[9px] font-bold text-muted-foreground uppercase leading-tight">
-                            <span>Lab {isDetailView && <span className="text-foreground tracking-wider ml-0.5">{toPercent(activeSubject?.Ppercentage)}</span>}</span>
-                            <span>Lec {isDetailView && <span className="text-foreground tracking-wider ml-0.5">{toPercent(activeSubject?.Lpercentage)}</span>}</span>
-                        </div>
+                        {aggregateMetrics?.fallback ? (
+                          <>
+                            <div className="flex items-baseline gap-1 mb-1.5">
+                                <span className="text-xl md:text-2xl font-black tracking-tighter text-foreground leading-none">{attendance.length}</span>
+                                <span className="text-[10px] sm:text-xs font-bold text-muted-foreground">subjects</span>
+                            </div>
+                            <span className="text-[9px] font-bold text-muted-foreground uppercase">Avg {Math.round(aggregateMetrics.pct)}%</span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-baseline gap-1 mb-1.5">
+                                <span className="text-xl md:text-2xl font-black tracking-tighter text-foreground leading-none">{layoutAttended}</span>
+                                <span className="text-[10px] sm:text-xs font-bold text-muted-foreground">/ {layoutTotal}</span>
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-1 sm:gap-3 text-[9px] font-bold text-muted-foreground uppercase leading-tight">
+                                <span>Lec {isDetailView && <span className="text-foreground tracking-wider ml-0.5">{toPercent(activeSubject?.Lpercentage)}</span>}</span>
+                                <span>Tut {isDetailView && <span className="text-foreground tracking-wider ml-0.5">{toPercent(activeSubject?.Tpercentage)}</span>}</span>
+                                <span>Lab {isDetailView && <span className="text-foreground tracking-wider ml-0.5">{toPercent(activeSubject?.Ppercentage)}</span>}</span>
+                            </div>
+                          </>
+                        )}
                     </div>
 
                  </div>
-             )}
+             ) : attendance.length > 0 ? (
+                 <div className="flex-1 flex items-center justify-center border-t border-border/40 pt-4 md:border-t-0 md:pt-0 md:border-l md:border-border md:pl-6">
+                    <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground animate-pulse">Syncing class counts...</span>
+                 </div>
+             ) : null}
       </motion.div>
   );
 
@@ -480,16 +534,51 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                              </tbody>
                          </table>
                      ) : (
-                         <div className="flex items-center justify-center h-full text-xs font-mono uppercase tracking-widest text-muted-foreground text-center">
-                             {historyDetail?.error || 'Empty Timeline Array.'}
+                         <div className="flex flex-col items-center justify-center h-full text-muted-foreground space-y-3">
+                             <div className="w-12 h-12 rounded-full border border-dashed border-border flex items-center justify-center bg-muted/20">
+                                <Clock className="w-5 h-5 opacity-50" />
+                             </div>
+                             <p className="text-sm font-medium text-center max-w-xs">
+                                 {historyDetail?.error || 'No class-by-class records available for this subject yet.'}
+                             </p>
                          </div>
                      )
+                 ) : attendance.length > 0 ? (
+                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 p-2 sm:p-0">
+                         {attendance.map((row) => {
+                             const code = String(row?.subjectcode || row?.individualsubjectcode || '').trim();
+                             const pct = Number(row?.LTpercantage || 0);
+                             const countState = subjectCounts[code];
+                             const safe = pct >= targetVal;
+                             return (
+                                 <button
+                                     key={code}
+                                     onClick={() => selectSubject(row)}
+                                     className="text-left rounded-xl border border-border/50 bg-muted/10 hover:bg-muted/30 hover:border-primary/20 transition-all p-4 space-y-2.5"
+                                 >
+                                     <div className="flex items-start justify-between gap-2">
+                                         <span className="text-xs font-bold text-foreground leading-snug line-clamp-2">{row.subjectdesc || code}</span>
+                                         <span className={cn("text-lg font-black tracking-tighter shrink-0", safe ? "text-emerald-500" : "text-rose-500")}>{Math.round(pct)}%</span>
+                                     </div>
+                                     <div className="w-full h-1.5 rounded-full bg-border/40 overflow-hidden">
+                                         <div className={cn("h-full rounded-full transition-all duration-500", safe ? "bg-emerald-500" : "bg-rose-500")} style={{ width: `${Math.min(pct, 100)}%` }} />
+                                     </div>
+                                     <div className="flex items-center justify-between">
+                                         <span className="text-[9px] font-mono tracking-wider text-muted-foreground/60 uppercase">{code}</span>
+                                         <span className="text-[10px] font-bold text-muted-foreground">
+                                             {countState && !countState.loading ? `${countState.attended} / ${countState.total}` : (() => { const rc = rowCounts(row); return rc.total >= 0 ? `${rc.attended} / ${rc.total}` : '-'; })()}
+                                         </span>
+                                     </div>
+                                 </button>
+                             );
+                         })}
+                     </div>
                  ) : (
                      <div className="flex flex-col items-center justify-center h-full text-muted-foreground space-y-3">
                          <div className="w-12 h-12 rounded-full border border-dashed border-border flex items-center justify-center bg-muted/20">
                             <FolderOpen className="w-5 h-5 opacity-50" />
                          </div>
-                         <p className="text-sm font-medium">Select a module from the roster to view timeline telemetry.</p>
+                         <p className="text-sm font-medium">No attendance data loaded yet.</p>
                      </div>
                  )}
              </div>
