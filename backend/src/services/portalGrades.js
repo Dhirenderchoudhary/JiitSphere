@@ -52,7 +52,7 @@ const sortSemestersChronological = (semesters) =>
 /**
  * Fetch SGPA/CGPA data from the official portal API.
  *
- * Flow (exactly mirrors jsjiit):
+ * Flow (exactly mirrors jiit):
  *   1. POST checkIfstudentmasterexist → get currentsemester (stynumber)
  *   2. POST getallsemesterdata        → get semesterList with sgpa/cgpa per semester
  *

@@ -10,7 +10,7 @@
  */
 
 const crypto = require('crypto');
-const { encryptPortalPayload } = require('../utils/portalCrypto');
+const { encryptPortalPayload, generatePortalLocalName } = require('../utils/portalCrypto');
 const { ensureOwnedSession, buildCookieHeader } = require('./portalRelayService');
 const env = require('../config/env');
 
@@ -65,14 +65,9 @@ const dateCode = (date = new Date()) => {
   return `${dd[0]}${mm[0]}${yy[0]}${dow}${dd[1]}${mm[1]}${yy[1]}`;
 };
 
-const buildLocalNameHeader = (tokenDate = new Date().toString()) => {
-  const head = String(tokenDate).substring(0, 4);
-  const tail = String(tokenDate).substring(4, 9);
-  return encryptPortalPayload(
-    `${head}${dateCode(new Date())}${tail}`,
-    new Date(),
-    PORTAL_TIME_ZONE
-  );
+const buildLocalNameHeader = () => {
+  // Match jiit's generate_local_name(): random(4) + dateSeq(7) + random(5), AES-encrypted
+  return generatePortalLocalName(new Date(), PORTAL_TIME_ZONE);
 };
 
 /** Secure payload hash using SHA-256 for dedup key */
@@ -114,9 +109,10 @@ class PortalClient {
     };
     const cookieHeader = buildCookieHeader(this.relaySession);
     if (cookieHeader) headers.Cookie = cookieHeader;
+    // jiit sends LocalName on EVERY request (auth + unauth)
+    headers.LocalName = buildLocalNameHeader();
     if (this.auth.token) {
       headers.Authorization = `Bearer ${this.auth.token}`;
-      headers.LocalName = buildLocalNameHeader(this.auth.tokenDate);
     }
     return headers;
   }
@@ -234,11 +230,15 @@ class PortalClient {
       let contentType = 'application/json';
 
       if (encrypted) {
-        body = encryptPortalPayload(
+        // Match jiit behavior: encrypt → base64 → JSON.stringify (wraps in quotes)
+        // jiit: serialize_payload(obj) → base64string
+        //         __hit: fetchOptions.body = JSON.stringify(base64string) → '"base64string"'
+        const encryptedBase64 = encryptPortalPayload(
           JSON.stringify(payload || {}),
           new Date(),
           PORTAL_TIME_ZONE
         );
+        body = JSON.stringify(encryptedBase64);
       } else {
         body = JSON.stringify(payload || {});
       }

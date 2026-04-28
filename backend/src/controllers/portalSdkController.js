@@ -7,6 +7,7 @@ const { buildPublicDemoDataset } = require('../services/demoPortalDataset');
 const { PortalClient, PortalError } = require('../services/portalClient');
 const { fetchOfficialGradeSummaries } = require('../services/portalGrades');
 const { fetchMarks: fetchMarksFromPdf } = require('../services/portalMarks');
+const attendanceService = require('../services/portalAttendanceService');
 
 const PORTAL_TIME_ZONE = 'Asia/Kolkata';
 
@@ -2600,6 +2601,42 @@ const getAttendanceMeta = async (req, res) => {
   const session = ensureSession(req, res);
   if (!session) return undefined;
 
+  const relaySessionId = session.dataset.relaySessionId;
+  const ownerId = ownerKey(req);
+  const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
+  const authContext = buildAuthContextFromRelaySession(relaySession);
+
+  // If we have a live relay session, fetch fresh meta from portal
+  if (relaySession && authContext?.instituteid) {
+    try {
+      const forceRefresh = parseBooleanLike(req.query?.refresh, false);
+      const meta = await attendanceService.fetchAttendanceMeta(relaySession, authContext, { forceRefresh });
+
+      // Update session dataset with fresh semesters
+      if (meta.semesters.length) {
+        session.dataset.semesters = meta.semesters;
+        session.dataset.attendanceHeaders = meta.headers;
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          semesters: meta.semesters,
+          latest_semester: meta.semesters[0] || null,
+          latest_header: {
+            generatedBy: 'attendance-service',
+            realData: session.dataset.realData,
+            stynumber: meta.latestStynumber,
+            message: 'Live portal data via attendance service.'
+          }
+        }
+      });
+    } catch (_err) {
+      // Fall through to cached dataset
+    }
+  }
+
+  // Fallback: return cached semesters from session dataset
   return res.status(200).json({
     success: true,
     data: {
@@ -2956,11 +2993,38 @@ const getAttendance = async (req, res) => {
   if (!session) return undefined;
 
   const sem = req.query.semester || session.dataset.semesters[0]?.registration_id;
-  const direct = session.dataset.attendanceData[sem];
-  if (direct && Array.isArray(direct.studentattendancelist)) {
-    return res.status(200).json({ success: true, data: direct });
+  const forceRefresh = parseBooleanLike(req.query?.refresh, false);
+
+  // Check session cache first (fast path)
+  if (!forceRefresh) {
+    const direct = session.dataset.attendanceData[sem];
+    if (direct && Array.isArray(direct.studentattendancelist) && direct.studentattendancelist.length) {
+      return res.status(200).json({ success: true, data: direct });
+    }
   }
 
+  // Use clean attendance service for on-demand fetch
+  const relaySessionId = session.dataset.relaySessionId;
+  const ownerId = ownerKey(req);
+  const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
+  const authContext = buildAuthContextFromRelaySession(relaySession);
+
+  if (relaySession && authContext?.instituteid) {
+    try {
+      const result = await attendanceService.fetchAttendance(relaySession, authContext, sem, { forceRefresh });
+      if (result.studentattendancelist.length) {
+        // Update session cache
+        session.dataset.attendanceData[sem] = result;
+        session.dataset.realData = true;
+        if (result.subjects) session.dataset.subjects[sem] = result.subjects;
+        return res.status(200).json({ success: true, data: result });
+      }
+    } catch (_err) {
+      // Fall through to legacy hydration
+    }
+  }
+
+  // Legacy fallback: try existing hydrateAttendanceForSemester
   const hydrated = await hydrateAttendanceForSemester(session, req, sem);
   if (hydrated && Array.isArray(hydrated.studentattendancelist)) {
     return res.status(200).json({ success: true, data: hydrated });
@@ -3010,7 +3074,18 @@ const getAttendanceCounts = async (req, res) => {
 
   await mapWithConcurrency(pendingRows, 4, async ({ subjectCode }) => {
     try {
-      const payload = await resolveSubjectDailyPayload(session, req, sem, subjectCode);
+      const relaySessionId = session.dataset.relaySessionId;
+      const ownerId = ownerKey(req);
+      const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
+      const authContext = buildAuthContextFromRelaySession(relaySession);
+
+      let payload = null;
+      if (relaySession && authContext?.instituteid) {
+        payload = await attendanceService.fetchSubjectDailyAttendance(relaySession, authContext, sem, subjectCode);
+      } else {
+        payload = await resolveSubjectDailyPayload(session, req, sem, subjectCode);
+      }
+
       const summary = computeDailyCountSummary(payload?.studentAttdsummarylist || []);
       counts[subjectCode] = {
         attended: summary.attended,
@@ -3045,6 +3120,26 @@ const getSubjectAttendance = async (req, res) => {
   const sem = req.query.semester || session.dataset.semesters[0]?.registration_id;
   const subject = req.query.subject || '';
 
+  // Try clean service first
+  const relaySessionId = session.dataset.relaySessionId;
+  const ownerId = ownerKey(req);
+  const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
+  const authContext = buildAuthContextFromRelaySession(relaySession);
+
+  if (relaySession && authContext?.instituteid) {
+    try {
+      const result = await attendanceService.fetchSubjectDailyAttendance(
+        relaySession, authContext, sem, subject
+      );
+      if (result.studentAttdsummarylist.length) {
+        return res.status(200).json({ success: true, data: result });
+      }
+    } catch (_err) {
+      // Fall through to legacy
+    }
+  }
+
+  // Legacy fallback
   const payload = await resolveSubjectDailyPayload(session, req, sem, subject);
   return res.status(200).json({
     success: true,
