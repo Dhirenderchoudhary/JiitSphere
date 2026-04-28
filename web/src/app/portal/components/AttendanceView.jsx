@@ -510,27 +510,50 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
 
       {/* Mobile Master Pane */}
       <div className="flex flex-col lg:hidden w-full h-full min-h-0 bg-card border border-border shadow-sm rounded-2xl overflow-hidden shrink-0">
-          <div className="p-5 border-b border-border bg-muted/20 flex justify-between items-start gap-4">
-              <div>
-                  <h2 className="text-base font-bold text-foreground">Attendance List</h2>
-                  <p className="text-xs font-medium text-muted-foreground mt-0.5">Select a module to view timeline</p>
+          <div className="p-5 border-b border-border bg-muted/20 flex flex-col gap-3">
+              <div className="flex justify-between items-start gap-4">
+                  <div>
+                      <h2 className="text-base font-bold text-foreground">Attendance List</h2>
+                      <p className="text-xs font-medium text-muted-foreground mt-0.5">Select a module to view timeline</p>
+                  </div>
+                  <div className="relative flex items-center border border-border bg-card shadow-sm rounded-lg overflow-hidden transition-colors hover:bg-muted mt-1 shrink-0">
+                      <div className="px-2 text-muted-foreground border-r border-border flex items-center justify-center">
+                          <Settings className="w-3.5 h-3.5" />
+                      </div>
+                      <select
+                          value={targetVal}
+                          onChange={(e) => setTargetAttendancePct(e.target.value)}
+                          className="bg-transparent text-xs font-bold text-foreground focus:outline-none appearance-none px-2 py-1.5 cursor-pointer"
+                      >
+                          <option value="60">60%</option>
+                          <option value="65">65%</option>
+                          <option value="70">70%</option>
+                          <option value="75">75%</option>
+                          <option value="80">80%</option>
+                          <option value="85">85%</option>
+                          <option value="90">90%</option>
+                      </select>
+                  </div>
               </div>
-              <div className="relative flex items-center border border-border bg-card shadow-sm rounded-lg overflow-hidden transition-colors hover:bg-muted mt-1 shrink-0">
-                  <div className="px-2 text-muted-foreground border-r border-border flex items-center justify-center">
-                      <Settings className="w-3.5 h-3.5" />
+              {/* Semester Selector — Mobile */}
+              <div className="relative flex items-center bg-card border border-border shadow-sm rounded-xl overflow-hidden transition-colors hover:border-primary/30">
+                  <div className="px-3 text-muted-foreground border-r border-border flex items-center justify-center shrink-0">
+                      <Clock className="w-3.5 h-3.5" />
                   </div>
                   <select
-                      value={targetVal}
-                      onChange={(e) => setTargetAttendancePct(e.target.value)}
-                      className="bg-transparent text-xs font-bold text-foreground focus:outline-none appearance-none px-2 py-1.5 cursor-pointer"
+                      value={selectedSem}
+                      onChange={(e) => {
+                          setActiveSubject(null);
+                          setHistoryDetail(null);
+                          setSelectedSem(e.target.value);
+                      }}
+                      className="w-full bg-transparent text-xs font-bold text-foreground focus:outline-none appearance-none px-3 py-2 cursor-pointer"
                   >
-                      <option value="60">60%</option>
-                      <option value="65">65%</option>
-                      <option value="70">70%</option>
-                      <option value="75">75%</option>
-                      <option value="80">80%</option>
-                      <option value="85">85%</option>
-                      <option value="90">90%</option>
+                      {(Array.isArray(meta?.semesters) ? meta.semesters : []).map((sem) => (
+                        <option key={sem.registration_id} value={sem.registration_id}>
+                            {sem.registration_code || sem.registration_id}
+                        </option>
+                      ))}
                   </select>
               </div>
           </div>
