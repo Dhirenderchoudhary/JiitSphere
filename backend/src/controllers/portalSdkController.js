@@ -595,7 +595,7 @@ const mergeGradeSummaries = (primaryRows = [], fallbackRows = []) => {
     if (codeToken) {
       byCodeToken.set(codeToken, key);
     }
-    
+
     if (preferIncoming) {
       existing.sgpa = incomingSgpa > 0 ? incomingSgpa : currentSgpa;
       existing.cgpa = incomingCgpa > 0 ? incomingCgpa : currentCgpa;
@@ -2017,6 +2017,43 @@ const shouldUsePlainFeePayload = (endpoint) =>
     '/StudentPortalAPI/studentfeemgmt/getsemesterwisefeedetails'
   ].includes(endpoint);
 
+/**
+ * Resolves the stynumber for a semester row using multiple fallback sources.
+ * This is critical — if stynumber is missing, the JIIT portal attendance API returns empty data.
+ */
+const resolveStynumber = (sem, dataset = {}) => {
+  // 1. Direct from the semester row itself
+  if (sem?.stynumber) return sem.stynumber;
+
+  // 2. From attendance headers stored during bootstrap
+  const headers = dataset?.attendanceHeaders || [];
+  if (Array.isArray(headers) && headers.length) {
+    const headerStynumber = headers[0]?.stynumber || headers[0]?.sty_number;
+    if (headerStynumber) return headerStynumber;
+  }
+
+  // 3. From profile data
+  const profileStynumber = dataset?.profile?.stynumber || dataset?.profile?.semester;
+  if (profileStynumber) return String(profileStynumber);
+
+  // 4. Derive from semester position — semesters are sorted descending,
+  //    so index 0 = latest. The JIIT portal numbers semesters 1-indexed.
+  const semesters = dataset?.semesters || [];
+  if (semesters.length) {
+    const idx = semesters.findIndex(
+      (row) => String(row?.registration_id) === String(sem?.registration_id)
+    );
+    if (idx >= 0) {
+      // Latest semester = highest number = total count
+      return String(semesters.length - idx);
+    }
+    // Absolute fallback: just use the total semester count (i.e. latest)
+    return String(semesters.length);
+  }
+
+  return null;
+};
+
 const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {}) => {
   const { includeExamHydration = true } = options;
   const diagnostics = {
@@ -2055,6 +2092,7 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
         }
       : null,
     subjects: {},
+    attendanceHeaders: [],
     diagnostics
   };
 
@@ -2146,12 +2184,22 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
       dataset.semesters = sortSemestersDesc(merged);
     }
     if (Array.isArray(attendanceHeaderRows) && attendanceHeaderRows.length) {
+      dataset.attendanceHeaders = attendanceHeaderRows;
       dataset.profile = {
         ...(dataset.profile || {}),
         ...stripEmptyProfileValues(
           mapAttendanceHeaderToProfile(attendanceHeaderRows[0], dataset.semesters[0]?.registration_code || null)
         )
       };
+      // Enrich semester rows with stynumber from the attendance header if missing
+      const headerStynumber = attendanceHeaderRows[0]?.stynumber || attendanceHeaderRows[0]?.sty_number;
+      if (headerStynumber) {
+        dataset.profile.stynumber = dataset.profile.stynumber || headerStynumber;
+        dataset.semesters = dataset.semesters.map((sem, idx) => ({
+          ...sem,
+          stynumber: sem.stynumber || (idx === 0 ? headerStynumber : null)
+        }));
+      }
     }
     setStep('attendanceMeta', { status: attendanceMetaRes?.ok && statusSuccess(attendanceMetaRes.data) ? 'ok' : 'failed', endpoint: '/StudentPortalAPI/StudentClassAttendance/getstudentInforegistrationforattendence', httpStatus: attendanceMetaRes?.status, responseStatus: attendanceMetaRes?.data?.status?.responseStatus || '' });
 
@@ -2191,13 +2239,17 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
       ? dataset.semesters.slice(0, maxAttendanceSemesters)
       : [];
 
-    const attendancePromises = (latestHeader?.stynumber && attendanceHydrationSemesters.length) ? attendanceHydrationSemesters.map((sem) => {
-      const stynumber = sem.stynumber || latestHeader?.stynumber;
-      if (!sem?.registration_id || !sem?.registration_code || !stynumber) return null;
+    // Attendance hydration NO LONGER gated on latestHeader?.stynumber.
+    // resolveStynumber provides resilient fallback resolution.
+    const attendancePromises = attendanceHydrationSemesters.length ? attendanceHydrationSemesters.map((sem) => {
+      const stynumber = resolveStynumber(sem, dataset);
+      if (!sem?.registration_id || !sem?.registration_code) return null;
+      // stynumber may be null — attempt the call anyway; the portal will
+      // return empty rows rather than error, and we lose nothing.
       return safe(Promise.all([
         postPortal(relaySession, authContext,
           '/StudentPortalAPI/StudentClassAttendance/getstudentattendancedetail',
-          { clientid: authContext.clientid, instituteid: authContext.instituteid, registrationcode: sem.registration_code, registrationid: sem.registration_id, stynumber }),
+          { clientid: authContext.clientid, instituteid: authContext.instituteid, registrationcode: sem.registration_code, registrationid: sem.registration_id, stynumber: stynumber || '' }),
         postPortal(relaySession, authContext,
           '/StudentPortalAPI/reqsubfaculty/getfaculties',
           { instituteid: authContext.instituteid, studentid: authContext.memberid, registrationid: sem.registration_id })
@@ -2566,10 +2618,12 @@ const hydrateAttendanceForSemester = async (session, req, sem) => {
   const semesterRow = (session.dataset.semesters || []).find(
     (row) => String(row?.registration_id) === String(sem)
   );
-  const stynumber = semesterRow?.stynumber || session.dataset?.profile?.stynumber;
-  if (!semesterRow?.registration_id || !semesterRow?.registration_code || !stynumber) {
+  if (!semesterRow?.registration_id || !semesterRow?.registration_code) {
     return null;
   }
+
+  // Resilient stynumber resolution — no longer hard-gates on it
+  const stynumber = resolveStynumber(semesterRow, session.dataset);
 
   const relaySessionId = session.dataset.relaySessionId;
   const ownerId = ownerKey(req);
@@ -2587,7 +2641,7 @@ const hydrateAttendanceForSemester = async (session, req, sem) => {
         instituteid: authContext.instituteid,
         registrationcode: semesterRow.registration_code,
         registrationid: semesterRow.registration_id,
-        stynumber
+        stynumber: stynumber || ''
       }
     ),
     postPortal(relaySession, authContext,
@@ -2902,17 +2956,6 @@ const getAttendance = async (req, res) => {
   if (!session) return undefined;
 
   const sem = req.query.semester || session.dataset.semesters[0]?.registration_id;
-  if (!session.dataset.realData) {
-    return res.status(200).json({
-      success: true,
-      data: {
-        studentattendancelist: [],
-        realData: false,
-        message: 'No direct attendance data available yet.'
-      }
-    });
-  }
-
   const direct = session.dataset.attendanceData[sem];
   if (direct && Array.isArray(direct.studentattendancelist)) {
     return res.status(200).json({ success: true, data: direct });
@@ -2937,16 +2980,6 @@ const getAttendanceCounts = async (req, res) => {
   if (!session) return undefined;
 
   const sem = req.query.semester || session.dataset.semesters[0]?.registration_id;
-  if (!session.dataset.realData) {
-    return res.status(200).json({
-      success: true,
-      data: {
-        semester: sem,
-        counts: {}
-      }
-    });
-  }
-
   let attendanceRows = session.dataset.attendanceData?.[sem]?.studentattendancelist || [];
   if (!attendanceRows.length) {
     await hydrateAttendanceForSemester(session, req, sem);
@@ -3011,17 +3044,6 @@ const getSubjectAttendance = async (req, res) => {
 
   const sem = req.query.semester || session.dataset.semesters[0]?.registration_id;
   const subject = req.query.subject || '';
-
-  if (!session.dataset.realData) {
-    return res.status(200).json({
-      success: true,
-      data: {
-        studentAttdsummarylist: [],
-        realData: false,
-        message: 'No direct subject attendance data available yet.'
-      }
-    });
-  }
 
   const payload = await resolveSubjectDailyPayload(session, req, sem, subject);
   return res.status(200).json({
