@@ -23,7 +23,7 @@ export default function Footer() {
 
           {/* Navigation */}
           <div className="space-y-6">
-            <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-foreground">Quick Links</h4>
+            <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-foreground">QUICK LINKS</h4>
             <ul className="space-y-4">
               <li>
                 <Link href="/portal" className="text-sm text-muted-foreground hover:text-primary transition-colors">Student Portal</Link>
@@ -36,7 +36,7 @@ export default function Footer() {
 
           {/* Credits */}
           <div className="space-y-6">
-            <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-foreground">Community</h4>
+            <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-foreground">COMMUNITY</h4>
             <div className="flex flex-col gap-4 text-sm text-muted-foreground">
               <p>
                 Made with ❤️ by{' '}
@@ -59,7 +59,7 @@ export default function Footer() {
           </p>
           <div className="flex items-center gap-6">
             <p className="text-[11px] font-medium text-muted-foreground opacity-60">
-              Not affiliated with Jaypee Institute.
+              Not affiliated with Jaypee Institute of Information Technology.
             </p>
           </div>
         </div>

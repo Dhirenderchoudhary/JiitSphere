@@ -3,15 +3,15 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion';
-import { 
-  ArrowRight, 
-  BookOpen, 
-  LayoutDashboard, 
-  Activity, 
-  TrendingUp, 
-  History, 
-  Shield, 
-  Smartphone, 
+import {
+  ArrowRight,
+  BookOpen,
+  LayoutDashboard,
+  Activity,
+  TrendingUp,
+  History,
+  Shield,
+  Smartphone,
   Zap,
   Lock,
   Bell,
@@ -47,6 +47,7 @@ const container = {
 };
 
 const item = {
+  // Keep content visible at first paint so hydration/animation issues never result in a blank screen.
   hidden: { opacity: 1, y: 0 },
   show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } }
 };
@@ -57,43 +58,43 @@ export default function LandingPage() {
   return (
     <main className="relative min-h-screen bg-background selection:bg-primary selection:text-primary-foreground overflow-x-hidden font-[var(--font-manrope)]">
       <Navbar />
-      
+
       {/* Background Architectural Patterns */}
       <div className="fixed inset-0 dot-grid opacity-[0.15] pointer-events-none" />
       <div className="fixed inset-0 bg-gradient-to-b from-background via-transparent to-background pointer-events-none" />
 
-      <div className="relative pt-32 pb-24 md:pt-48 md:pb-40 lg:pt-56">
-        <motion.div 
+      <div className="relative pt-24 pb-20 sm:pt-28 sm:pb-24 md:pt-40 md:pb-32 lg:pt-56 lg:pb-40">
+        <motion.div
           variants={container}
           initial="hidden"
           animate="show"
-          className="relative w-full space-y-24 md:space-y-40 px-6 md:px-12 max-w-7xl mx-auto"
+          className="relative w-full space-y-16 sm:space-y-20 md:space-y-32 lg:space-y-40 px-5 sm:px-6 md:px-12 max-w-7xl mx-auto"
         >
           {/* ── Monumental Hero Section ─────────────────────────── */}
-          <motion.section variants={item} className="max-w-5xl mx-auto text-center space-y-10">
-            <div className="space-y-6">
-              <h2 className="text-6xl md:text-8xl lg:text-9xl font-bold tracking-tightest leading-[0.95] text-foreground font-[var(--font-instrument-sans)]">
+          <motion.section variants={item} className="max-w-5xl mx-auto text-center space-y-8 md:space-y-10">
+            <div className="space-y-5 md:space-y-6">
+              <h2 className="text-[2.5rem] sm:text-6xl md:text-8xl lg:text-9xl font-bold tracking-tightest leading-[0.96] md:leading-[0.95] text-foreground font-[var(--font-instrument-sans)]">
                  The academic <br />
                  <span className="text-primary font-medium tracking-tight">dashboard</span><br />
-                  <span className="opacity-90">for Jiit students.</span>
+                  <span className="opacity-90">for JIIT students.</span>
               </h2>
-              
-              <p className="max-w-2xl mx-auto text-lg md:text-xl text-muted-foreground leading-relaxed font-medium">
-                Consolidate your attendance, grades, and materials into a high-performance 
-                private workspace. Built for the daily workflows of JIIT.
+
+              <p className="max-w-2xl mx-auto text-[15px] sm:text-lg md:text-xl text-muted-foreground leading-relaxed font-medium">
+                Consolidate your attendance, grades, and materials into a high-performance
+                private workspace. Built for the daily workflows of JIIT students.
               </p>
             </div>
           </motion.section>
 
           {/* ── Flagship Product Cards ────────────────────────── */}
-          <motion.section variants={item} className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-5xl mx-auto">
+          <motion.section variants={item} className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 max-w-5xl mx-auto">
 
             {/* Student Portal */}
-            <Link href="/portal" className="group block">
-              <div className="relative h-full rounded-[2rem] border border-border/40 bg-card overflow-hidden transition-all duration-500 hover:border-primary/30 hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)]">
-                
+            <Link href="/portal" className="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2">
+              <div className="relative h-full rounded-[1.6rem] sm:rounded-[2rem] border border-border/40 bg-card overflow-hidden transition-all duration-500 hover:border-primary/30 hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)] active:scale-[0.995]">
+
                 {/* Mini dashboard preview */}
-                <div className="px-8 pt-8 md:px-10 md:pt-10">
+                <div className="px-6 pt-6 sm:px-8 sm:pt-8 md:px-10 md:pt-10">
                   <div className="rounded-xl border border-border/40 bg-secondary/30 p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -129,7 +130,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* Content */}
-                <div className="p-8 md:p-10 pt-6 md:pt-6 space-y-4">
+                <div className="p-6 sm:p-8 md:p-10 pt-5 sm:pt-6 md:pt-6 space-y-4">
                   <div>
                     <h3 className="text-3xl font-bold tracking-tight leading-none text-foreground font-[var(--font-instrument-sans)]">
                       Student Portal
@@ -138,7 +139,7 @@ export default function LandingPage() {
                       Attendance, grades, exams, and fees in one place.
                     </p>
                   </div>
-                  <Button className="gap-2 group-hover:gap-3 transition-all duration-300">
+                  <Button className="gap-2 group-hover:gap-3 transition-all duration-300 min-h-10">
                     Enter Portal <ArrowRight className="h-4 w-4" />
                   </Button>
                 </div>
@@ -146,11 +147,11 @@ export default function LandingPage() {
             </Link>
 
             {/* Material Vault */}
-            <Link href="/study-material" className="group block">
-              <div className="relative h-full rounded-[2rem] border border-border/40 bg-card overflow-hidden transition-all duration-500 hover:border-primary/30 hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)]">
-                
+            <Link href="/study-material" className="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2">
+              <div className="relative h-full rounded-[1.6rem] sm:rounded-[2rem] border border-border/40 bg-card overflow-hidden transition-all duration-500 hover:border-primary/30 hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)] active:scale-[0.995]">
+
                 {/* Document stack preview */}
-                <div className="px-8 pt-8 md:px-10 md:pt-10">
+                <div className="px-6 pt-6 sm:px-8 sm:pt-8 md:px-10 md:pt-10">
                   <div className="relative h-36 flex items-end justify-center">
                     {/* Back doc */}
                     <div className="absolute bottom-0 left-4 right-8 h-28 rounded-t-xl bg-secondary/50 border border-border/30 border-b-0 translate-y-1" />
@@ -180,7 +181,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* Content */}
-                <div className="p-8 md:p-10 pt-6 md:pt-6 space-y-4">
+                <div className="p-6 sm:p-8 md:p-10 pt-5 sm:pt-6 md:pt-6 space-y-4">
                   <div>
                     <h3 className="text-3xl font-bold tracking-tight leading-none text-foreground font-[var(--font-instrument-sans)]">
                       Material Vault
@@ -189,7 +190,7 @@ export default function LandingPage() {
                       1,300+ slides, PYQs, and solutions indexed by course.
                     </p>
                   </div>
-                  <Button className="gap-2 group-hover:gap-3 transition-all duration-300">
+                  <Button className="gap-2 group-hover:gap-3 transition-all duration-300 min-h-10">
                     Browse Library <ArrowRight className="h-4 w-4" />
                   </Button>
                 </div>
@@ -199,14 +200,14 @@ export default function LandingPage() {
 
 
           {/* ── Extreme Fidelity Interactive Bento Features Grid ── */}
-          <motion.section variants={item} className="space-y-16">
+          <motion.section variants={item} className="space-y-12 sm:space-y-16">
             <div className="text-center space-y-4">
               <h3 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground font-[var(--font-instrument-sans)] underline decoration-primary/20 underline-offset-8">The Full Suite</h3>
               <p className="text-muted-foreground font-medium max-w-xl mx-auto">Consolidated functional dashboard for the JIIT ecosystem.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[20rem]">
-              
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 auto-rows-[20rem]">
+
               {/* Feature 1: Smart Alerts (Notification Inbox) */}
               <SmartAlertsElite />
 
@@ -267,10 +268,10 @@ export default function LandingPage() {
                           <span className="text-[9px] font-black uppercase tracking-widest opacity-40">Datesheet</span>
                           <div className="relative flex items-center justify-center">
                              <div className="size-1.5 rounded-full bg-red-500 relative z-10" />
-                             <motion.div 
-                                animate={{ scale: [1, 2.5], opacity: [0.5, 0] }} 
+                             <motion.div
+                                animate={{ scale: [1, 2.5], opacity: [0.5, 0] }}
                                 transition={{ repeat: Infinity, duration: 2, ease: "easeOut" }}
-                                className="absolute size-4 rounded-full border border-red-500/50" 
+                                className="absolute size-4 rounded-full border border-red-500/50"
                              />
                           </div>
                        </div>
@@ -299,10 +300,10 @@ export default function LandingPage() {
                     <div className="relative size-24 flex items-center justify-center">
                        <motion.svg className="size-full -rotate-90">
                           <motion.circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-muted/20" />
-                          <motion.circle 
-                             cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="6" strokeDasharray="251" 
-                             variants={{ hover: { strokeDashoffset: 50, transition: { duration: 0.8, ease: "circOut" } } }} 
-                             initial={{ strokeDashoffset: 251 }} 
+                          <motion.circle
+                             cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="6" strokeDasharray="251"
+                             variants={{ hover: { strokeDashoffset: 50, transition: { duration: 0.8, ease: "circOut" } } }}
+                             initial={{ strokeDashoffset: 251 }}
                              fill="transparent" className="text-primary" />
                        </motion.svg>
                        <div className="absolute inset-0 flex flex-col items-center justify-center pt-1">
@@ -324,14 +325,14 @@ export default function LandingPage() {
                        <div className="flex justify-between items-start">
                           <Wallet className="h-5 w-5 text-primary opacity-40" />
                           <div className="relative">
-                             <motion.div 
-                                variants={{ 
-                                   hover: { 
-                                      scale: 1, 
+                             <motion.div
+                                variants={{
+                                   hover: {
+                                      scale: 1,
                                       opacity: 1,
                                       rotate: -12,
                                       transition: { type: "spring", stiffness: 500, damping: 15 }
-                                   } 
+                                   }
                                 }}
                                 initial={{ scale: 2, opacity: 0, rotate: 0 }}
                                 className="px-2 py-0.5 border-2 border-green-500 text-green-500 text-[10px] font-black rounded-sm uppercase tracking-tighter"
@@ -355,21 +356,21 @@ export default function LandingPage() {
               <motion.div whileHover="hover" className="bento-card group p-8 flex flex-col justify-between spotlight-card">
                  <div className="flex-1 flex flex-col items-center justify-center pt-4 relative">
                     {/* Morphing Container (Stable Geometry) */}
-                    <motion.div 
+                    <motion.div
                        layout
-                       variants={{ 
-                          hover: { 
-                             width: "100%", 
+                       variants={{
+                          hover: {
+                             width: "100%",
                              height: "140px",
                              borderRadius: "0px",
                              backgroundColor: "hsl(var(--card))",
                              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
                              transition: { type: "spring", stiffness: 200, damping: 35 }
-                          } 
+                          }
                        }}
-                       initial={{ 
-                          width: "160px", 
-                          height: "38px", 
+                       initial={{
+                          width: "160px",
+                          height: "38px",
                           borderRadius: "0px",
                           backgroundColor: "hsl(var(--secondary))"
                        }}
@@ -377,20 +378,20 @@ export default function LandingPage() {
                     >
                        {/* Pre-filled Subject ID (Glides smoothly from center) */}
                        <motion.div layout className="flex-1 flex flex-col h-full">
-                          <motion.div 
+                          <motion.div
                              layout
                              className={cn(
                                 "flex h-full",
                                 "group-hover:justify-between group-hover:p-4 justify-center items-center group-hover:items-start"
                              )}
                           >
-                             <motion.div 
+                             <motion.div
                                 layout
                                 className="text-[10px] font-black text-primary tracking-tighter"
                              >
                                 15B17CI311
                              </motion.div>
-                             
+
                              <motion.div
                                 variants={{ hover: { opacity: 1, x: 0 } }}
                                 initial={{ opacity: 0, x: 10 }}
@@ -400,7 +401,7 @@ export default function LandingPage() {
                              </motion.div>
                           </motion.div>
 
-                          <motion.div 
+                          <motion.div
                              variants={{ hover: { opacity: 1, y: 0, transition: { delay: 0.1 } } }}
                              initial={{ opacity: 0, y: 10 }}
                              className="px-4 pb-4 space-y-3 -mt-6 hidden group-hover:block"
@@ -410,7 +411,7 @@ export default function LandingPage() {
                                 <div className="text-[8px] font-medium text-muted-foreground opacity-60">Core Course • CS/IT</div>
                              </div>
 
-                             <motion.div 
+                             <motion.div
                                 variants={{ hover: { opacity: 1, scaleX: 1, transition: { delay: 0.2 } } }}
                                 initial={{ opacity: 0, scaleX: 0 }}
                                 className="h-1 w-full bg-muted rounded-full overflow-hidden origin-left"
@@ -421,7 +422,7 @@ export default function LandingPage() {
                        </motion.div>
 
                        {/* Search Icon (Absolute Overlay for Pill State) */}
-                       <motion.div 
+                       <motion.div
                           variants={{ hover: { opacity: 0, scale: 0.5 } }}
                           className="absolute right-4 top-3 group-hover:hidden"
                        >
@@ -440,7 +441,7 @@ export default function LandingPage() {
                  <div className="flex-1 flex items-center justify-center pt-8 relative w-full h-full lg:px-12">
                     <div className="relative w-full h-full flex items-center justify-center">
                        {/* Laptop Frame */}
-                       <motion.div 
+                       <motion.div
                           variants={{ hover: { y: -10, opacity: 1, scale: 1.05 } }}
                           transition={{ type: 'spring', stiffness: 200, damping: 25 }}
                           className="relative w-72 h-44 bg-card/40 border-[4px] border-border rounded-xl shadow-2xl flex flex-col overflow-hidden z-0 backdrop-blur-sm"
@@ -464,7 +465,7 @@ export default function LandingPage() {
                        </motion.div>
 
                        {/* Tablet Frame */}
-                       <motion.div 
+                       <motion.div
                           variants={{ hover: { x: -40, y: 15, rotate: -2, scale: 1.05 } }}
                           transition={{ type: 'spring', stiffness: 250, damping: 25, delay: 0.05 }}
                           className="absolute bottom-4 left-1/4 w-32 h-44 bg-card border-[3px] border-border rounded-2xl shadow-xl z-20 backdrop-blur-md overflow-hidden"
@@ -478,7 +479,7 @@ export default function LandingPage() {
                        </motion.div>
 
                        {/* Phone Frame */}
-                       <motion.div 
+                       <motion.div
                           variants={{ hover: { x: 45, y: 25, rotate: 3, scale: 1.1 } }}
                           transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.1 }}
                           className="absolute bottom-2 right-1/4 w-20 h-40 bg-card border-[3px] border-border rounded-2xl shadow-2xl z-30 backdrop-blur-md overflow-hidden"
@@ -494,7 +495,7 @@ export default function LandingPage() {
                        </motion.div>
 
                        {/* Sync Glow */}
-                       <motion.div 
+                       <motion.div
                           animate={{ opacity: [0, 0.5, 0] }}
                           transition={{ repeat: Infinity, duration: 4 }}
                           className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-primary/10 to-transparent blur-3xl -z-10"

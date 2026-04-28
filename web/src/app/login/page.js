@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TOKEN_KEY, PORTAL_VERIFIED_KEY } from '../portal/constants';
-import { LoginView } from '../portal/components';
+import LoginView from '../portal/components/LoginView';
 
 export default function LoginPage() {
   const router = useRouter();

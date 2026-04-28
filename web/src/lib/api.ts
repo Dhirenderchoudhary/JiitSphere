@@ -96,6 +96,9 @@ const backendUrl = (path: string, params: QueryParams = {}): string => {
   return `${BACKEND_PROXY_BASE_URL}${path}${query ? `?${query}` : ''}`;
 };
 
+export const materialAccessUrl = (id: string, action: 'view' | 'download' = 'view'): string =>
+  `/api/study-material/access/${encodeURIComponent(id)}?action=${encodeURIComponent(action)}`;
+
 const portalFetch = async (path: string, options: FetchWithTimeoutOptions = {}, params: QueryParams = {}): Promise<Response> =>
   fetchWithTimeout(portalUrl(path, params), {
     cache: 'no-store',

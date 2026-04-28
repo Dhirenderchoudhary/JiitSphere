@@ -309,7 +309,7 @@ export default function LoginView({ onAuth }) {
             </form>
           </div>
         </div>
-        
+
         <div className="flex justify-center">
            <span className="text-[10px] text-muted-foreground/40">JiitSphere v2.5</span>
         </div>

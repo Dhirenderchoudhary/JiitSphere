@@ -155,7 +155,7 @@ export default function StudyAccessForm({ nextPath = '/study-material' }) {
             {guestLoading ? 'Entering…' : 'Continue as Guest'}
           </Button>
           <p className="text-center text-xs text-muted-foreground">
-            Guest access is limited to 5 downloads.
+            Guest access is limited to 5 combined views and downloads.
           </p>
 
           <HistoryBackButton fallbackHref="/" className="w-full text-muted-foreground">

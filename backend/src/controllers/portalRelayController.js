@@ -332,23 +332,21 @@ const runEncryptedLoginFlow = async ({
     attempts.push(pretokenAttempt);
 
     const pretokenPayload = pretokenAttempt.response;
-    const random = pretokenPayload?.response?.random;
-    const otppwd = pretokenPayload?.response?.otppwd;
-    if (!responseLooksSuccessful(pretokenPayload) || !random || !otppwd || !password) {
+    const pretokenResponse = pretokenPayload?.response;
+    if (!responseLooksSuccessful(pretokenPayload) || !pretokenResponse || !password) {
       continue;
     }
 
-    const tokenResponsePayload =
-      pretokenPayload?.response && typeof pretokenPayload.response === 'object'
-        ? { ...pretokenPayload.response }
-        : { otppwd, random };
+    const tokenPayloadObject = {
+      ...pretokenResponse
+    };
 
-    delete tokenResponsePayload.rejectedData;
-    tokenResponsePayload.username = portalUsername;
-    tokenResponsePayload.passwordotpvalue = password;
-    tokenResponsePayload.Modulename = 'STUDENTMODULE';
+    delete tokenPayloadObject.rejectedData;
+    tokenPayloadObject.username = portalUsername;
+    tokenPayloadObject.passwordotpvalue = password;
+    tokenPayloadObject.Modulename = 'STUDENTMODULE';
 
-    const tokenPayload = JSON.stringify(tokenResponsePayload);
+    const tokenPayload = JSON.stringify(tokenPayloadObject);
 
     const encryptedGenerateToken = encryptPortalPayload(
       tokenPayload,

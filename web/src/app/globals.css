@@ -7,7 +7,7 @@
     color-scheme: light;
     --font-archivo: var(--font-instrument-sans), 'Archivo', 'Avenir Next', 'Segoe UI', sans-serif;
     --font-manrope: var(--font-inter), 'Manrope', 'Segoe UI', Arial, sans-serif;
-    
+
     /* Premium Light Mode (Radix Sand) */
     --background: 0 0% 98%; /* #fafafa */
     --foreground: 0 0% 10%; /* #1a1a1a */
@@ -116,6 +116,10 @@
   @apply relative overflow-hidden rounded-3xl border border-border/40 bg-card/40 transition-all duration-300 hover:border-primary/30 hover:shadow-2xl;
 }
 
+.bento-card:active {
+  transform: scale(0.995);
+}
+
 .spotlight-card {
   position: relative;
   overflow: hidden;
@@ -158,8 +162,8 @@ h1, h2, h3, h4 {
   @apply relative overflow-hidden font-bold transition-all duration-200 active:scale-[0.98] border border-transparent;
   background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
-  box-shadow: 
-    0 4px 6px -1px rgba(0, 0, 0, 0.1), 
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
     0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
@@ -172,4 +176,24 @@ h1, h2, h3, h4 {
 .pro-button:hover {
   @apply opacity-90 scale-[1.01];
   box-shadow: 0 4px 25px -5px hsla(var(--primary), 0.5);
+}
+
+@media (max-width: 640px) {
+  .bento-card {
+    border-radius: 1.25rem;
+  }
+
+  .spotlight-card::before {
+    width: 260px;
+    height: 260px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

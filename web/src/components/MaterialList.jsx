@@ -6,25 +6,18 @@ import { BookOpen, CalendarDays, Download, GraduationCap } from 'lucide-react';
 import { Badge } from 'components/ui/badge';
 import { Button } from 'components/ui/button';
 import { Card, CardContent } from 'components/ui/card';
+import { materialAccessUrl } from 'lib/api';
 import { toast } from 'sonner';
 
-const GUEST_DOWNLOAD_LIMIT = 5;
-const STORAGE_KEY = 'guest_downloads';
-
-function getGuestDownloads() {
-  try { return parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10); } catch { return 0; }
-}
-
-function incrementGuestDownloads() {
-  const count = getGuestDownloads() + 1;
-  try { localStorage.setItem(STORAGE_KEY, String(count)); } catch { /* noop */ }
-  return count;
-}
+const GUEST_USAGE_LIMIT = 5;
 
 async function triggerDownload(url, fallbackName) {
   try {
     const res = await fetch(url);
-    if (!res.ok) throw new Error('Download failed');
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData?.message || 'Download failed');
+    }
     const blob = await res.blob();
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -36,19 +29,13 @@ async function triggerDownload(url, fallbackName) {
     setTimeout(() => URL.revokeObjectURL(blobUrl), 150);
   } catch (error) {
     console.error('Download error:', error);
-    toast.error("Download blocked", {
-      description: "Direct download failed. Try opening the file in a new tab instead.",
-      action: {
-        label: "Open Tab",
-        onClick: () => window.open(url, '_blank')
-      }
-    });
+    throw error;
   }
 }
 
-export default function MaterialList({ items, isGuest = false }) {
-  const [downloadsUsed, setDownloadsUsed] = useState(() => (isGuest ? getGuestDownloads() : 0));
-  const limitReached = isGuest && downloadsUsed >= GUEST_DOWNLOAD_LIMIT;
+export default function MaterialList({ items, isGuest = false, guestUsage = { used: 0, limit: GUEST_USAGE_LIMIT } }) {
+  const [downloadsUsed, setDownloadsUsed] = useState(() => Number(guestUsage.used || 0));
+  const limitReached = isGuest && downloadsUsed >= GUEST_USAGE_LIMIT;
   if (!items.length) {
     return (
       <Card className="border-dashed bg-card/80 dark:bg-card/70">
@@ -65,7 +52,7 @@ export default function MaterialList({ items, isGuest = false }) {
         <div className={`rounded-xl border px-4 py-3 text-sm ${limitReached ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/50 dark:text-red-300' : 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300'}`}>
           {limitReached
             ? 'Guest download limit reached. Sign in with your college account for unlimited downloads.'
-            : `Guest mode: ${downloadsUsed}/${GUEST_DOWNLOAD_LIMIT} downloads used.`}
+            : `Guest mode: ${downloadsUsed}/${GUEST_USAGE_LIMIT} combined views + downloads used.`}
         </div>
       )}
       <div className="grid gap-4 md:grid-cols-2">
@@ -103,10 +90,15 @@ export default function MaterialList({ items, isGuest = false }) {
                     className="w-full"
                     size="lg"
                     onClick={() => {
-                      if (isGuest) setDownloadsUsed(incrementGuestDownloads());
                       const filename = `${item.title || item.subject}.${item.fileType}`;
                       toast.info(`Downloading...`, { description: filename });
-                      triggerDownload(item.fileUrl, filename);
+                      triggerDownload(materialAccessUrl(item._id, 'download'), filename)
+                        .then(() => {
+                          if (isGuest) setDownloadsUsed((prev) => Math.min(GUEST_USAGE_LIMIT, prev + 1));
+                        })
+                        .catch((error) => {
+                          toast.error(error?.message || 'Download failed', { description: 'Sign in with your college account for unlimited access.' });
+                        });
                     }}
                   >
                     <Download className="mr-2 h-4 w-4" /> Download Now

@@ -4,7 +4,11 @@ const STUDY_ACCESS_COOKIE = 'study_material_access';
 
 export function middleware(request) {
   const pathname = request.nextUrl.pathname;
-  const isStudyMaterialRoute = pathname === '/study-material' || pathname.startsWith('/study-material/');
+  const isStudyMaterialRoute =
+    pathname === '/study-material' ||
+    pathname.startsWith('/study-material/') ||
+    pathname === '/material' ||
+    pathname.startsWith('/material/');
 
   const trustedHosts = new Set();
   const hostHeader = request.headers.get('host');

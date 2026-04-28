@@ -44,11 +44,11 @@ const SegmentedArch = ({ pct }) => {
                     const y1 = center - (radius - 20) * Math.sin(theta);
                     const x2 = center + radius * Math.cos(theta);
                     const y2 = center - radius * Math.sin(theta);
-                    
+
                     return (
-                        <motion.line 
-                            key={i} x1={x1} y1={y1} x2={x2} y2={y2} 
-                            stroke={activePctHit ? activeColor : inactiveColor} 
+                        <motion.line
+                            key={i} x1={x1} y1={y1} x2={x2} y2={y2}
+                            stroke={activePctHit ? activeColor : inactiveColor}
                             strokeWidth="8" strokeLinecap="round"
                             initial={{ opacity: 0, pathLength: 0 }}
                             animate={{ opacity: 1, pathLength: 1 }}
@@ -61,7 +61,7 @@ const SegmentedArch = ({ pct }) => {
                 <span className="text-2xl font-black font-[var(--font-instrument-sans)] tracking-tighter text-foreground">{Math.round(pct)}%</span>
                 <span className="text-[9px] font-bold text-muted-foreground mt-0.5">{safe ? "It's already great!" : "Needs attention!"}</span>
             </div>
-            
+
             <div className="w-full flex items-center justify-between mt-4 px-2">
                 <div className="flex flex-col">
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Average</span>
@@ -81,14 +81,20 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
   const [selectedSem, setSelectedSem] = useState('');
   const [targetAttendancePct, setTargetAttendancePct] = useState('');
   const [attendance, setAttendance] = useState([]);
-  
+
   // Master-Detail State
   const [activeSubject, setActiveSubject] = useState(null);
   const [historyDetail, setHistoryDetail] = useState(null);
-  
+
   const [subjectCounts, setSubjectCounts] = useState({});
   const [message, setMessage] = useState('');
   const initialSemesterFallbackDone = useRef(false);
+
+    const selectedSemesterLabel = useMemo(() => {
+        const semesters = Array.isArray(meta?.semesters) ? meta.semesters : [];
+        const current = semesters.find((sem) => String(sem?.registration_id || '') === String(selectedSem || ''));
+        return current?.registration_code || current?.registration_id || 'Choose semester';
+    }, [meta?.semesters, selectedSem]);
 
   useEffect(() => {
     try {
@@ -226,18 +232,11 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
       }
   }
 
-  // Auto-select first subject to bypass global dashboard
-  useEffect(() => {
-      if (attendance.length > 0 && !activeSubject) {
-          selectSubject(attendance[0], false);
-      }
-  }, [attendance, activeSubject]);
-
-  // --- Aggregate Math Logic --- 
+  // --- Aggregate Math Logic ---
   const aggregateMetrics = useMemo(() => {
     if (!attendance.length) return null;
     let tC = 0; let tA = 0;
-    
+
     attendance.forEach(row => {
         const code = String(row?.subjectcode || row?.individualsubjectcode || '').trim();
         if (subjectCounts[code] && subjectCounts[code].total > 0) {
@@ -256,7 +255,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
   const activeCode = isDetailView ? String(activeSubject?.subjectcode || activeSubject?.individualsubjectcode || '').trim() : null;
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [isTimelineDrawerOpen, setIsTimelineDrawerOpen] = useState(false);
-  
+
   let layoutGuidance = "";
   let layoutPct = 0;
   let layoutAttended = 0;
@@ -267,37 +266,60 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
       if (!setCustomSidebar) return;
       const sidebarJsx = (
           <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar mt-6 w-full">
-              <div className="px-6 py-2 mb-2 flex items-center justify-between gap-3">
-                 <span className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-[0.2em]">Attendance Roster</span>
-                 <div className="relative flex items-center bg-card border border-border shadow-sm rounded-lg overflow-hidden transition-colors hover:bg-muted shrink-0">
-                     <div className="px-2 text-muted-foreground border-r border-border flex items-center justify-center">
-                         <Settings className="w-3 h-3" />
-                     </div>
-                     <select 
-                         value={targetVal} 
-                         onChange={(e) => setTargetAttendancePct(e.target.value)}
-                         className="bg-transparent text-[10px] font-bold text-foreground focus:outline-none appearance-none px-1.5 py-1 cursor-pointer"
-                     >
-                         <option value="60">60%</option>
-                         <option value="65">65%</option>
-                         <option value="70">70%</option>
-                         <option value="75">75%</option>
-                         <option value="80">80%</option>
-                         <option value="85">85%</option>
-                         <option value="90">90%</option>
-                     </select>
+              <div className="px-6 py-2 mb-2 space-y-3">
+                 <div className="flex items-center justify-between gap-3">
+                    <span className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-[0.2em]">Attendance Roster</span>
+                    <div className="relative flex items-center bg-card border border-border shadow-sm rounded-lg overflow-hidden transition-colors hover:bg-muted shrink-0">
+                        <div className="px-2 text-muted-foreground border-r border-border flex items-center justify-center">
+                            <Settings className="w-3 h-3" />
+                        </div>
+                        <select
+                            value={targetVal}
+                            onChange={(e) => setTargetAttendancePct(e.target.value)}
+                            className="bg-transparent text-[10px] font-bold text-foreground focus:outline-none appearance-none px-1.5 py-1 cursor-pointer"
+                        >
+                            <option value="60">60%</option>
+                            <option value="65">65%</option>
+                            <option value="70">70%</option>
+                            <option value="75">75%</option>
+                            <option value="80">80%</option>
+                            <option value="85">85%</option>
+                            <option value="90">90%</option>
+                        </select>
+                    </div>
+                 </div>
+
+                 <div className="relative flex items-center bg-card border border-border shadow-sm rounded-xl overflow-hidden transition-colors hover:border-primary/30">
+                    <div className="px-3 text-muted-foreground border-r border-border flex items-center justify-center shrink-0">
+                        <Clock className="w-3.5 h-3.5" />
+                    </div>
+                    <select
+                        value={selectedSem}
+                        onChange={(e) => {
+                            setActiveSubject(null);
+                            setHistoryDetail(null);
+                            setSelectedSem(e.target.value);
+                        }}
+                        className="w-full bg-transparent text-[11px] font-bold text-foreground focus:outline-none appearance-none px-3 py-2 cursor-pointer"
+                    >
+                        {(Array.isArray(meta?.semesters) ? meta.semesters : []).map((sem) => (
+                          <option key={sem.registration_id} value={sem.registration_id}>
+                              {sem.registration_code || sem.registration_id}
+                          </option>
+                        ))}
+                    </select>
                  </div>
               </div>
-              
+
               <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-1">
                   {attendance.map((row) => {
                       const subjectCode = String(row?.subjectcode || row?.individualsubjectcode || '').trim();
                       const pct = Number(row.LTpercantage || 0);
                       const isSelected = isDetailView && activeCode === subjectCode;
                       const countState = subjectCounts[subjectCode];
-                      
+
                       return (
-                          <button 
+                          <button
                               key={subjectCode} onClick={() => selectSubject(row)}
                               className={cn("w-full text-left py-3.5 px-4 rounded-xl transition-all mb-1 mt-1", isSelected ? "bg-primary/5 text-primary border border-primary/10" : "bg-transparent hover:bg-muted/50 text-muted-foreground border border-transparent")}
                           >
@@ -305,7 +327,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                                   <span className={cn("text-[13px] font-semibold leading-relaxed", isSelected ? "text-primary font-bold" : "text-foreground")}>{row.subjectdesc || subjectCode}</span>
                                   <span className={cn("text-[11px] font-black shrink-0 mt-0.5", pct >= targetVal ? "text-emerald-500" : "text-rose-500")}>{Math.round(pct)}%</span>
                               </div>
-                              
+
                               <div className="flex items-center justify-between mt-2">
                                   <span className="text-[9px] font-mono tracking-wider opacity-60 bg-foreground/5 px-1.5 py-0.5 rounded uppercase">{subjectCode}</span>
                                   <span className="text-[10px] font-bold text-muted-foreground">
@@ -321,7 +343,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
       setCustomSidebar(sidebarJsx);
 
       return () => setCustomSidebar(null);
-  }, [attendance, subjectCounts, activeCode, isDetailView, targetVal, setCustomSidebar]);
+    }, [attendance, subjectCounts, activeCode, isDetailView, targetVal, setCustomSidebar, meta?.semesters, selectedSem]);
 
   if (isDetailView) {
       const cState = subjectCounts[activeCode];
@@ -343,7 +365,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
       <>
           <div className="flex items-center justify-between mt-1 sm:mt-0 mb-1 sm:mb-2 px-1 lg:p-0 shrink-0 min-h-[32px]">
               <h2 className="text-sm sm:text-lg font-black text-foreground line-clamp-1 truncate pr-4">
-                  {isDetailView ? (activeSubject?.subjectdesc || activeCode) : "Global Workspace"}
+                  {isDetailView ? (activeSubject?.subjectdesc || activeCode) : selectedSemesterLabel}
               </h2>
           </div>
       </>
@@ -351,7 +373,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
 
   const performanceCard = (
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="bg-card border border-border shadow-sm rounded-2xl p-4 sm:p-5 shrink-0 flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-stretch">
-             
+
              {/* Performance Ratio Chart */}
              <div className="flex flex-col items-center justify-center shrink-0 min-w-[200px]">
                  <div className="w-full flex items-center justify-between mb-1">
@@ -367,7 +389,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
              {/* Status and Volume Details */}
              { (aggregateMetrics || isDetailView) && (
                  <div className="flex-1 flex flex-row items-center w-full border-t border-border/40 pt-4 md:border-t-0 md:pt-0 md:border-l md:border-border md:pl-6 gap-4 sm:gap-6 md:gap-10">
-                    
+
                     {/* Status */}
                     <div className="flex-1 flex flex-col justify-center h-full">
                         <div className="flex items-center gap-1.5 text-muted-foreground mb-1.5">
@@ -408,12 +430,12 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
 
   const sessionTimeline = (
       <div className="bg-card border border-border shadow-sm rounded-2xl flex flex-col w-full flex-1 min-h-0 overflow-hidden">
-             
+
              {/* Table Header */}
              <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border flex items-center justify-between bg-muted/10 shrink-0">
                  <h2 className="text-[13px] sm:text-sm font-bold text-foreground flex items-center gap-2">
                     {isDetailView ? <Clock className="w-4 h-4 text-muted-foreground"/> : <Filter className="w-4 h-4 text-muted-foreground"/>}
-                    {isDetailView ? 'Session Timeline' : 'Module Registry'}
+                          {isDetailView ? 'Session Timeline' : 'Module Registry'}
                  </h2>
                  <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground shrink-0">{isDetailView && historyDetail?.rows?.length} Records</span>
              </div>
@@ -435,8 +457,8 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                              </thead>
                              <tbody>
                                  {historyDetail.rows.map((row, i) => (
-                                     <motion.tr 
-                                         key={i} 
+                                     <motion.tr
+                                         key={i}
                                          initial={{ opacity: 0, x: -10 }}
                                          animate={{ opacity: 1, x: 0 }}
                                          transition={{ delay: i * 0.02 }}
@@ -485,7 +507,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 w-full h-full min-h-0 overflow-hidden pb-24 lg:pb-0">
-      
+
       {/* Mobile Master Pane */}
       <div className="flex flex-col lg:hidden w-full h-full min-h-0 bg-card border border-border shadow-sm rounded-2xl overflow-hidden shrink-0">
           <div className="p-5 border-b border-border bg-muted/20 flex justify-between items-start gap-4">
@@ -497,8 +519,8 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                   <div className="px-2 text-muted-foreground border-r border-border flex items-center justify-center">
                       <Settings className="w-3.5 h-3.5" />
                   </div>
-                  <select 
-                      value={targetVal} 
+                  <select
+                      value={targetVal}
                       onChange={(e) => setTargetAttendancePct(e.target.value)}
                       className="bg-transparent text-xs font-bold text-foreground focus:outline-none appearance-none px-2 py-1.5 cursor-pointer"
                   >
@@ -512,16 +534,16 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                   </select>
               </div>
           </div>
-          
+
           <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
               {attendance.map((row) => {
                   const subjectCode = String(row?.subjectcode || row?.individualsubjectcode || '').trim();
                   const pct = Number(row.LTpercantage || 0);
                   const isSelected = isDetailView && activeCode === subjectCode;
                   const countState = subjectCounts[subjectCode];
-                  
+
                   return (
-                      <button 
+                      <button
                           key={subjectCode} onClick={() => selectSubject(row, true)}
                           className={cn("w-full text-left py-3.5 px-4 rounded-xl transition-all mb-1", isSelected ? "bg-primary/5 text-primary border border-primary/10" : "bg-transparent hover:bg-muted/50 text-muted-foreground border border-transparent")}
                       >
@@ -529,7 +551,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                               <span className={cn("text-[13px] font-semibold leading-relaxed", isSelected ? "text-primary font-bold" : "text-foreground")}>{row.subjectdesc || subjectCode}</span>
                               <span className={cn("text-[11px] font-black shrink-0 mt-0.5", pct >= targetVal ? "text-emerald-500" : "text-rose-500")}>{Math.round(pct)}%</span>
                           </div>
-                          
+
                           <div className="flex items-center justify-between mt-2">
                               <span className="text-[9px] font-mono tracking-wider opacity-60 bg-foreground/5 px-1.5 py-0.5 rounded uppercase">{subjectCode}</span>
                               <span className="text-[10px] font-bold text-muted-foreground">
@@ -556,8 +578,8 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
               <div className="flex-1 overflow-y-auto px-4 pb-8 flex flex-col gap-5 custom-scrollbar">
                   {dashboardHeader}
                   {performanceCard}
-                  <button 
-                      onClick={() => setIsTimelineDrawerOpen(true)} 
+                  <button
+                      onClick={() => setIsTimelineDrawerOpen(true)}
                       className="w-full py-4 rounded-xl bg-primary/10 text-primary font-bold flex items-center justify-between px-5 mt-2 transition-colors hover:bg-primary/20"
                   >
                       <span>Session Timeline</span>

@@ -495,7 +495,7 @@ export const relayAttemptLooksAuthenticated = (attempt) => {
   const message = extractRelayMessage(payload);
   const hasFailureSignal = /invalid|captcha|fail|error|incorrect|unauthor/i.test(String(message));
 
-  if (endpoint.includes('generatetoken')) {
+  if (endpoint.includes('generatewebtoken')) {
     return (responseStatus === 'success' || responseStatus === 'ok') && !hasFailureSignal;
   }
 
@@ -507,7 +507,7 @@ export const relayNeedsEncryptedPayload = (attempts = []) => {
   const alreadyTriedEncryptedFlow = attempts.some((attempt) => {
     const endpoint = String(attempt?.endpoint || '').toLowerCase();
     const contentType = String(attempt?.contentType || '').toLowerCase();
-    return endpoint.includes('generatetoken') || (endpoint.includes('pretoken-check') && contentType.includes('text/plain'));
+    return endpoint.includes('generatewebtoken') || (endpoint.includes('pretoken-check') && contentType.includes('text/plain'));
   });
 
   if (alreadyTriedEncryptedFlow) {

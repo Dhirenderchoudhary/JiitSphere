@@ -15,12 +15,12 @@ import SignOutButton from 'components/SignOutButton';
 import TopPanelTools from 'components/TopPanelTools';
 import { Badge } from 'components/ui/badge';
 import { Button } from 'components/ui/button';
-import { fetchBrowseOptions, fetchFilterOptions, fetchMaterials } from 'lib/api';
+import { fetchBrowseOptions, fetchFilterOptions, fetchMaterials, materialAccessUrl } from 'lib/api';
 import { toast } from 'sonner';
 
 /* ── constants ──────────────────────────────────────────────── */
-const GUEST_DOWNLOAD_LIMIT = 5;
-const STORAGE_KEY = 'guest_downloads';
+const GUEST_USAGE_LIMIT = 5;
+const MATERIAL_PAGE_SIZE = 24;
 
 const YEAR_META = {
   1: { label: '1st Year', sub: 'Foundation courses', icon: Target },
@@ -86,19 +86,13 @@ const RESOURCE_TYPES = {
 const TYPE_ORDER = ['Slides', 'Lectures', 'Tutorials', 'PYQs', 'Solutions'];
 const STEP_ICONS = { year: Calendar, semester: GraduationCap, branch: GitBranch, subject: BookMarked };
 
-/* ── guest helpers ──────────────────────────────────────────── */
-function getGuestDownloads() {
-  try { return parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10); } catch { return 0; }
-}
-function incrementGuestDownloads() {
-  const count = getGuestDownloads() + 1;
-  try { localStorage.setItem(STORAGE_KEY, String(count)); } catch { /* noop */ }
-  return count;
-}
 async function triggerDownload(url, fallbackName) {
   try {
     const res = await fetch(url);
-    if (!res.ok) throw new Error('Download failed');
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData?.message || 'Download failed');
+    }
     const blob = await res.blob();
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -110,20 +104,14 @@ async function triggerDownload(url, fallbackName) {
     setTimeout(() => URL.revokeObjectURL(blobUrl), 150);
   } catch (error) {
     console.error('Download error:', error);
-    toast.error("Download blocked", {
-      description: "Direct download failed. Try opening the file in a new tab instead.",
-      action: {
-        label: "Open Tab",
-        onClick: () => window.open(url, '_blank')
-      }
-    });
+    throw error;
   }
 }
 
 /* ── step flow ──────────────────────────────────────────────── */
 const STEPS = ['year', 'semester', 'branch', 'subject'];
 
-export default function StudyMaterialClient({ user = null, isGuest = false }) {
+export default function StudyMaterialClient({ user = null, isGuest = false, initialGuestUsage = { used: 0, limit: GUEST_USAGE_LIMIT } }) {
   const router = useRouter();
   const [options, setOptions] = useState({});
   const [filters, setFilters] = useState({ degree: 'BTech' });
@@ -135,11 +123,22 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
   const [optionsError, setOptionsError] = useState('');
   const [optionsRefreshKey, setOptionsRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState(null);
-  const [downloadsUsed, setDownloadsUsed] = useState(() => (isGuest ? getGuestDownloads() : 0));
+  const [guestUsage, setGuestUsage] = useState(() => ({ used: 0, limit: GUEST_USAGE_LIMIT }));
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMoreMaterials, setHasMoreMaterials] = useState(false);
+  const [currentMaterialPage, setCurrentMaterialPage] = useState(1);
   const [guestSignOutLoading, setGuestSignOutLoading] = useState(false);
   const browseRequestIdRef = useRef(0);
 
-  const limitReached = isGuest && downloadsUsed >= GUEST_DOWNLOAD_LIMIT;
+  useEffect(() => {
+    if (!isGuest) return;
+    setGuestUsage({
+      used: Number(initialGuestUsage.used || 0),
+      limit: Number(initialGuestUsage.limit || GUEST_USAGE_LIMIT),
+    });
+  }, [initialGuestUsage.limit, initialGuestUsage.used, isGuest]);
+
+  const limitReached = isGuest && guestUsage.used >= guestUsage.limit;
   const stepOptionsLoading = optionsLoading || browseOptionsLoading;
   const currentStepIndex = STEPS.findIndex((key) => !filters[key]);
   const currentStep = currentStepIndex === -1 ? 'done' : STEPS[currentStepIndex];
@@ -187,26 +186,45 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
       });
   }, [filters.degree, filters.year, filters.semester, filters.branch, filters.subject]);
 
-  const loadMaterials = useCallback(async (f) => {
-    setLoading(true);
+  const loadMaterials = useCallback(async (f, { page = 1, append = false } = {}) => {
+    setLoading(page === 1 && !append);
+    setLoadingMore(page > 1 || append);
     setMaterialsError('');
     try {
-      const response = await fetchMaterials({ ...f, limit: 100 });
-      setMaterials(response.data || []);
+      const response = await fetchMaterials({ ...f, page, limit: MATERIAL_PAGE_SIZE });
+      const nextItems = Array.isArray(response.data) ? response.data : [];
+      const pagination = response.pagination || {};
+
+      setMaterials((prev) => {
+        const merged = append ? [...prev, ...nextItems] : nextItems;
+        const deduped = [];
+        const seen = new Set();
+        merged.forEach((item) => {
+          if (!item?._id || seen.has(item._id)) return;
+          seen.add(item._id);
+          deduped.push(item);
+        });
+        return deduped;
+      });
+      setCurrentMaterialPage(page);
+      setHasMoreMaterials(Boolean(pagination.totalPages ? page < pagination.totalPages : nextItems.length === MATERIAL_PAGE_SIZE));
     } catch (error) {
       setMaterials([]);
       setMaterialsError(error?.message || 'Failed to load materials.');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, []);
 
   useEffect(() => {
     if (allSelected) {
-      loadMaterials(filters);
+      loadMaterials(filters, { page: 1, append: false });
       setActiveTab(null); // reset tab when subject changes
     } else {
       setMaterials([]);
+      setHasMoreMaterials(false);
+      setCurrentMaterialPage(1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.year, filters.semester, filters.branch, filters.subject, allSelected]);
@@ -287,11 +305,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
     } catch {
       // ignore and still proceed with local cleanup
     } finally {
-      try {
-        localStorage.removeItem(STORAGE_KEY);
-      } catch {
-        // ignore localStorage failures
-      }
+      setGuestUsage({ used: 0, limit: GUEST_USAGE_LIMIT });
       setGuestSignOutLoading(false);
       router.replace('/study-access?next=/study-material');
     }
@@ -325,7 +339,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
 
   /* ── option lists ─────────────────────────────────────────── */
   const optionMap = {
-    year: (options.years || []).map((v) => ({ value: v, ...(YEAR_META[v] || { label: `Year ${v}`, sub: '', icon: '📖' }) })),
+    year: (options.years || []).map((v) => ({ value: v, ...(YEAR_META[v] || { label: `Year ${v}`, sub: '' }) })),
     semester: (options.semesters || []).map((v) => ({ value: v, label: SEM_LABELS[v] || `Semester ${v}` })),
     branch: (options.branches || []).map((v) => ({ value: v, label: v })),
     subject: (options.subjects || []).map((v) => ({ value: v, label: v })),
@@ -378,11 +392,11 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
               Study Material
             </h1>
           </div>
-          
+
           <p className="text-sm text-muted-foreground leading-relaxed">
             Filter by your current academic level sequentially to retrieve specific lectures, tutorials, and past year papers.
           </p>
-          
+
           <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-muted/40 px-3 py-2 text-sm font-medium text-muted-foreground border border-border/50 w-max">
             {STEPS.map((s, i) => {
                const isActive = !!filters[s];
@@ -473,7 +487,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
                   className="group relative flex flex-col rounded-2xl border border-border bg-card p-6 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-4 group-hover:bg-primary/20 transition-colors">
-                    {opt.icon && <opt.icon className="size-6" />}
+                    {typeof opt.icon === 'function' ? <opt.icon className="size-6" /> : <BookOpen className="size-6" />}
                   </div>
                   <p className="text-base font-bold group-hover:text-primary transition-colors">{opt.label}</p>
                   <p className="text-xs text-muted-foreground mt-1">{opt.sub}</p>
@@ -583,7 +597,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
               {/* Guest banner */}
               {isGuest && (
                 <div className={`mb-5 rounded-xl border px-4 py-3 text-sm ${limitReached ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/50 dark:text-red-300' : 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300'}`}>
-                  {limitReached ? 'Download limit reached. Sign in for unlimited.' : `Guest: ${downloadsUsed}/${GUEST_DOWNLOAD_LIMIT} downloads used.`}
+                  {limitReached ? 'Guest limit reached. Sign in for unlimited access.' : `Guest: ${guestUsage.used}/${guestUsage.limit} combined views + downloads used.`}
                 </div>
               )}
 
@@ -660,10 +674,19 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
                                 size="sm"
                                 className="flex-1"
                                 onClick={() => {
-                                  if (isGuest) setDownloadsUsed(incrementGuestDownloads());
                                   const filename = `${item.title || item.subject}.${item.fileType}`;
                                   toast.info(`Downloading...`, { description: filename });
-                                  triggerDownload(item.fileUrl, filename);
+                                  triggerDownload(materialAccessUrl(item._id, 'download'), filename)
+                                    .then(() => {
+                                      if (isGuest) {
+                                        setGuestUsage((prev) => ({ ...prev, used: Math.min(prev.limit, prev.used + 1) }));
+                                      }
+                                    })
+                                    .catch((error) => {
+                                      toast.error(error?.message || 'Download failed', {
+                                        description: 'Sign in with your college account for unlimited access.',
+                                      });
+                                    });
                                 }}
                               >
                                 <Download className="mr-1.5 h-3.5 w-3.5" /> Download
@@ -673,6 +696,19 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
                         </div>
                       ))}
                     </div>
+
+                    {hasMoreMaterials && (
+                      <div className="mt-5 flex justify-center">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => loadMaterials(filters, { page: currentMaterialPage + 1, append: true })}
+                          disabled={loadingMore}
+                        >
+                          {loadingMore ? 'Loading more…' : 'Load more materials'}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
