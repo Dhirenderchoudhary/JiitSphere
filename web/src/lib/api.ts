@@ -101,7 +101,7 @@ export const materialAccessUrl = (id: string, action: 'view' | 'download' = 'vie
 
 const portalFetch = async (path: string, options: FetchWithTimeoutOptions = {}, params: QueryParams = {}): Promise<Response> =>
   fetchWithTimeout(portalUrl(path, params), {
-    cache: 'no-store',
+    next: { revalidate: 300 },
     ...options,
     timeoutMs: options.timeoutMs || DEFAULT_API_TIMEOUT_MS,
     retries: options.retries ?? DEFAULT_API_RETRIES
@@ -112,10 +112,29 @@ const portalJsonRequest = async <T = JsonObject>(
   options: FetchWithTimeoutOptions = {},
   params: QueryParams = {}
 ): Promise<T> => {
-  const response = await portalFetch(path, options, params);
-  const data = await parseJson<T & { message?: string }>(response);
-  if (!response.ok) throw new Error(data.message || 'Portal request failed');
-  return data;
+  const isGet = !options.method || options.method.toUpperCase() === 'GET';
+  const queryUrl = portalUrl(path, params);
+  const cacheKey = `PORTAL_JSON:${options.method || 'GET'}:${queryUrl}:${options.headers ? JSON.stringify(options.headers) : ''}`;
+  
+  if (isGet && inFlightRequests.has(cacheKey)) {
+      return inFlightRequests.get(cacheKey) as Promise<T>;
+  }
+
+  const promise = (async () => {
+      try {
+        const response = await portalFetch(path, options, params);
+        const data = await parseJson<T & { message?: string }>(response);
+        if (!response.ok) throw new Error(data.message || 'Portal request failed');
+        return data;
+      } finally {
+        if (isGet) inFlightRequests.delete(cacheKey);
+      }
+  })();
+
+  if (isGet) {
+      inFlightRequests.set(cacheKey, promise);
+  }
+  return promise;
 };
 
 const backendJsonRequest = async <T = JsonObject>(
@@ -123,15 +142,34 @@ const backendJsonRequest = async <T = JsonObject>(
   options: FetchWithTimeoutOptions = {},
   params: QueryParams = {}
 ): Promise<T> => {
-  const response = await fetchWithTimeout(backendUrl(path, params), {
-    cache: 'no-store',
-    ...options,
-    timeoutMs: options.timeoutMs || DEFAULT_API_TIMEOUT_MS,
-    retries: options.retries ?? DEFAULT_API_RETRIES
-  });
-  const data = await parseJson<T & { message?: string }>(response);
-  if (!response.ok) throw new Error(data.message || 'Backend request failed');
-  return data;
+  const isGet = !options.method || options.method.toUpperCase() === 'GET';
+  const queryUrl = backendUrl(path, params);
+  const cacheKey = `BACKEND_JSON:${options.method || 'GET'}:${queryUrl}:${options.headers ? JSON.stringify(options.headers) : ''}`;
+  
+  if (isGet && inFlightRequests.has(cacheKey)) {
+      return inFlightRequests.get(cacheKey) as Promise<T>;
+  }
+
+  const promise = (async () => {
+      try {
+        const response = await fetchWithTimeout(queryUrl, {
+          next: { revalidate: 300 },
+          ...options,
+          timeoutMs: options.timeoutMs || DEFAULT_API_TIMEOUT_MS,
+          retries: options.retries ?? DEFAULT_API_RETRIES
+        });
+        const data = await parseJson<T & { message?: string }>(response);
+        if (!response.ok) throw new Error(data.message || 'Backend request failed');
+        return data;
+      } finally {
+        if (isGet) inFlightRequests.delete(cacheKey);
+      }
+  })();
+
+  if (isGet) {
+      inFlightRequests.set(cacheKey, promise);
+  }
+  return promise;
 };
 
 const withRealtime = (params: QueryParams = {}, refresh = PORTAL_REALTIME_DEFAULT): QueryParams => ({
@@ -139,17 +177,36 @@ const withRealtime = (params: QueryParams = {}, refresh = PORTAL_REALTIME_DEFAUL
   ...(refresh ? { refresh: 1 } : {})
 });
 
+// Cache for in-flight GET requests to deduplicate concurrent calls
+const inFlightRequests = new Map<string, Promise<any>>();
+
 const sdkGet = async <T = JsonObject>(token: string, path: string, params: QueryParams = {}): Promise<T> => {
-  const response = await portalFetch(path, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: 'no-store',
-    timeoutMs: DEFAULT_API_TIMEOUT_MS,
-    retries: DEFAULT_API_RETRIES
-  }, params);
-  if (response.status === 401) throw new SessionExpiredError();
-  const data = await parseJson<T & { message?: string }>(response);
-  if (!response.ok) throw new Error(data.message || 'SDK request failed');
-  return data;
+  const queryUrl = portalUrl(path, params);
+  const cacheKey = `SDK_GET:${queryUrl}:${token}`;
+  
+  if (inFlightRequests.has(cacheKey)) {
+    return inFlightRequests.get(cacheKey) as Promise<T>;
+  }
+
+  const promise = (async () => {
+    try {
+      const response = await portalFetch(path, {
+        headers: { Authorization: `Bearer ${token}` },
+        next: { revalidate: 300 },
+        timeoutMs: DEFAULT_API_TIMEOUT_MS,
+        retries: DEFAULT_API_RETRIES
+      }, params);
+      if (response.status === 401) throw new SessionExpiredError();
+      const data = await parseJson<T & { message?: string }>(response);
+      if (!response.ok) throw new Error(data.message || 'SDK request failed');
+      return data;
+    } finally {
+      inFlightRequests.delete(cacheKey); // Clean up resolving promises
+    }
+  })();
+
+  inFlightRequests.set(cacheKey, promise);
+  return promise;
 };
 
 export const fetchFilterOptions = async () => {
@@ -216,7 +273,7 @@ export const fetchAdminAnalytics = async (token: string) => {
 };
 
 export const fetchStudyAnalytics = async () => {
-  const response = await fetch('/api/admin/study-analytics', { cache: 'no-store' });
+  const response = await fetch('/api/admin/study-analytics', { next: { revalidate: 300 } });
   const data = await parseJson<{ message?: string } & JsonObject>(response);
   if (!response.ok) throw new Error(data.message || 'Failed to fetch study analytics');
   return data;
@@ -281,7 +338,7 @@ export const fetchPortalProfile = async (token: string, refresh = PORTAL_REALTIM
 export const fetchPortalProfilePhotoBlob = async (token: string, source: string) => {
   const response = await portalFetch('/portal/sdk/profile/photo', {
     headers: { Authorization: `Bearer ${token}` },
-    cache: 'no-store'
+    next: { revalidate: 300 }
   }, { source });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({} as { message?: string }));
@@ -377,7 +434,7 @@ export const fetchPortalMarksData = async (
 ) => {
   const response = await portalFetch('/portal/sdk/marks/data', {
     headers: { Authorization: `Bearer ${token}` },
-    cache: 'no-store'
+    next: { revalidate: 300 }
   }, { registration_id, registration_code, ...(refresh ? { refresh: 1 } : {}) });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({} as { message?: string }));

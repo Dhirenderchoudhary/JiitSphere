@@ -17,9 +17,9 @@ const env = require('../config/env');
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const PORTAL_TIME_ZONE = 'Asia/Kolkata';
-const DEFAULT_TIMEOUT_MS = 8000;
-const MAX_RETRIES = 3;
-const BACKOFF_BASE_MS = 500;
+const DEFAULT_TIMEOUT_MS = 4000;
+const MAX_RETRIES = 1;
+const BACKOFF_BASE_MS = 250;
 
 // ── Structured Error ───────────────────────────────────────────────────────
 

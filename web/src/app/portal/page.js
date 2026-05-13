@@ -28,8 +28,21 @@ const isTokenExpired = (token) => {
 
 export default function PortalPage() {
   const router = useRouter();
-  const [token, setToken] = useState('');
+  
+  // Optimistically load token & verified state on mount to skip the "Authenticating" flash
+  const [token, setToken] = useState(() => {
+     if (typeof window !== 'undefined') {
+         const verified = window.localStorage.getItem(PORTAL_VERIFIED_KEY) === 'true';
+         const savedToken = window.localStorage.getItem(TOKEN_KEY) || '';
+         if (verified && savedToken && !isTokenExpired(savedToken)) {
+             return savedToken;
+         }
+     }
+     return '';
+  });
+  
   const [isMounted, setIsMounted] = useState(false);
+  const [isRoutingAway, setIsRoutingAway] = useState(false);
 
   const clearSession = useCallback(() => {
     window.localStorage.removeItem(TOKEN_KEY);
@@ -45,12 +58,14 @@ export default function PortalPage() {
 
     if (!verified || !savedToken) {
       clearSession();
+      setIsRoutingAway(true);
       router.replace('/login');
       return;
     }
 
     if (isTokenExpired(savedToken)) {
       clearSession();
+      setIsRoutingAway(true);
       router.replace('/login');
       return;
     }
@@ -65,6 +80,7 @@ export default function PortalPage() {
       const savedToken = window.localStorage.getItem(TOKEN_KEY) || '';
       if (savedToken && isTokenExpired(savedToken)) {
         clearSession();
+        setIsRoutingAway(true);
         router.replace('/login');
       }
     };
@@ -74,29 +90,25 @@ export default function PortalPage() {
 
   const handleLogout = useCallback(() => {
     clearSession();
+    setIsRoutingAway(true);
     router.replace('/login');
   }, [clearSession, router]);
 
-  if (!isMounted) {
+  if (!isMounted || isRoutingAway) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6 bg-background">
         <div className="flex flex-col items-center gap-3 animate-pulse">
            <div className="size-3 border-2 border-primary/50 rotate-45 shadow-sm" />
-           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Igniting Engine</p>
+           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">
+              {isRoutingAway ? "Redirecting" : "Igniting Engine"}
+           </p>
         </div>
       </div>
     );
   }
 
   if (!token) {
-    return (
-      <div className="flex min-h-screen items-center justify-center p-6 bg-background">
-        <div className="flex flex-col items-center gap-3 animate-pulse">
-           <div className="size-3 border-2 border-primary/50 rotate-45 shadow-sm" />
-           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Authenticating</p>
-        </div>
-      </div>
-    );
+    return null; // Token should realistically always be populated here if not routing away
   }
 
   return <PortalShell token={token} onLogout={handleLogout} />;

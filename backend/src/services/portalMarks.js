@@ -304,8 +304,8 @@ const fetchMarks = async (client, registrationId, registrationCode) => {
 
     try {
       const [textResult, tableResult] = await Promise.all([
-        parser.getText().catch(() => null),
-        parser.getTable().catch(() => null)
+        parser.getText().catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; }),
+        parser.getTable().catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; })
       ]);
 
       const chunks = [];
@@ -351,7 +351,7 @@ const fetchMarks = async (client, registrationId, registrationCode) => {
         parsed = parseMarksText(rawText);
       }
     } finally {
-      await parser.destroy().catch(() => null);
+      await parser.destroy().catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; });
     }
   } catch (err) {
     throw new PortalError('PARSE_ERROR', `Failed to parse marks PDF: ${err.message}`);

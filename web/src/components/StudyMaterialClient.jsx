@@ -356,7 +356,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
         <div className="flex flex-wrap items-center gap-2">
           {user ? (
             <div className="flex items-center gap-2 rounded-full border border-border bg-card/75 dark:bg-card/75 px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur">
-              {user.image && <Image src={user.image} alt={user.name || 'User'} width={22} height={22} className="rounded-full" unoptimized />}
+              {user.image && <Image src={user.image} alt={user.name || 'User'} width={22} height={22} className="rounded-full"   />}
               <span className="max-w-[160px] truncate text-muted-foreground">{user.email}</span>
               <SignOutButton />
             </div>

@@ -10,7 +10,11 @@ import {
   loginUser,
   portalSdkLogin,
   startPortalRelaySession,
-  tryPortalRelayLogin
+  tryPortalRelayLogin,
+  fetchPortalAttendanceMeta,
+  fetchPortalSdkSession,
+  fetchPortalExams,
+  fetchPortalSubjects
 } from 'lib/api';
 import {
   TOKEN_KEY,
@@ -39,8 +43,11 @@ export default function LoginView({ onAuth }) {
   const normalizeUiError = (message) => {
     const text = String(message || '').trim();
     if (!text) return 'Try again.';
-    if (/official portal credentials verification failed/i.test(text)) {
-      return 'Invalid portal credentials or captcha. Please try again.';
+    if (/unavailable|timeout|network|fetch failed|bad gateway/i.test(text)) {
+      return 'Official Portal is currently unavailable. Please try again later.';
+    }
+    if (/official portal credentials verification failed|invalid credentials|invalid login|invalid user/i.test(text)) {
+      return 'Invalid Credentials. Please check your enrollment number and password.';
     }
     return text;
   };
@@ -85,6 +92,13 @@ export default function LoginView({ onAuth }) {
       }
 
       await portalSdkLogin(activeToken, { userId: demoUserId });
+      
+      // Warm up API cache before navigating
+      fetchPortalSdkSession(activeToken, false).catch(() => {});
+      fetchPortalAttendanceMeta(activeToken).catch(() => {});
+      fetchPortalExams(activeToken, false).catch(() => {});
+      fetchPortalSubjects(activeToken, '', false).catch(() => {});
+
       window.localStorage.setItem(TOKEN_KEY, activeToken);
       window.localStorage.setItem(LAST_PORTAL_USER_ID, demoUserId);
       window.localStorage.setItem(PORTAL_VERIFIED_KEY, 'true');
@@ -103,6 +117,8 @@ export default function LoginView({ onAuth }) {
 
   const handleLogin = async (event) => {
     event.preventDefault();
+    if (loading) return;
+    
     setLoading(true);
     setError('');
     setProbeMessage('');
@@ -116,12 +132,17 @@ export default function LoginView({ onAuth }) {
       let activeRelaySessionId = relaySessionId;
 
       if (!activeToken) {
-        const auth = await loginUser({ userId: normalizedUserId, password, portalMode: true });
-        activeToken = auth?.data?.token;
-        if (!activeToken) throw new Error('Authentication token missing');
+        setProbeMessage('Authenticating...');
+        try {
+          const auth = await loginUser({ userId: normalizedUserId, password, portalMode: true });
+          activeToken = auth?.data?.token || '';
+          if (!activeToken) throw new Error('Authentication token missing');
 
-        const relay = await startPortalRelaySession(activeToken);
-        activeRelaySessionId = relay?.data?.sessionId || '';
+          const relay = await startPortalRelaySession(activeToken);
+          activeRelaySessionId = relay?.data?.sessionId || '';
+        } catch (authErr) {
+          throw new Error('Invalid Credentials. Please check your enrollment number and password.');
+        }
         setToken(activeToken);
         setRelaySessionId(activeRelaySessionId);
       }
@@ -136,13 +157,17 @@ export default function LoginView({ onAuth }) {
           throw new Error('Please enter the captcha shown above.');
         }
 
+        setProbeMessage('Verifying credentials...');
         const probe = await tryPortalRelayLogin(activeToken, {
           sessionId: activeRelaySessionId,
           userId: normalizedUserId,
           password,
           captcha: sanitizedCaptcha || undefined,
           usertype: effectiveUserType
+        }).catch(err => {
+            throw new Error('Official Portal is currently unavailable. Please try again later.');
         });
+        
         const attempts = probe?.data?.attempts || [];
         setAttemptDiagnostics(
           attempts.map((attempt) => ({
@@ -153,27 +178,43 @@ export default function LoginView({ onAuth }) {
             message: String(attempt?.message || extractRelayMessage(attempt?.response) || '')
           }))
         );
-        const relayFailure =
-          String(probe?.data?.failureMessage || '').trim() ||
+        
+        const relayFailure = String(probe?.data?.failureMessage || '').trim() ||
           attempts
             .map((attempt) => String(attempt?.message || extractRelayMessage(attempt?.response) || '').trim())
-            .find(Boolean) ||
-          '';
+            .find(Boolean) || '';
+            
         const anyOk = Boolean(probe?.data?.authenticated) || attempts.some(relayAttemptLooksAuthenticated);
-        setProbeMessage(anyOk ? 'Verifying credentials...' : normalizeUiError(relayFailure));
 
         if (!anyOk) {
-          await fetchCaptchaChallenge(activeToken, activeRelaySessionId);
+          // Total wipe of stale state to break locks
+          setToken('');
+          setRelaySessionId('');
           setCaptchaValue('');
-          if (ALLOW_UNVERIFIED_PORTAL_LOGIN) {
-            setProbeMessage(normalizeUiError(relayFailure));
+          
+          if (/captcha|challenge/i.test(relayFailure)) {
+            await fetchCaptchaChallenge(activeToken, activeRelaySessionId).catch(() => {});
+            throw new Error('Verification required. Please enter the captcha.');
+          } else if (/unavailable|timeout|network|bad gateway/i.test(relayFailure)) {
+            setCaptchaImage('');
+            throw new Error('Official Portal is currently unavailable. Please try again later.');
           } else {
-            throw new Error(normalizeUiError(relayFailure));
+            setCaptchaImage('');
+            throw new Error('Invalid Credentials. Please check your enrollment number and password.');
           }
         }
       }
 
-      await portalSdkLogin(activeToken, { userId: normalizedUserId, relaySessionId: activeRelaySessionId });
+      setProbeMessage('Finalizing session...');
+      // Start background tasks so they warm the cache/network channel implicitly before navigating 
+      // Do not await them to block UI transition
+      portalSdkLogin(activeToken, { userId: normalizedUserId, relaySessionId: activeRelaySessionId }).then(() => {
+          fetchPortalSdkSession(activeToken, false).catch(() => {});
+          fetchPortalAttendanceMeta(activeToken).catch(() => {});
+          fetchPortalExams(activeToken, false).catch(() => {});
+          fetchPortalSubjects(activeToken, '', false).catch(() => {});
+      }).catch(() => {});
+      
       window.localStorage.setItem(TOKEN_KEY, activeToken);
       window.localStorage.setItem(LAST_PORTAL_USER_ID, normalizedUserId);
       window.localStorage.setItem(PORTAL_VERIFIED_KEY, 'true');
@@ -183,7 +224,14 @@ export default function LoginView({ onAuth }) {
       window.dispatchEvent(new Event('jaypee-buddy-identity-updated'));
       onAuth(activeToken);
     } catch (err) {
+      setToken('');
+      setRelaySessionId('');
+      if (!err?.message?.includes('Verification required')) {
+        setCaptchaImage('');
+        setCaptchaValue('');
+      }
       setError(normalizeUiError(err?.message));
+      setProbeMessage('');
     } finally {
       setLoading(false);
     }

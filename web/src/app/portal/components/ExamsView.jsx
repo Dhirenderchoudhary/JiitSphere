@@ -104,7 +104,24 @@ export default function ExamsView({ token, semesters = [], onExpired }) {
         {lastSyncAt ? <p className="mt-3 text-xs font-medium text-muted-foreground/50 text-right">Synced at {lastSyncAt}</p> : null}
       </div>
 
-      {!sortedExams.length ? (
+      {loading && !sortedExams.length ? (
+        <div className="grid gap-4">
+          {[1, 2, 3].map((i) => (
+             <div key={i} className="rounded-2xl border border-border/40 bg-card p-6 min-h-[140px] flex items-center justify-center">
+                 <div className="w-full flex flex-col sm:grid sm:grid-cols-[2fr_1.5fr] gap-6">
+                    <div className="space-y-4">
+                       <div className="h-6 w-3/4 bg-muted animate-pulse rounded" />
+                       <div className="h-4 w-1/2 bg-muted animate-pulse rounded" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mt-4 sm:mt-0">
+                       <div className="h-12 w-full bg-muted animate-pulse rounded-xl" />
+                       <div className="h-12 w-full bg-muted animate-pulse rounded-xl" />
+                    </div>
+                 </div>
+             </div>
+          ))}
+        </div>
+      ) : !sortedExams.length ? (
          <div className="rounded-2xl p-12 text-center border border-dashed border-border/30">
             <p className="text-sm font-medium text-muted-foreground">{message || 'No scheduled exams found.'}</p>
          </div>

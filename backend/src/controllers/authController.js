@@ -58,7 +58,7 @@ const normalizeDemoUser = (user = {}) => {
   };
 };
 
-const login = (req, res) => {
+const login = async (req, res) => {
   const { userId, email, password, portalMode = false } = req.body || {};
   const normalizedIdentifier = String(userId || email || '')
     .trim()
@@ -101,7 +101,8 @@ const login = (req, res) => {
     return res.status(403).json({ success: false, message: 'User ID is not allowed for this portal' });
   }
 
-  const incomingHash = crypto.createHash('sha256').update(normalizedPassword).digest('hex');
+  await new Promise(r => setImmediate(r));
+    const incomingHash = crypto.createHash('sha256').update(normalizedPassword).digest('hex');
   if (!timingSafeHashEquals(incomingHash, env.userPasswordHash)) {
     return res.status(401).json({ success: false, message: 'Invalid credentials' });
   }

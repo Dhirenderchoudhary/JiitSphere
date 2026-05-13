@@ -149,7 +149,7 @@ const fetchAttendanceMeta = async (relaySession, authContext, opts = {}) => {
         membertype: authContext.membertype || 'S'
       },
       { encrypted: false }
-    ).catch(() => null),
+    ).catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; }),
     // jiit's get_registered_semesters() — encrypted payload
     client.post(
       '/StudentPortalAPI/reqsubfaculty/getregistrationList',
@@ -157,11 +157,11 @@ const fetchAttendanceMeta = async (relaySession, authContext, opts = {}) => {
         instituteid: authContext.instituteid,
         studentid: authContext.memberid
       }
-    ).catch(() => null),
+    ).catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; }),
     client.post(
       '/StudentPortalAPI/studentgradecard/getregistrationList',
       { instituteid: authContext.instituteid }
-    ).catch(() => null)
+    ).catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; })
   ]);
 
   // Extract headers (contain stynumber)
@@ -272,7 +272,7 @@ const fetchAttendance = async (relaySession, authContext, semesterId, opts = {})
         registrationid: semesterRow.registration_id,
         stynumber: stynumber || ''
       }
-    ).catch(() => null),
+    ).catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; }),
     client.post(
       '/StudentPortalAPI/reqsubfaculty/getfaculties',
       {
@@ -280,7 +280,7 @@ const fetchAttendance = async (relaySession, authContext, semesterId, opts = {})
         studentid: authContext.memberid,
         registrationid: semesterRow.registration_id
       }
-    ).catch(() => null)
+    ).catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; })
   ]);
 
   const rawRows = attendanceData?.studentattendancelist || [];
@@ -359,7 +359,7 @@ const fetchSubjectDailyAttendance = async (relaySession, authContext, semesterId
       subjectcode: subjectRow.individualsubjectcode || subjectCode,
       subjectid: subjectRow.subjectid
     }
-  ).catch(() => null);
+  ).catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; });
 
   const result = {
     studentAttdsummarylist: data?.studentAttdsummarylist || []

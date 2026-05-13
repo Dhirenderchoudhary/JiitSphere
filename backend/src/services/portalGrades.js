@@ -117,7 +117,7 @@ const fetchGradeCards = async (client) => {
   const studentInfo = await client.post(
     '/StudentPortalAPI/studentgradecard/getstudentinfo',
     { instituteid: client.auth.instituteid }
-  ).catch(() => null);
+  ).catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; });
 
   if (!studentInfo?.programid) {
     return { semesters: [], gradeCards: {} };
@@ -127,7 +127,7 @@ const fetchGradeCards = async (client) => {
   const regList = await client.post(
     '/StudentPortalAPI/studentgradecard/getregistrationList',
     { instituteid: client.auth.instituteid }
-  ).catch(() => null);
+  ).catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; });
 
   const registrations = regList?.registrations || [];
   if (!registrations.length) {

@@ -9,7 +9,7 @@
  *   - No external dependencies
  */
 
-const DEFAULT_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const DEFAULT_TTL_MS = 30 * 60 * 1000; // 5 minutes
 const CLEANUP_INTERVAL_MS = 60 * 1000;
 
 const store = new Map();

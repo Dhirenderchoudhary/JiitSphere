@@ -82,6 +82,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
   const [selectedSem, setSelectedSem] = useState('');
   const [targetAttendancePct, setTargetAttendancePct] = useState('');
   const [attendance, setAttendance] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Master-Detail State
   const [activeSubject, setActiveSubject] = useState(null);
@@ -133,6 +134,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
   useEffect(() => {
     if (!selectedSem) return;
     let cancelled = false;
+    setLoading(true);
     const resetUI = () => { setActiveSubject(null); setHistoryDetail(null); setSubjectCounts({}); };
 
     const loadAttendance = async () => {
@@ -141,22 +143,31 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
         if (cancelled) return;
         const rows = response?.data?.studentattendancelist || [];
         setAttendance(rows);
-        resetUI();
+        setActiveSubject(null); 
+        setHistoryDetail(null);
 
-        const initialCounts = {};
-        for (const row of rows) {
-          const subjectCode = String(row?.subjectcode || row?.individualsubjectcode || '').trim();
-          if (!subjectCode) continue;
-          const trustedRatio = resolveAttendanceCounts(row, '', { allowDerived: false });
-          if (trustedRatio?.total) {
-            initialCounts[subjectCode] = { attended: Number(trustedRatio.attended), total: Number(trustedRatio.total), loading: false, source: trustedRatio.source };
-          } else {
-            initialCounts[subjectCode] = { attended: 0, total: 0, loading: true, source: 'pending' };
+        setSubjectCounts(prev => {
+          const next = { ...prev };
+          for (const row of rows) {
+            const subjectCode = String(row?.subjectcode || row?.individualsubjectcode || '').trim();
+            if (!subjectCode) continue;
+            
+            // Do not override if already loaded firmly by parallel loadAttendanceCounts
+            if (next[subjectCode] && next[subjectCode].source !== 'pending' && !next[subjectCode].loading) {
+               continue;
+            }
+
+            const trustedRatio = resolveAttendanceCounts(row, '', { allowDerived: false });
+            if (trustedRatio?.total) {
+              next[subjectCode] = { attended: Number(trustedRatio.attended), total: Number(trustedRatio.total), loading: false, source: trustedRatio.source };
+            } else {
+              next[subjectCode] = { attended: 0, total: 0, loading: true, source: 'pending' };
+            }
           }
-        }
-        setSubjectCounts(initialCounts);
+          return next;
+        });
 
-        if (rows.length) { initialSemesterFallbackDone.current = true; setMessage(''); return; }
+        if (rows.length) { initialSemesterFallbackDone.current = true; setMessage(''); setLoading(false); return; }
 
         if (!initialSemesterFallbackDone.current) {
           initialSemesterFallbackDone.current = true;
@@ -169,7 +180,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
             if (first?.sem?.registration_id) {
               setMessage(`Fallback to ${first.sem.registration_code}.`);
               setSelectedSem(first.sem.registration_id);
-              return;
+              return; // setLoading(false) shouldn't be called because selectedSem changed, effect re-runs
             }
           }
         }
@@ -178,6 +189,8 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
         if (err instanceof SessionExpiredError) { onExpired?.(); return; }
         if (cancelled) return;
         resetUI(); setAttendance([]); setMessage(err?.message || 'Data sync error.');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     };
     loadAttendance();
@@ -185,7 +198,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
   }, [token, selectedSem, onExpired, meta]);
 
   useEffect(() => {
-    if (!selectedSem || !attendance.length) return;
+    if (!selectedSem) return;
     let cancelled = false;
     const loadAttendanceCounts = async () => {
       try {
@@ -194,9 +207,13 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
         const counts = response?.data?.counts || {};
         setSubjectCounts(prev => {
           const next = { ...prev };
+          Object.keys(counts).forEach(code => {
+            next[code] = { attended: Number(counts[code].attended), total: Number(counts[code].total), loading: false, source: counts[code].source };
+          });
           Object.keys(next).forEach(code => {
-            if (counts[code]) next[code] = { attended: Number(counts[code].attended), total: Number(counts[code].total), loading: false, source: counts[code].source };
-            else next[code].loading = false;
+            if (!counts[code] && next[code].loading) {
+              next[code].loading = false;
+            }
           });
           return next;
         });
@@ -212,7 +229,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
     };
     loadAttendanceCounts();
     return () => { cancelled = true; };
-  }, [attendance, selectedSem, token, onExpired]);
+  }, [selectedSem, token, onExpired]);
 
   const selectSubject = useCallback(async (row, openDrawer = false) => {
       const activeCode = String(row?.subjectcode || row?.individualsubjectcode || '').trim();
@@ -360,7 +377,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                               <div className="flex items-center justify-between mt-2">
                                   <span className="text-[9px] font-mono tracking-wider opacity-60 bg-foreground/5 px-1.5 py-0.5 rounded uppercase">{subjectCode}</span>
                                   <span className="text-[10px] font-bold text-muted-foreground">
-                                      {countState && !countState.loading ? `${countState.attended} / ${countState.total}` : (() => { const rc = rowCounts(row); return rc.total >= 0 ? `${rc.attended} / ${rc.total}` : '...'; })()}
+                                      {countState && !countState.loading ? `${countState.attended} / ${countState.total}` : (() => { const rc = rowCounts(row); return rc.total > 0 ? `${rc.attended} / ${rc.total}` : <div className="h-3 w-8 bg-muted animate-pulse rounded" />; })()}
                                   </span>
                               </div>
                           </button>
@@ -384,16 +401,18 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
       const ratioParam = layoutTotal > 0 ? { attended: layoutAttended, total: layoutTotal } : undefined;
       layoutGuidance = buildAttendanceGuidance(activeSubject, targetVal, ratioParam);
       layoutSafe = layoutPct >= targetVal;
-  } else if (aggregateMetrics) {
+  } else if (aggregateMetrics && aggregateMetrics.total > 0) {
       layoutPct = aggregateMetrics.pct;
       layoutTotal = aggregateMetrics.total;
       layoutAttended = aggregateMetrics.attended;
       layoutSafe = layoutPct >= targetVal;
-      if (layoutTotal > 0) {
-        layoutGuidance = missOrNeedText(layoutAttended, layoutTotal, targetVal);
-      } else {
-        layoutGuidance = `Avg across ${attendance.length} subjects`;
-      }
+      layoutGuidance = missOrNeedText(layoutAttended, layoutTotal, targetVal);
+  } else {
+      layoutPct = aggregateMetrics?.pct || 0;
+      layoutTotal = 0;
+      layoutAttended = 0;
+      layoutSafe = layoutPct >= targetVal;
+      layoutGuidance = `Loading total metrics...`;
   }
 
   const dashboardHeader = (
@@ -461,8 +480,14 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                         ) : (
                           <>
                             <div className="flex items-baseline gap-1 mb-1.5">
-                                <span className="text-xl md:text-2xl font-black tracking-tighter text-foreground leading-none">{layoutAttended}</span>
-                                <span className="text-[10px] sm:text-xs font-bold text-muted-foreground">/ {layoutTotal}</span>
+                                {layoutTotal > 0 || (isDetailView && subjectCounts[activeCode] && !subjectCounts[activeCode].loading) ? (
+                                    <>
+                                        <span className="text-xl md:text-2xl font-black tracking-tighter text-foreground leading-none">{layoutAttended}</span>
+                                        <span className="text-[10px] sm:text-xs font-bold text-muted-foreground">/ {layoutTotal}</span>
+                                    </>
+                                ) : (
+                                    <div className="h-6 w-16 bg-muted animate-pulse rounded" />
+                                )}
                             </div>
                             <div className="flex flex-col sm:flex-row gap-1 sm:gap-3 text-[9px] font-bold text-muted-foreground uppercase leading-tight">
                                 <span>Lec {isDetailView && <span className="text-foreground tracking-wider ml-0.5">{toPercent(activeSubject?.Lpercentage)}</span>}</span>
@@ -543,6 +568,22 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                              </p>
                          </div>
                      )
+                 ) : loading ? (
+                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 p-2 sm:p-0">
+                         {[1, 2, 3, 4, 5, 6].map((i) => (
+                             <div key={i} className="rounded-xl border border-border/50 bg-muted/10 p-4 space-y-3">
+                                 <div className="flex items-start justify-between gap-2">
+                                     <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+                                     <div className="h-6 w-8 bg-muted animate-pulse rounded shrink-0" />
+                                 </div>
+                                 <div className="w-full h-1.5 rounded-full bg-border/40 overflow-hidden" />
+                                 <div className="flex items-center justify-between">
+                                     <div className="h-3 w-16 bg-muted animate-pulse rounded" />
+                                     <div className="h-3 w-12 bg-muted animate-pulse rounded" />
+                                 </div>
+                             </div>
+                         ))}
+                     </div>
                  ) : attendance.length > 0 ? (
                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 p-2 sm:p-0">
                          {attendance.map((row) => {

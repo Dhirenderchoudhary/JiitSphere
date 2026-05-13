@@ -126,20 +126,49 @@ export const hasExamSignal = (value) => {
 export const extractTimeFromText = (value) => {
   const text = String(value || '').trim();
   if (!text) return '';
-  const range = text.match(
-    /(\d{1,2}:\d{2}\s*(?:AM|PM)?)\s*(?:-|to|–|—)\s*(\d{1,2}:\d{2}\s*(?:AM|PM)?)/i
-  );
-  if (range) return `${range[1]} - ${range[2]}`.replace(/\s+/g, ' ').toUpperCase();
-  return '';
+  // Find all time patterns (e.g. 10:00 AM, 12:00, 2:30 PM)
+  const times = [...text.matchAll(/(\d{1,2}:\d{2}\s*(?:AM|PM)?)/gi)].map(m => m[1]);
+  if (times.length >= 2) {
+      // Take the first and the very last matched times in the string to avoid duplicate pairs
+      return `${times[0]} - ${times[times.length - 1]}`.replace(/\s+/g, ' ').toUpperCase();
+  }
+  if (times.length === 1) {
+      return times[0].toUpperCase();
+  }
+  return text;
+};
+
+export const extactCleanTimeRange = (from, to) => {
+  const cleanFrom = String(from || '').trim();
+  const cleanTo = String(to || '').trim();
+  if (cleanFrom && cleanTo) {
+    if (cleanTo.toLowerCase().includes(cleanFrom.toLowerCase())) {
+        return cleanTo;
+    }
+    if (cleanFrom.toLowerCase().includes(cleanTo.toLowerCase())) {
+        return cleanFrom;
+    }
+    return `${cleanFrom} - ${cleanTo}`;
+  }
+  return cleanFrom || cleanTo || '';
 };
 
 export const toExamTimeLabel = (exam = {}) => {
-  if (hasExamSignal(exam?.time)) return String(exam.time);
+  const direct = String(exam?.time || '').trim();
+  if (hasExamSignal(direct)) {
+    const extracted = extractTimeFromText(direct);
+    return extracted || direct;
+  }
   const raw = exam?.raw || {};
   const fromTime = raw?.datetimefrom || raw?.timefrom || raw?.fromtime || raw?.starttime || '';
   const toTime = raw?.datetimeupto || raw?.timeto || raw?.totime || raw?.endtime || '';
-  if (fromTime && toTime) return `${String(fromTime).trim()} to ${String(toTime).trim()}`;
-  if (fromTime) return String(fromTime).trim();
+  
+  if (fromTime || toTime) {
+      const combined = extactCleanTimeRange(fromTime, toTime);
+      const extracted = extractTimeFromText(combined);
+      return extracted || combined;
+  }
+
   const fromSlot = extractTimeFromText(exam?.slot);
   if (fromSlot) return fromSlot;
   const fromRawSlot = extractTimeFromText(raw?.slot || raw?.slotdesc || raw?.timeslot);
