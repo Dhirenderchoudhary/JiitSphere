@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 const multer = require('multer');
 const os = require('os');
 const path = require('path');

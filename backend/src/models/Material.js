@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 const mongoose = require('mongoose');
 
 const materialSchema = new mongoose.Schema(

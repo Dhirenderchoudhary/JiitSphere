@@ -607,7 +607,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                                      <div className="flex items-center justify-between">
                                          <span className="text-[9px] font-mono tracking-wider text-muted-foreground/60 uppercase">{code}</span>
                                          <span className="text-[10px] font-bold text-muted-foreground">
-                                             {countState && !countState.loading ? `${countState.attended} / ${countState.total}` : (() => { const rc = rowCounts(row); return rc.total >= 0 ? `${rc.attended} / ${rc.total}` : '-'; })()}
+                                             {countState && !countState.loading ? `${countState.attended} / ${countState.total}` : (() => { const rc = rowCounts(row); return rc.total > 0 ? `${rc.attended} / ${rc.total}` : <div className="h-3 w-8 bg-muted animate-pulse rounded" />; })()}
                                          </span>
                                      </div>
                                  </button>
@@ -708,7 +708,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                           <div className="flex items-center justify-between mt-2">
                               <span className="text-[9px] font-mono tracking-wider opacity-60 bg-foreground/5 px-1.5 py-0.5 rounded uppercase">{subjectCode}</span>
                               <span className="text-[10px] font-bold text-muted-foreground">
-                                  {countState?.total ? `${countState.attended} / ${countState.total}` : '...'}
+                                  {countState && !countState.loading ? `${countState.attended} / ${countState.total}` : (() => { const rc = rowCounts(row); return rc.total > 0 ? `${rc.attended} / ${rc.total}` : <div className="h-3 w-8 bg-muted animate-pulse rounded" />; })()}
                               </span>
                           </div>
                       </button>

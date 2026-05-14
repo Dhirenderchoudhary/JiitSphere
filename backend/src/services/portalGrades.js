@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 /**
  * portalGrades.js — SGPA/CGPA + grade card fetching & validation.
  *

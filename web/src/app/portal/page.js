@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useLayoutEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { TOKEN_KEY, PORTAL_VERIFIED_KEY, LOGIN_AT_KEY } from './constants';
 import { PortalShell } from './components';
@@ -26,22 +26,12 @@ const isTokenExpired = (token) => {
   return expMs !== null && Date.now() >= expMs;
 };
 
+// Hook for SSR-safe synchronous layout check
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
 export default function PortalPage() {
   const router = useRouter();
-  
-  // Optimistically load token & verified state on mount to skip the "Authenticating" flash
-  const [token, setToken] = useState(() => {
-     if (typeof window !== 'undefined') {
-         const verified = window.localStorage.getItem(PORTAL_VERIFIED_KEY) === 'true';
-         const savedToken = window.localStorage.getItem(TOKEN_KEY) || '';
-         if (verified && savedToken && !isTokenExpired(savedToken)) {
-             return savedToken;
-         }
-     }
-     return '';
-  });
-  
-  const [isMounted, setIsMounted] = useState(false);
+  const [token, setToken] = useState('');
   const [isRoutingAway, setIsRoutingAway] = useState(false);
 
   const clearSession = useCallback(() => {
@@ -51,19 +41,12 @@ export default function PortalPage() {
     setToken('');
   }, []);
 
-  useEffect(() => {
-    setIsMounted(true);
+  // Use synchronous layout effect to prevent any blank screen or flash on valid sessions
+  useIsomorphicLayoutEffect(() => {
     const verified = window.localStorage.getItem(PORTAL_VERIFIED_KEY) === 'true';
     const savedToken = window.localStorage.getItem(TOKEN_KEY) || '';
 
-    if (!verified || !savedToken) {
-      clearSession();
-      setIsRoutingAway(true);
-      router.replace('/login');
-      return;
-    }
-
-    if (isTokenExpired(savedToken)) {
+    if (!verified || !savedToken || isTokenExpired(savedToken)) {
       clearSession();
       setIsRoutingAway(true);
       router.replace('/login');
@@ -94,22 +77,11 @@ export default function PortalPage() {
     router.replace('/login');
   }, [clearSession, router]);
 
-  if (!isMounted || isRoutingAway) {
-    return (
-      <div className="flex min-h-screen items-center justify-center p-6 bg-background">
-        <div className="flex flex-col items-center gap-3 animate-pulse">
-           <div className="size-3 border-2 border-primary/50 rotate-45 shadow-sm" />
-           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">
-              {isRoutingAway ? "Redirecting" : "Igniting Engine"}
-           </p>
-        </div>
-      </div>
-    );
+  // If we are routing away or don't have a token yet (very briefly on mount)
+  if (isRoutingAway || !token) {
+    return <div className="min-h-screen bg-background" />;
   }
 
-  if (!token) {
-    return null; // Token should realistically always be populated here if not routing away
-  }
-
+  // Instantly mount the shell
   return <PortalShell token={token} onLogout={handleLogout} />;
 }

@@ -7,15 +7,17 @@ import LoginView from '../portal/components/LoginView';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [isMounted, setIsMounted] = useState(false);
+  const [shouldRender, setShouldRender] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true);
     const verified = window.localStorage.getItem(PORTAL_VERIFIED_KEY) === 'true';
     const savedToken = window.localStorage.getItem(TOKEN_KEY) || '';
 
+    // If fully verified and we have a token, instantly redirect.
     if (verified && savedToken) {
       router.replace('/portal');
+    } else {
+      setShouldRender(true);
     }
   }, [router]);
 
@@ -23,15 +25,10 @@ export default function LoginPage() {
     router.push('/portal');
   };
 
-  if (!isMounted) {
-    return (
-      <div className="flex min-h-screen items-center justify-center p-6 bg-background">
-        <div className="flex flex-col items-center gap-3 animate-pulse">
-           <div className="size-3 border-2 border-primary/50 rotate-45 shadow-sm" />
-           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Igniting Engine</p>
-        </div>
-      </div>
-    );
+  // Only show the blank background until we confirm no valid session exists.
+  // This prevents the "Igniting Engine" flash while still avoiding a flash of the login screen.
+  if (!shouldRender) {
+    return <div className="min-h-screen bg-background" />;
   }
 
   return <LoginView onAuth={handleAuth} />;

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 const crypto = require('crypto');
 
 const PORTAL_AES_IV = 'dcek9wb8frty1pnm';

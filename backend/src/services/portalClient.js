@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 /**
  * portalClient.js — Stateful portal API client with retry, timeout, and deduplication.
  *

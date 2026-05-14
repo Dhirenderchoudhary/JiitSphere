@@ -89,31 +89,33 @@ export default function PortalShell({ token, onLogout }) {
 
   useEffect(() => {
     setIsRefreshing(true);
-    fetchPortalSdkSession(token, false)
-      .then((response) => {
-        setSdkSession(response?.data || null);
-        setIsRefreshing(false);
-      })
-      .catch((err) => {
-        setIsRefreshing(false);
-        if (err instanceof SessionExpiredError) {
+    
+    // Fetch critical session data and identity data in parallel for instant hydration
+    Promise.allSettled([
+      fetchPortalSdkSession(token, false),
+      refreshKey === 0 ? fetchMe(token) : Promise.resolve({ data: { user: currentUser } })
+    ]).then(([sessionResult, meResult]) => {
+      // 1. Handle Session
+      if (sessionResult.status === 'fulfilled') {
+        setSdkSession(sessionResult.value?.data || null);
+      } else {
+        if (sessionResult.reason instanceof SessionExpiredError) {
           onExpired();
         } else {
-          // Suppress automatic logout on raw network/server errors (500/502).
-          // Allow the UI to ride out transient backend blips without destroying user tokens.
-          console.warn("Portal Sync Transient Warning:", err?.message || 'Unknown error');
+          console.warn("Portal Sync Transient Warning:", sessionResult.reason?.message || 'Unknown error');
         }
-      });
-  }, [token, onLogout, onExpired, refreshKey]);
-
-  useEffect(() => {
-    fetchMe(token)
-      .then((response) => setCurrentUser(response?.data?.user || null))
-      .catch((err) => {
-        if (err instanceof SessionExpiredError) onExpired();
-        else setCurrentUser(null);
-      });
-  }, [token, onExpired]);
+      }
+      
+      // 2. Handle Identity (only fetches on initial mount)
+      if (meResult.status === 'fulfilled' && refreshKey === 0) {
+        setCurrentUser(meResult.value?.data?.user || null);
+      } else if (meResult.status === 'rejected' && meResult.reason instanceof SessionExpiredError) {
+        onExpired();
+      }
+      
+      setIsRefreshing(false);
+    });
+  }, [token, onExpired, refreshKey]);
 
   useEffect(() => {
     syncCachedIdentity();

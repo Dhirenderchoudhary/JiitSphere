@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 const MAX_RECENT = 50;
 const MAX_DURATION_SAMPLES = 3000;
 const RETENTION_DAYS = Math.max(7, Number(process.env.ANALYTICS_RETENTION_DAYS || 30));

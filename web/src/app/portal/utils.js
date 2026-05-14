@@ -126,14 +126,16 @@ export const hasExamSignal = (value) => {
 export const extractTimeFromText = (value) => {
   const text = String(value || '').trim();
   if (!text) return '';
-  // Find all time patterns (e.g. 10:00 AM, 12:00, 2:30 PM)
-  const times = [...text.matchAll(/(\d{1,2}:\d{2}\s*(?:AM|PM)?)/gi)].map(m => m[1]);
+  // Find all time patterns (e.g. 10:00 AM, 12:00, 2:30 PM, 10 am)
+  const regex = /\\b(\\d{1,2}(?::\\d{2})?\\s*(?:AM|PM|am|pm)|\\d{1,2}:\\d{2})\\b/gi;
+  const times = [...text.matchAll(regex)].map(m => m[1].replace(/\\s+/g, ' ').toUpperCase());
+  
   if (times.length >= 2) {
       // Take the first and the very last matched times in the string to avoid duplicate pairs
-      return `${times[0]} - ${times[times.length - 1]}`.replace(/\s+/g, ' ').toUpperCase();
+      return `${times[0]} - ${times[times.length - 1]}`;
   }
   if (times.length === 1) {
-      return times[0].toUpperCase();
+      return times[0];
   }
   return text;
 };

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 

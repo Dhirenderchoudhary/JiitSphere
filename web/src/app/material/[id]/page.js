@@ -1,36 +1,37 @@
-import { headers } from 'next/headers';
 import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import CollegeBrand from 'components/CollegeBrand';
 import HistoryBackButton from 'components/HistoryBackButton';
+import MaterialViewerClient from 'components/MaterialViewerClient';
+import DownloadButton from 'components/DownloadButton';
 import { Badge } from 'components/ui/badge';
 import { Button } from 'components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from 'components/ui/card';
 
 const isVideo = (type) => ['mp4', 'webm', 'ogg'].includes(type);
 const isImage = (type) => ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(type);
-const isNativeViewable = (type) => type === 'pdf' || isVideo(type) || isImage(type);
+const OFFICE_TYPES = new Set(['ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx']);
 
-const normalizeSiteUrl = (value) => String(value || '').trim().replace(/\/+$/, '');
+/**
+ * Resolve the backend API base URL for server-to-server calls.
+ * Direct call — bypasses the /api/backend proxy entirely.
+ */
+const BACKEND_URL = (
+  process.env.INTERNAL_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  'http://localhost:5000/api/v1'
+).replace(/\/+$/, '');
 
-const resolveOrigin = () => {
-  const h = headers();
-  const host = h.get('x-forwarded-host') || h.get('host') || '';
-  const proto = h.get('x-forwarded-proto') || 'http';
-  if (host) return `${proto}://${host}`;
-
-  return (
-    normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
-    normalizeSiteUrl(process.env.NEXTAUTH_URL) ||
-    'http://localhost:3000'
-  );
-};
-
+/**
+ * Fetch material by ID directly from the backend.
+ * No proxy hop, no self-call — single server→backend fetch.
+ * Cached via Next.js ISR for 5 minutes to avoid repeated DB lookups.
+ */
 const fetchMaterialByIdServer = async (id) => {
-  const origin = resolveOrigin();
-  const response = await fetch(`${origin}/api/backend/materials/${encodeURIComponent(String(id || ''))}`, {
-    cache: 'no-store'
-  });
+  const response = await fetch(
+    `${BACKEND_URL}/materials/${encodeURIComponent(String(id || ''))}`,
+    { next: { revalidate: 3600 } }
+  );
 
   let payload = null;
   try {
@@ -50,7 +51,32 @@ const fetchMaterialByIdServer = async (id) => {
   return payload;
 };
 
-const buildAccessUrl = (id, action) => `/api/study-material/access/${encodeURIComponent(String(id || ''))}?action=${encodeURIComponent(action)}`;
+/**
+ * Determine the best viewer strategy for a given material.
+ *
+ * Returns { strategy, embeddedUrl } where:
+ *   - pdf/images/video/text → direct CDN URL (native browser rendering)
+ *   - office files          → Google Docs Viewer URL (renders PPT/DOC/XLS inline)
+ *   - other                 → null (download-only)
+ */
+const resolveViewerConfig = (material) => {
+  const ft = (material.fileType || '').toLowerCase();
+  const fileUrl = material.fileUrl;
+
+  if (!fileUrl) return { strategy: 'unsupported', embeddedUrl: null };
+
+  if (isVideo(ft))  return { strategy: 'video', embeddedUrl: fileUrl };
+  if (isImage(ft))  return { strategy: 'image', embeddedUrl: fileUrl };
+  if (ft === 'pdf') return { strategy: 'pdf',   embeddedUrl: fileUrl };
+  if (ft === 'txt') return { strategy: 'text',  embeddedUrl: fileUrl };
+
+  if (OFFICE_TYPES.has(ft)) {
+    const gdocsUrl = `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+    return { strategy: 'office', embeddedUrl: gdocsUrl };
+  }
+
+  return { strategy: 'unsupported', embeddedUrl: null };
+};
 
 export default async function MaterialViewerPage({ params }) {
   const response = await fetchMaterialByIdServer(params.id);
@@ -59,8 +85,13 @@ export default async function MaterialViewerPage({ params }) {
   const isGuest = cookieStore.get('guest_mode')?.value === '1' && !cookieStore.get('jiitsphere_token')?.value;
   const guestUsage = { used: 0, limit: 5 };
   const limitReached = isGuest && guestUsage.used >= guestUsage.limit;
-  const viewerUrl = buildAccessUrl(material._id, 'view');
-  const downloadUrl = buildAccessUrl(material._id, 'download');
+
+  // Direct CDN URL — no proxy, no redirect, no latency
+  const fileUrl = material.fileUrl || '';
+  const viewerConfig = resolveViewerConfig(material);
+
+  // Build filename for download
+  const downloadFilename = `${material.title || material.subject || 'material'}.${material.fileType || 'pdf'}`;
 
   return (
     <main className="page-shell py-6 sm:py-7">
@@ -73,12 +104,11 @@ export default async function MaterialViewerPage({ params }) {
             </a>
           ) : (
             <>
-              <a href={viewerUrl} target="_blank" rel="noopener noreferrer">
+              {/* Direct CDN link — opens instantly, no redirect */}
+              <a href={fileUrl} target="_blank" rel="noopener noreferrer">
                 <Button variant="secondary" size="sm">Open Source</Button>
               </a>
-              <a href={downloadUrl} download>
-                <Button size="sm">Download</Button>
-              </a>
+              <DownloadButton fileUrl={fileUrl} filename={downloadFilename} />
             </>
           )}
         </div>
@@ -106,9 +136,9 @@ export default async function MaterialViewerPage({ params }) {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 sm:p-6 sm:pt-0">
         {limitReached ? (
-          <div className="flex h-[48vh] flex-col items-center justify-center rounded-2xl border border-amber-300/40 bg-amber-500/5 p-8 text-center">
+          <div className="flex h-[48vh] flex-col items-center justify-center rounded-2xl border border-amber-300/40 bg-amber-500/5 p-8 text-center mx-4 my-4 sm:mx-0">
             <h2 className="text-xl font-bold text-foreground">Guest limit reached</h2>
             <p className="mt-2 max-w-xl text-sm text-muted-foreground">
               Sign in with your college account to continue viewing and downloading materials without limits.
@@ -117,16 +147,22 @@ export default async function MaterialViewerPage({ params }) {
               <Button size="sm">Sign in for unlimited access</Button>
             </a>
           </div>
-        ) : isVideo(material.fileType) ? (
-          <video className="h-[78vh] w-full rounded-2xl border border-border" controls src={viewerUrl} />
-        ) : isImage(material.fileType) ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img className="mx-auto max-h-[78vh] rounded-2xl border border-border" src={viewerUrl} alt={material.title} loading="lazy" decoding="async" />
         ) : (
-          <iframe className="h-[78vh] w-full rounded-2xl border border-border" src={viewerUrl} title={material.title} allowFullScreen />
+          <div className="mx-4 mb-4 sm:mx-0 sm:mb-0">
+             <MaterialViewerClient
+                embeddedUrl={viewerConfig.embeddedUrl}
+                viewerStrategy={viewerConfig.strategy}
+                fileUrl={fileUrl}
+                downloadFilename={downloadFilename}
+                title={material.title}
+                fileType={material.fileType}
+             />
+          </div>
         )}
         </CardContent>
       </Card>
     </main>
   );
 }
+
+

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 const app = require('./app');
 const connectDb = require('./config/db');
 const env = require('./config/env');

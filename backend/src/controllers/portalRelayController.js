@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 const env = require('../config/env');
 const {
   createRelaySession,

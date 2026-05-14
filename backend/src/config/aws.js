@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 const { S3Client } = require('@aws-sdk/client-s3');
 const env = require('./env');
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 const PORTAL_URL = 'https://webportal.jiit.ac.in:6011/studentportal/#/';
 const JPORTAL_UI_URL = 'https://yashmalik.tech/jportal/';
 

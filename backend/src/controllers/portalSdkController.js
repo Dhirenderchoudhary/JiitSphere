@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 const { createOrUpdateSession, getSessionByOwner } = require('../services/ownPortalSdk');
 const env = require('../config/env');
 const { ensureOwnedSession, buildCookieHeader } = require('../services/portalRelayService');

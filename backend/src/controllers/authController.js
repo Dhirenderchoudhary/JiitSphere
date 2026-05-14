@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 const crypto = require('crypto');
 const env = require('../config/env');
 const { sign } = require('../utils/token');

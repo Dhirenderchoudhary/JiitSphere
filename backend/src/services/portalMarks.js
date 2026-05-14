@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 /**
  * portalMarks.js — Marks PDF fetching & deterministic parsing.
  *

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 const express = require('express');
 const { login, demoLogin, me, analytics } = require('../controllers/authController');
 const authUser = require('../middlewares/authUser');

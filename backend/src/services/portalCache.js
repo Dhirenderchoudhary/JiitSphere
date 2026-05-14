@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 /**
  * portalCache.js — Simple in-memory TTL cache for portal API responses.
  *

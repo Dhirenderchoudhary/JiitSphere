@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 const express = require('express');
 const authSuperAdmin = require('../middlewares/authSuperAdmin');
 const { login, getAnalytics } = require('../controllers/superadminController');

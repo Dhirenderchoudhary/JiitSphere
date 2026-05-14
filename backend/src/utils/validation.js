@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+
 /**
  * validation.js — Data integrity validators for academic data.
  *
