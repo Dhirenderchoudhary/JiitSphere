@@ -3,7 +3,7 @@ services:
     name: jiitsphere-backend
     runtime: node
     rootDir: backend
-    buildCommand: npm i -g pnpm && pnpm install --frozen-lockfile
+    buildCommand: npm i -g pnpm && PNPM_CONFIG_MINIMUM_RELEASE_AGE=0 pnpm install --frozen-lockfile
     startCommand: node src/server.js
     healthCheckPath: /health
     autoDeploy: false

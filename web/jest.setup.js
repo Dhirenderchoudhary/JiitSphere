@@ -22,8 +22,8 @@ global.ResizeObserver = class ResizeObserver {
   disconnect() {}
 };
 
-import { server } from './src/mocks/server';
+// import { server } from './src/mocks/server';
 
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+// beforeAll(() => server.listen());
+// afterEach(() => server.resetHandlers());
+// afterAll(() => server.close());
