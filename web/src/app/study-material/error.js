@@ -8,8 +8,8 @@ export default function StudyMaterialError({ reset }) {
   return (
     <main className="page-shell flex min-h-[70vh] items-center justify-center py-10">
       <div className="surface-card w-full max-w-lg p-6 text-center sm:p-8">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
-          <AlertTriangle className="h-6 w-6" />
+        <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+          <AlertTriangle className="size-6" />
         </div>
         <h1 className="mt-4 text-xl font-black">Unable to load Study Material</h1>
         <p className="mt-2 text-sm text-muted-foreground">

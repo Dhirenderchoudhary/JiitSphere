@@ -6,7 +6,7 @@ import { TOKEN_KEY, PORTAL_VERIFIED_KEY } from '../portal/constants';
 import LoginView from '../portal/components/LoginView';
 
 export default function LoginPage() {
-  const router = useRouter();
+  const { replace } = useRouter();
   const [shouldRender, setShouldRender] = useState(false);
 
   useEffect(() => {
@@ -15,14 +15,14 @@ export default function LoginPage() {
 
     // If fully verified and we have a token, instantly redirect.
     if (verified && savedToken) {
-      router.replace('/portal');
+      replace('/portal');
     } else {
       setShouldRender(true);
     }
-  }, [router]);
+  }, [replace]);
 
   const handleAuth = (token) => {
-    router.push('/portal');
+    replace('/portal');
   };
 
   // Only show the blank background until we confirm no valid session exists.

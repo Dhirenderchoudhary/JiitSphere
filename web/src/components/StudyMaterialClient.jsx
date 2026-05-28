@@ -123,21 +123,17 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
   const [optionsError, setOptionsError] = useState('');
   const [optionsRefreshKey, setOptionsRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState(null);
-  const [guestUsage, setGuestUsage] = useState(() => ({ used: 0, limit: GUEST_USAGE_LIMIT }));
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreMaterials, setHasMoreMaterials] = useState(false);
   const [currentMaterialPage, setCurrentMaterialPage] = useState(1);
   const [guestSignOutLoading, setGuestSignOutLoading] = useState(false);
   const browseRequestIdRef = useRef(0);
 
-  useEffect(() => {
-    if (!isGuest) return;
-    setGuestUsage({
-      used: Number(initialGuestUsage.used || 0),
-      limit: Number(initialGuestUsage.limit || GUEST_USAGE_LIMIT),
-    });
-  }, [initialGuestUsage.limit, initialGuestUsage.used, isGuest]);
 
+  const guestUsage = isGuest ? {
+    used: Number(initialGuestUsage.used || 0),
+    limit: Number(initialGuestUsage.limit || GUEST_USAGE_LIMIT),
+  } : { used: 0, limit: GUEST_USAGE_LIMIT };
   const limitReached = isGuest && guestUsage.used >= guestUsage.limit;
   const stepOptionsLoading = optionsLoading || browseOptionsLoading;
   const currentStepIndex = STEPS.findIndex((key) => !filters[key]);
@@ -150,7 +146,10 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
     setOptionsError('');
 
     fetchFilterOptions()
-      .then((data) => setOptions(data.data || {}))
+      .then((data) => {
+        setOptions(data.data || {});
+        setOptionsError('');
+      })
       .catch((error) => {
         setOptions({});
         setOptionsError(error?.message || 'Failed to load filter options.');
@@ -305,7 +304,6 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
     } catch {
       // ignore and still proceed with local cleanup
     } finally {
-      setGuestUsage({ used: 0, limit: GUEST_USAGE_LIMIT });
       setGuestSignOutLoading(false);
       router.replace('/study-access?next=/study-material');
     }
@@ -372,7 +370,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
                 disabled={guestSignOutLoading}
                 title="Exit guest mode"
               >
-                <LogOut className="h-3.5 w-3.5" />
+                <LogOut className="size-[3.5]" />
                 <span>{guestSignOutLoading ? 'Exiting...' : 'Sign out'}</span>
               </Button>
             </div>
@@ -386,7 +384,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
         <div className="flex flex-col gap-4 max-w-3xl">
           <div className="flex items-center gap-3">
             <div className="flex bg-primary/10 p-2 rounded-lg">
-              <BookOpen className="h-5 w-5 text-primary" />
+              <BookOpen className="size-5 text-primary" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
               Study Material
@@ -406,7 +404,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
                   <span className={isActive ? 'text-foreground font-semibold' : isCurrent ? 'text-primary font-semibold' : ''}>
                     {s.charAt(0).toUpperCase() + s.slice(1)}
                   </span>
-                  {i < STEPS.length - 1 && <ChevronRight className="h-3.5 w-3.5 opacity-50" />}
+                  {i < STEPS.length - 1 && <ChevronRight className="size-[3.5] opacity-50" />}
                 </span>
                )
              })}
@@ -417,8 +415,8 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
       {/* ── Breadcrumb trail ────────────────────────────────────── */}
       {STEPS.some((k) => filters[k]) && (
         <nav className="mt-4 flex flex-wrap items-center gap-1 rounded-xl border border-border bg-card/80 px-3 py-2 text-sm shadow-sm backdrop-blur">
-          <button onClick={resetAll} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
-            <RotateCcw className="h-3 w-3" /> Reset
+          <button type="button" onClick={resetAll} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
+            <RotateCcw className="size-3" /> Reset
           </button>
           {STEPS.map((key) => {
             if (!filters[key]) return null;
@@ -426,12 +424,13 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
             const label = key === 'year' ? (YEAR_META[filters[key]]?.label || `Year ${filters[key]}`) : key === 'semester' ? (SEM_LABELS[filters[key]] || `Sem ${filters[key]}`) : filters[key];
             return (
               <span key={key} className="flex items-center gap-1">
-                <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
+                <ChevronRight className="size-3 text-muted-foreground/50" />
                 <button
+                  type="button"
                   onClick={() => goBackTo(key)}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1 font-semibold text-primary transition hover:bg-primary/20"
                 >
-                  <StepIcon className="h-3 w-3" /> {label}
+                  <StepIcon className="size-3" /> {label}
                 </button>
               </span>
             );
@@ -458,7 +457,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
           {!stepOptionsLoading && optionsError ? (
             <div className="mb-4 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300">
               <div className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                 <div>
                   <p className="font-semibold">Unable to load options</p>
                   <p className="mt-0.5 text-xs opacity-90">{optionsError}</p>
@@ -481,17 +480,18 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
             <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
               {optionMap.year.map((opt) => (
                 <button
+                  type="button"
                   key={opt.value}
                   onClick={() => selectOption('year', opt.value)}
                   aria-label={`Select ${opt.label}`}
                   className="group relative flex flex-col rounded-2xl border border-border bg-card p-6 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-4 group-hover:bg-primary/20 transition-colors">
+                  <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-4 group-hover:bg-primary/20 transition-colors">
                     {typeof opt.icon === 'function' ? <opt.icon className="size-6" /> : <BookOpen className="size-6" />}
                   </div>
                   <p className="text-base font-bold group-hover:text-primary transition-colors">{opt.label}</p>
                   <p className="text-xs text-muted-foreground mt-1">{opt.sub}</p>
-                  <ArrowRight className="absolute bottom-6 right-6 h-4 w-4 text-muted-foreground/30 transition-all group-hover:text-primary group-hover:translate-x-0.5" />
+                  <ArrowRight className="absolute bottom-6 right-6 size-4 text-muted-foreground/30 transition-all group-hover:text-primary group-hover:translate-x-0.5" />
                 </button>
               ))}
             </div>
@@ -502,6 +502,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
             <div className="flex flex-wrap gap-3">
               {optionMap.semester.map((opt) => (
                 <button
+                  type="button"
                   key={opt.value}
                   onClick={() => selectOption('semester', opt.value)}
                   aria-label={`Select ${opt.label}`}
@@ -518,18 +519,19 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
             <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
               {optionMap.branch.map((opt, i) => (
                 <button
+                  type="button"
                   key={opt.value}
                   onClick={() => selectOption('branch', opt.value)}
                   aria-label={`Select branch ${opt.label}`}
                   className="group relative flex items-center justify-between rounded-2xl border border-border bg-card p-5 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
-                        <GitBranch className="h-5 w-5" />
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
+                        <GitBranch className="size-5" />
                     </div>
                     <p className="text-sm font-bold group-hover:text-primary transition-colors">{opt.label}</p>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground/20 group-hover:text-primary transition-all group-hover:translate-x-0.5" />
+                  <ArrowRight className="size-4 text-muted-foreground/20 group-hover:text-primary transition-all group-hover:translate-x-0.5" />
                 </button>
               ))}
             </div>
@@ -540,18 +542,19 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {optionMap.subject.map((opt) => (
                 <button
+                  type="button"
                   key={opt.value}
                   onClick={() => selectOption('subject', opt.value)}
                   aria-label={`Select subject ${opt.label}`}
                   className="group flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md hover:bg-primary/5"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <BookMarked className="h-4 w-4" />
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <BookMarked className="size-4" />
                     </div>
                     <span className="text-sm font-bold group-hover:text-primary transition-colors">{opt.label}</span>
                   </div>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/30 transition group-hover:text-primary" />
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground/30 transition group-hover:text-primary" />
                 </button>
               ))}
             </div>
@@ -570,7 +573,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
         <section className="mt-6">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+              <div className="size-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
               <p className="mt-3 text-sm text-muted-foreground">Loading materials…</p>
             </div>
           ) : materialsError ? (
@@ -609,6 +612,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
                   const isActive = activeTab === type;
                   return (
                     <button
+                      type="button"
                       key={type}
                       onClick={() => setActiveTab(type)}
                       aria-label={`View ${type} materials`}
@@ -618,7 +622,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
                           : 'border-border bg-card text-muted-foreground hover:border-border hover:bg-muted/50'
                       }`}
                     >
-                      <Icon className="h-4 w-4" />
+                      <Icon className="size-4" />
                       {type}
                       <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${isActive ? meta.badge : 'bg-muted text-muted-foreground'}`}>
                         {grouped[type]?.length || 0}
@@ -638,8 +642,8 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
                   <div>
                     {/* Section header with gradient accent */}
                     <div className={`mb-4 flex items-center gap-3 rounded-xl ${meta.bg} border ${meta.border} px-4 py-3`}>
-                      <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br ${meta.gradient} text-white shadow-sm`}>
-                        <Icon className="h-4.5 w-4.5" />
+                      <div className={`flex size-9 items-center justify-center rounded-lg bg-gradient-to-br ${meta.gradient} text-white shadow-sm`}>
+                        <Icon className="size-[4.5]" />
                       </div>
                       <div>
                         <p className={`text-sm font-black ${meta.text}`}>{activeTab}</p>
@@ -661,16 +665,17 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
                           </div>
                           <div className="flex gap-2">
                             <Link href={`/material/${item._id}`} className="flex-1">
-                              <Button className="w-full" size="sm" variant="secondary">
-                                <BookOpen className="mr-1.5 h-3.5 w-3.5" /> View
+                              <Button type="button" className="w-full" size="sm" variant="secondary">
+                                <BookOpen className="mr-1.5 size-[3.5]" /> View
                               </Button>
                             </Link>
                             {limitReached ? (
-                              <Button size="sm" disabled className="flex-1">
-                                <Download className="mr-1.5 h-3.5 w-3.5" /> Limit
+                              <Button type="button" size="sm" disabled className="flex-1">
+                                <Download className="mr-1.5 size-[3.5]" /> Limit
                               </Button>
                             ) : (
                               <Button
+                                type="button"
                                 size="sm"
                                 className="flex-1"
                                 onClick={() => {
@@ -678,9 +683,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
                                   toast.info(`Downloading...`, { description: filename });
                                   triggerDownload(materialAccessUrl(item._id, 'download'), filename)
                                     .then(() => {
-                                      if (isGuest) {
-                                        setGuestUsage((prev) => ({ ...prev, used: Math.min(prev.limit, prev.used + 1) }));
-                                      }
+                                      // Guest usage tracking is now handled by server-side state
                                     })
                                     .catch((error) => {
                                       toast.error(error?.message || 'Download failed', {
@@ -689,7 +692,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
                                     });
                                 }}
                               >
-                                <Download className="mr-1.5 h-3.5 w-3.5" /> Download
+                                <Download className="mr-1.5 size-[3.5]" /> Download
                               </Button>
                             )}
                           </div>

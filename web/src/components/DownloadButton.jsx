@@ -37,11 +37,11 @@ export default function DownloadButton({ fileUrl, filename, size = 'sm', classNa
   };
 
   return (
-    <Button size={size} className={className} onClick={handleDownload} disabled={downloading}>
+    <Button type="button" size={size} className={className} onClick={handleDownload} disabled={downloading}>
       {downloading ? (
-        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+        <Loader2 className="mr-1.5 size-[3.5] animate-spin" />
       ) : (
-        <Download className="mr-1.5 h-3.5 w-3.5" />
+        <Download className="mr-1.5 size-[3.5]" />
       )}
       {downloading ? 'Downloading…' : 'Download'}
     </Button>

@@ -1,6 +1,6 @@
-
 const crypto = require('crypto');
 const dotenv = require('dotenv');
+const { z } = require('zod');
 
 dotenv.config();
 
@@ -11,54 +11,13 @@ const parseBool = (value, fallback = false) => {
 
 const isProduction = String(process.env.NODE_ENV || 'development').toLowerCase() === 'production';
 
-/* ── production-critical secret validation ─────────────────────────── */
 const INSECURE_DEFAULTS = [
   'replace-this-auth-secret',
   'replace-with-strong-random-secret',
   'change-this-admin-key'
 ];
 
-const validateProductionSecrets = () => {
-  const errors = [];
-
-  const authSecret = process.env.AUTH_SECRET || '';
-  if (!authSecret || INSECURE_DEFAULTS.includes(authSecret)) {
-    errors.push('AUTH_SECRET must be set to a strong random value (≥32 chars)');
-  } else if (authSecret.length < 32) {
-    errors.push('AUTH_SECRET must be at least 32 characters');
-  }
-
-  if (!process.env.USER_PASSWORD_HASH) {
-    errors.push('USER_PASSWORD_HASH must be set');
-  }
-
-  if (!process.env.ADMIN_API_KEY || INSECURE_DEFAULTS.includes(process.env.ADMIN_API_KEY)) {
-    errors.push('ADMIN_API_KEY must be set to a strong random value');
-  }
-
-  if (!process.env.CORS_ALLOWED_ORIGINS) {
-    errors.push('CORS_ALLOWED_ORIGINS must explicitly list allowed origins');
-  }
-
-  if (!process.env.MONGODB_URI) {
-    errors.push('MONGODB_URI must be set');
-  }
-
-  if (errors.length) {
-    console.error('\n╔══════════════════════════════════════════════════════╗');
-    console.error('║  FATAL: Production security checks failed            ║');
-    console.error('╚══════════════════════════════════════════════════════╝');
-    errors.forEach((e) => console.error(`  ✗ ${e}`));
-    console.error('');
-    process.exit(1);
-  }
-};
-
-if (isProduction) {
-  validateProductionSecrets();
-}
-
-module.exports = {
+const rawConfig = {
   nodeEnv: process.env.NODE_ENV || 'development',
   isProduction,
   port: Number(process.env.PORT || 5000),
@@ -75,7 +34,7 @@ module.exports = {
   serverKeepAliveTimeoutMs: Number(process.env.SERVER_KEEP_ALIVE_TIMEOUT_MS || 65000),
   serverHeadersTimeoutMs: Number(process.env.SERVER_HEADERS_TIMEOUT_MS || 66000),
   gracefulShutdownTimeoutMs: Number(process.env.GRACEFUL_SHUTDOWN_TIMEOUT_MS || 12000),
-  mongodbUri: process.env.MONGODB_URI,
+  mongodbUri: process.env.MONGODB_URI || '',
   allowStartWithoutDb: isProduction ? false : parseBool(process.env.ALLOW_START_WITHOUT_DB, false),
   storageProvider: (process.env.STORAGE_PROVIDER || 's3').toLowerCase(),
   localMaterialsRoot: process.env.LOCAL_MATERIALS_ROOT,
@@ -87,14 +46,13 @@ module.exports = {
   s3ExistingPrefix: process.env.S3_EXISTING_PREFIX || '',
   cloudFrontBaseUrl: process.env.CLOUDFRONT_BASE_URL,
   importUploadedBy: process.env.IMPORT_UPLOADED_BY || 'bulk-import-script',
-  adminApiKey: process.env.ADMIN_API_KEY,
+  adminApiKey: process.env.ADMIN_API_KEY || '',
   adminAllowedEmails: String(process.env.ADMIN_ALLOWED_EMAILS || '')
     .split(',')
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean),
   authSecret: process.env.AUTH_SECRET || '',
-  userPasswordHash:
-    process.env.USER_PASSWORD_HASH || '',
+  userPasswordHash: process.env.USER_PASSWORD_HASH || '',
   userAllowedIdentifiers: String(process.env.USER_ALLOWED_IDENTIFIERS || '')
     .split(',')
     .map((value) => value.trim().toLowerCase())
@@ -118,3 +76,75 @@ module.exports = {
   sessionMaxAgeMs: Number(process.env.SESSION_MAX_AGE_MS || 24 * 60 * 60 * 1000),
   sessionCleanupIntervalMs: Number(process.env.SESSION_CLEANUP_INTERVAL_MS || 15 * 60 * 1000)
 };
+
+const envSchema = z.object({
+  nodeEnv: z.string(),
+  isProduction: z.boolean(),
+  port: z.number(),
+  logHttpRequests: z.boolean(),
+  logStartup: z.boolean(),
+  trustProxy: z.boolean(),
+  corsAllowedOrigins: z.array(z.string()).refine((val) => !isProduction || val.length > 0, {
+    message: "CORS_ALLOWED_ORIGINS must explicitly list allowed origins in production"
+  }),
+  jsonBodyLimitMb: z.number(),
+  globalRateLimitWindowMs: z.number(),
+  globalRateLimitMax: z.number(),
+  serverKeepAliveTimeoutMs: z.number(),
+  serverHeadersTimeoutMs: z.number(),
+  gracefulShutdownTimeoutMs: z.number(),
+  mongodbUri: z.string().min(1, 'MONGODB_URI must be set'),
+  allowStartWithoutDb: z.boolean(),
+  storageProvider: z.string(),
+  localMaterialsRoot: z.string().optional(),
+  publicBaseUrl: z.string(),
+  awsRegion: z.string().optional(),
+  awsAccessKeyId: z.string().optional(),
+  awsSecretAccessKey: z.string().optional(),
+  awsS3Bucket: z.string().optional(),
+  s3ExistingPrefix: z.string(),
+  cloudFrontBaseUrl: z.string().optional(),
+  importUploadedBy: z.string(),
+  adminApiKey: z.string().refine((val) => {
+    if (!isProduction) return true;
+    return val.length > 0 && !INSECURE_DEFAULTS.includes(val);
+  }, { message: "ADMIN_API_KEY must be set to a strong random value in production" }),
+  adminAllowedEmails: z.array(z.string()),
+  authSecret: z.string().refine((val) => {
+    if (!isProduction) return true;
+    return val.length >= 32 && !INSECURE_DEFAULTS.includes(val);
+  }, { message: "AUTH_SECRET must be at least 32 characters and not a default in production" }),
+  userPasswordHash: z.string().refine((val) => {
+    if (!isProduction) return true;
+    return val.length > 0;
+  }, { message: "USER_PASSWORD_HASH must be set in production" }),
+  userAllowedIdentifiers: z.array(z.string()),
+  userAllowAll: z.boolean(),
+  portalRelayBaseUrl: z.string(),
+  authRateLimitWindowMs: z.number(),
+  authRateLimitMax: z.number(),
+  portalPublicDemoEnabled: z.boolean(),
+  relayRateLimitWindowMs: z.number(),
+  relayRateLimitMax: z.number(),
+  maxUploadSizeMb: z.number(),
+  portalRealtimeDefault: z.boolean(),
+  portalRealtimeMinSyncIntervalMs: z.number(),
+  portalBootstrapAttendanceSemesters: z.number(),
+  portalRequestTimeoutMs: z.number(),
+  portalTokenMaxAgeMs: z.number(),
+  sessionMaxAgeMs: z.number(),
+  sessionCleanupIntervalMs: z.number()
+});
+
+const parsed = envSchema.safeParse(rawConfig);
+
+if (!parsed.success) {
+  console.error('\n╔══════════════════════════════════════════════════════╗');
+  console.error('║  FATAL: Environment validation failed                ║');
+  console.error('╚══════════════════════════════════════════════════════╝');
+  parsed.error.errors.forEach((e) => console.error(`  ✗ ${e.path.join('.')}: ${e.message}`));
+  console.error('');
+  process.exit(1);
+}
+
+module.exports = parsed.data;

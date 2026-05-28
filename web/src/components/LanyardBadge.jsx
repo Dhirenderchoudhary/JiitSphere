@@ -215,7 +215,6 @@ function Band({ maxSpeed = 50, minSpeed = 0, isMobile = false, fixed, j1, j2, j3
       <meshLineGeometry />
       <meshLineMaterial
         color="white"
-        depthTest={false}
         resolution={isMobile ? [1000, 2000] : [1000, 1000]}
         useMap
         map={lanyardTexture}

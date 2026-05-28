@@ -2,33 +2,15 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   ArrowRight,
-  BookOpen,
-  LayoutDashboard,
-  Activity,
-  TrendingUp,
-  History,
-  Shield,
-  Smartphone,
-  Zap,
-  Lock,
   Bell,
-  BarChart3,
   FileText,
   Download,
   AlertCircle,
-  Calendar,
-  Layers,
   Wallet,
-  Calculator,
-  Search,
-  CheckCircle2,
-  Orbit,
-  Cpu,
-  Laptop2,
-  TabletIcon as Tablet
+  Search
 } from 'lucide-react';
 import Navbar from 'components/Navbar';
 import { Badge } from 'components/ui/badge';
@@ -139,8 +121,8 @@ export default function LandingPage() {
                       Attendance, grades, exams, and fees in one place.
                     </p>
                   </div>
-                  <Button className="gap-2 group-hover:gap-3 transition-all duration-300 min-h-10">
-                    Enter Portal <ArrowRight className="h-4 w-4" />
+                  <Button type="button" className="gap-2 group-hover:gap-3 transition-all duration-300 min-h-10">
+                    Enter Portal <ArrowRight className="size-4" />
                   </Button>
                 </div>
               </div>
@@ -190,8 +172,8 @@ export default function LandingPage() {
                       1,300+ slides, PYQs, and solutions indexed by course.
                     </p>
                   </div>
-                  <Button className="gap-2 group-hover:gap-3 transition-all duration-300 min-h-10">
-                    Browse Library <ArrowRight className="h-4 w-4" />
+                  <Button type="button" className="gap-2 group-hover:gap-3 transition-all duration-300 min-h-10">
+                    Browse Library <ArrowRight className="size-4" />
                   </Button>
                 </div>
               </div>
@@ -243,7 +225,7 @@ export default function LandingPage() {
                           <div className="text-[8px] font-bold text-muted-foreground/30 uppercase tracking-widest rotate-90">15B11CI111</div>
                        </motion.div>
                        <div className="relative h-40 w-28 bg-card rounded-xl border border-border/80 shadow-2xl flex flex-col items-center justify-center p-4 z-20 space-y-3">
-                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary"><FileText className="h-5 w-5" /></div>
+                          <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary"><FileText className="size-5" /></div>
                           <div className="space-y-1 w-full">
                              <div className="h-1 w-full bg-muted rounded-full" />
                              <div className="h-1 w-[80%] bg-muted rounded-full" />
@@ -323,7 +305,7 @@ export default function LandingPage() {
                  <div className="flex-1 flex items-center justify-center pt-4">
                     <motion.div variants={{ hover: { scale: 1.05, rotate: 2 } }} transition={springConfig} className="w-full max-w-[140px] p-4 bg-secondary rounded-xl border border-border shadow-md space-y-4">
                        <div className="flex justify-between items-start">
-                          <Wallet className="h-5 w-5 text-primary opacity-40" />
+                          <Wallet className="size-5 text-primary opacity-40" />
                           <div className="relative">
                              <motion.div
                                 variants={{
@@ -426,7 +408,7 @@ export default function LandingPage() {
                           variants={{ hover: { opacity: 0, scale: 0.5 } }}
                           className="absolute right-4 top-3 group-hover:hidden"
                        >
-                          <Search className="h-3 w-3 text-muted-foreground/40" />
+                          <Search className="size-3 text-muted-foreground/40" />
                        </motion.div>
                     </motion.div>
                  </div>
@@ -487,7 +469,7 @@ export default function LandingPage() {
                           <div className="h-full p-2 flex flex-col gap-2">
                              <div className="h-0.5 w-6 bg-muted rounded-full mx-auto mb-1" />
                              <div className="h-24 w-full bg-primary/20 rounded-lg flex items-center justify-center">
-                                <Download className="h-4 w-4 text-primary opacity-50" />
+                                <Download className="size-4 text-primary opacity-50" />
                              </div>
                              <div className="h-1.5 w-full bg-muted/50 rounded-full" />
                              <div className="h-1.5 w-[80%] bg-muted/50 rounded-full" />
@@ -583,7 +565,7 @@ function SmartAlertsElite() {
           >
             <div className="flex items-center gap-3">
               <div className="shrink-0 size-8 rounded-lg bg-red-500/10 flex items-center justify-center">
-                <AlertCircle className="h-4 w-4 text-red-500" />
+                <AlertCircle className="size-4 text-red-500" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline justify-between">

@@ -21,7 +21,7 @@ import HydrationStatusPanel from './HydrationStatusPanel';
 
 const tabLoadingState = (
   <div className="flex min-h-[400px] w-full items-center justify-center p-6 text-sm text-muted-foreground font-mono uppercase tracking-widest">
-    <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Initializing payload...
+    <RefreshCw className="size-4 animate-spin mr-2" /> Initializing payload…
   </div>
 );
 
@@ -50,7 +50,7 @@ export default function PortalShell({ token, onLogout }) {
   const [cachedPhoto, setCachedPhoto] = useState('');
   const [cachedProfileName, setCachedProfileName] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
-  const [lastRefreshedAt, setLastRefreshedAt] = useState(Date.now());
+  const [lastRefreshedAt, setLastRefreshedAt] = useState(Date.now);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [agoLabel, setAgoLabel] = useState('just now');
   const [customSidebar, setCustomSidebar] = useState(null);
@@ -82,7 +82,7 @@ export default function PortalShell({ token, onLogout }) {
   }, [sdkSession?.mode]);
 
   const triggerRefresh = useCallback(() => {
-    setRefreshKey((k) => k + 1);
+    setRefreshKey(k => k + 1);
     setLastRefreshedAt(Date.now());
     setAgoLabel('just now');
   }, []);
@@ -115,6 +115,7 @@ export default function PortalShell({ token, onLogout }) {
       
       setIsRefreshing(false);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, onExpired, refreshKey]);
 
   useEffect(() => {
@@ -188,8 +189,8 @@ export default function PortalShell({ token, onLogout }) {
         {/* Logo Section */}
         <div className="p-6 pb-2">
           <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-inner">
-                <BarChart2 className="w-5 h-5 text-primary-foreground" />
+             <div className="size-8 bg-primary rounded-lg flex items-center justify-center shadow-inner">
+                <BarChart2 className="size-5 text-primary-foreground" />
              </div>
              <span className="font-black text-2xl font-[var(--font-instrument-sans)] tracking-tighter">JiitSphere</span>
           </Link>
@@ -205,6 +206,7 @@ export default function PortalShell({ token, onLogout }) {
                 const active = tab.id === activeTab;
                 return (
                   <button
+                    type="button"
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     title={tab.label}
@@ -213,7 +215,7 @@ export default function PortalShell({ token, onLogout }) {
                       active ? "bg-primary/10 text-primary" : "text-muted-foreground/50 hover:bg-muted/50 hover:text-foreground"
                     )}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="size-4" />
                   </button>
                 );
               })}
@@ -263,7 +265,7 @@ export default function PortalShell({ token, onLogout }) {
                onClick={() => setActiveTab('profile')} 
                className="w-full flex items-center gap-3 px-2 py-1.5 cursor-pointer group hover:bg-muted/50 rounded-xl transition-all"
            >
-               <div className="w-10 h-10 shrink-0 rounded-full bg-secondary border border-border shadow-sm flex items-center justify-center overflow-hidden group-hover:border-primary/20 transition-colors">
+               <div className="size-10 shrink-0 rounded-full bg-secondary border border-border shadow-sm flex items-center justify-center overflow-hidden group-hover:border-primary/20 transition-colors">
                   {cachedPhoto ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={cachedPhoto} alt="Profile" className="w-full h-full object-cover" />
@@ -279,7 +281,7 @@ export default function PortalShell({ token, onLogout }) {
                    onClick={(e) => { e.stopPropagation(); onLogout(); }}
                    className="p-1.5 rounded-md hover:bg-rose-500/10 transition-colors"
                >
-                   <LogOut className="w-4 h-4 text-muted-foreground/40 hover:text-rose-500 transition-colors" />
+                   <LogOut className="size-4 text-muted-foreground/40 hover:text-rose-500 transition-colors" />
                </div>
            </button>
         </div>
@@ -304,11 +306,11 @@ export default function PortalShell({ token, onLogout }) {
                      onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                      className="flex items-center gap-2 px-3 py-2 bg-secondary/40 hover:bg-secondary/70 border border-border/60 rounded-xl transition-colors shadow-sm"
                  >
-                     <Menu className="w-4 h-4 text-foreground" />
+                     <Menu className="size-4 text-foreground" />
                      <span className="text-sm font-bold truncate max-w-[100px] sm:max-w-[150px]">
                          {displayedTabs.find(t => t.id === activeTab)?.label || 'Menu'}
                      </span>
-                     <ChevronDown className="w-3.5 h-3.5 text-muted-foreground opacity-70" />
+                     <ChevronDown className="size-[3.5] text-muted-foreground opacity-70" />
                  </button>
 
                  <AnimatePresence>
@@ -337,7 +339,7 @@ export default function PortalShell({ token, onLogout }) {
                                              onClick={() => { setActiveTab(t.id); setMobileMenuOpen(false); }}
                                              className={cn("flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors w-full text-left", isActive ? "bg-primary/10 text-primary" : "hover:bg-muted/50 text-foreground")}
                                          >
-                                             <TIcon className="w-4 h-4" />
+                                             <TIcon className="size-4" />
                                              {t.label}
                                          </button>
                                      )
@@ -361,14 +363,14 @@ export default function PortalShell({ token, onLogout }) {
         </header>
         
         {/* Dynamic Content Body */}
-        <div className={cn("flex-1 relative p-4 lg:p-6 xl:p-8", activeTab === 'attendance' ? "overflow-hidden" : "overflow-y-auto custom-scrollbar")}>
+        <div className={cn("flex-1 relative p-4 lg:p-6 xl:p-8 portal-content-body", activeTab === 'attendance' ? "overflow-hidden" : "overflow-y-auto custom-scrollbar")}>
            {SHOW_PORTAL_DIAGNOSTICS ? <HydrationStatusPanel diagnostics={sdkSession?.diagnostics} /> : null}
            {content}
         </div>
       </main>
 
       {/* Mobile Bottom Navigation Fallback (Visible only < lg screens) */}
-      <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 flex w-[min(96vw,420px)] justify-between items-center bg-card/90 backdrop-blur-xl border border-border shadow-2xl rounded-2xl z-50 p-1.5 gap-1">
+      <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 flex w-[min(96vw,420px)] justify-between items-center bg-card/90 backdrop-blur-xl border border-border shadow-2xl rounded-2xl z-50 p-1.5 gap-1 portal-bottom-nav">
         {displayedTabs.slice(0, 5).map((tab) => {
           const Icon = tab.icon;
           const active = tab.id === activeTab;

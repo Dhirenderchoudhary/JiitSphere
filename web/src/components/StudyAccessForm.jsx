@@ -21,7 +21,7 @@ function GoogleIcon({ className = 'h-5 w-5' }) {
 }
 
 function Spinner() {
-  return <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />;
+  return <span className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />;
 }
 
 export default function StudyAccessForm({ nextPath = '/study-material' }) {
@@ -98,7 +98,7 @@ export default function StudyAccessForm({ nextPath = '/study-material' }) {
 
           {authError ? (
             <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/50">
-              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-400" />
+              <AlertCircle className="mt-0.5 size-5 shrink-0 text-amber-700 dark:text-amber-400" />
               <p className="text-sm font-medium text-amber-800 dark:text-amber-300">{authError}</p>
             </div>
           ) : null}
@@ -106,7 +106,7 @@ export default function StudyAccessForm({ nextPath = '/study-material' }) {
           {/* Error banner — wrong account domain */}
           {accessDenied ? (
             <div className="flex items-start gap-3 rounded-xl border border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-950/50 px-4 py-3">
-              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
+              <AlertCircle className="mt-0.5 size-5 shrink-0 text-red-600 dark:text-red-400" />
               <div>
                 <p className="text-sm font-semibold text-red-700 dark:text-red-400">Access denied</p>
                 <p className="mt-0.5 text-xs text-red-600 dark:text-red-300">
@@ -151,7 +151,7 @@ export default function StudyAccessForm({ nextPath = '/study-material' }) {
             disabled={guestLoading}
             aria-label="Continue as guest with limited downloads"
           >
-            {guestLoading ? <Spinner /> : <UserRound className="h-5 w-5" />}
+            {guestLoading ? <Spinner /> : <UserRound className="size-5" />}
             {guestLoading ? 'Entering…' : 'Continue as Guest'}
           </Button>
           <p className="text-center text-xs text-muted-foreground">
@@ -166,7 +166,7 @@ export default function StudyAccessForm({ nextPath = '/study-material' }) {
 
         {/* Footer note */}
         <p className="mt-5 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-          <ShieldCheck className="h-3.5 w-3.5" />
+          <ShieldCheck className="size-[3.5]" />
           Only <span className="font-semibold text-foreground">@mail.jiit.ac.in</span> accounts are permitted.
         </p>
       </div>

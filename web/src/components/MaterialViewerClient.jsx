@@ -3,14 +3,13 @@
 import { useState, useRef } from 'react';
 import { Button } from 'components/ui/button';
 import {
-  Loader2,
-  ExternalLink,
-  AlertTriangle,
-  RefreshCw,
-  Download,
   FileX2,
+  ExternalLink,
+  Download,
   FileText,
+  AlertTriangle,
 } from 'lucide-react';
+import { FallbackActions, ErrorCard, LoadingOverlay } from 'components/MaterialViewerComponents';
 
 /**
  * MaterialViewerClient — renders the embedded preview for a study material.
@@ -64,60 +63,8 @@ export default function MaterialViewerClient({
     }
   };
 
-  // ── Fallback action buttons (shared across error states) ──
-  const FallbackActions = () => (
-    <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
-      <Button variant="outline" size="sm" onClick={handleRetry} className="gap-2">
-        <RefreshCw className="size-4" />
-        Retry
-      </Button>
-      {openUrl && (
-        <Button
-          size="sm"
-          variant="secondary"
-          className="gap-2"
-          onClick={() => window.open(openUrl, '_blank')}
-        >
-          <ExternalLink className="size-4" />
-          Open in New Tab
-        </Button>
-      )}
-      {downloadUrl && (
-        <a href={downloadUrl} download>
-          <Button size="sm" className="gap-2">
-            <Download className="size-4" />
-            Download
-          </Button>
-        </a>
-      )}
-    </div>
-  );
 
-  // ── Error card ──
-  const ErrorCard = ({ icon: Icon = AlertTriangle, heading, description }) => (
-    <div className="flex h-[78vh] w-full items-center justify-center rounded-2xl border border-border bg-card shadow-sm">
-      <div className="flex flex-col items-center text-center p-8 max-w-md">
-        <div className="rounded-2xl bg-destructive/10 p-5 mb-5">
-          <Icon className="size-10 text-destructive/80" strokeWidth={1.5} />
-        </div>
-        <h3 className="text-lg font-bold text-foreground">{heading}</h3>
-        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{description}</p>
-        <FallbackActions />
-      </div>
-    </div>
-  );
 
-  // ── Loading overlay ──
-  const LoadingOverlay = () => (
-    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/90 backdrop-blur-sm">
-      <div className="flex flex-col items-center gap-4">
-        <div className="rounded-full bg-primary/10 p-4">
-          <Loader2 className="size-7 animate-spin text-primary" />
-        </div>
-        <p className="text-sm font-medium text-muted-foreground">Loading document…</p>
-      </div>
-    </div>
-  );
 
   // ══════════════════════════════════════════════════════════
   //  UNSUPPORTED — no preview, download only
@@ -134,27 +81,7 @@ export default function MaterialViewerClient({
             <span className="font-semibold uppercase">.{fileType || 'unknown'}</span> files cannot be previewed in the browser.
             You can download the file or open it in a new tab.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
-            {openUrl && (
-              <Button
-                size="sm"
-                variant="secondary"
-                className="gap-2"
-                onClick={() => window.open(openUrl, '_blank')}
-              >
-                <ExternalLink className="size-4" />
-                Open in New Tab
-              </Button>
-            )}
-            {downloadUrl && (
-              <a href={downloadUrl} download>
-                <Button size="sm" className="gap-2">
-                  <Download className="size-4" />
-                  Download File
-                </Button>
-              </a>
-            )}
-          </div>
+          <FallbackActions handleRetry={handleRetry} openUrl={openUrl} downloadUrl={downloadUrl} />
         </div>
       </div>
     );
@@ -171,6 +98,7 @@ export default function MaterialViewerClient({
           <ErrorCard
             heading="Video Unavailable"
             description="The video could not be loaded. It may have been removed or the connection was interrupted."
+            fallbackActionsProps={{ handleRetry, openUrl, downloadUrl }}
           />
         ) : (
           <video
@@ -197,6 +125,7 @@ export default function MaterialViewerClient({
             icon={FileX2}
             heading="Image Not Found"
             description="The image could not be loaded. It may have been removed or is temporarily unavailable."
+            fallbackActionsProps={{ handleRetry, openUrl, downloadUrl }}
           />
         ) : (
           /* eslint-disable-next-line @next/next/no-img-element */
@@ -225,22 +154,15 @@ export default function MaterialViewerClient({
 
       {/* Error overlay */}
       {error && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-background">
-          <div className="flex flex-col items-center text-center p-8 max-w-md">
-            <div className="rounded-2xl bg-destructive/10 p-5 mb-5">
-              <AlertTriangle className="size-10 text-destructive/80" strokeWidth={1.5} />
-            </div>
-            <h3 className="text-lg font-bold text-foreground">
-              {viewerStrategy === 'office' ? 'Document Preview Failed' : 'Material Unavailable'}
-            </h3>
-            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-              {viewerStrategy === 'office'
-                ? 'The document viewer could not load this file. Try opening it directly or downloading.'
-                : 'The embedded viewer failed to load. The file might be missing or temporarily unavailable.'}
-            </p>
-            <FallbackActions />
-          </div>
-        </div>
+        <ErrorCard
+          heading={viewerStrategy === 'office' ? 'Document Preview Failed' : 'Material Unavailable'}
+          description={
+            viewerStrategy === 'office'
+              ? 'The document viewer could not load this file. Try opening it directly or downloading.'
+              : 'The embedded viewer failed to load. The file might be missing or temporarily unavailable.'
+          }
+          fallbackActionsProps={{ handleRetry, openUrl, downloadUrl }}
+        />
       )}
 
       {/* Iframe — mounted immediately, no preflight */}

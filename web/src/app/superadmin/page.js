@@ -114,8 +114,8 @@ function LoginView({ onLogin }) {
     <main className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg">
-            <Shield className="h-6 w-6" />
+          <div className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg">
+            <Shield className="size-6" />
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Restricted Area</p>
@@ -127,7 +127,7 @@ function LoginView({ onLogin }) {
           <CardContent className="p-6 space-y-4">
             {error && (
               <div className="flex items-start gap-2 rounded-xl border border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-950/50 px-4 py-3 text-sm text-red-700 dark:text-red-300">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {error}
+                <AlertCircle className="mt-0.5 size-4 shrink-0" /> {error}
               </div>
             )}
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -167,7 +167,7 @@ function Dashboard({ token, onLogout }) {
 
   useEffect(() => { fetchData(); const t = setInterval(fetchData, 30000); return () => clearInterval(t); }, [fetchData]);
 
-  if (loading) return <main className="flex min-h-screen items-center justify-center"><p className="text-muted-foreground animate-pulse">Loading analytics...</p></main>;
+  if (loading) return <main className="flex min-h-screen items-center justify-center"><p className="text-muted-foreground animate-pulse">Loading analytics…</p></main>;
   if (!data) return <main className="flex min-h-screen items-center justify-center"><p className="text-red-500">Failed to load analytics</p></main>;
 
   const days30 = data.pv?.last30Days || [];
@@ -200,7 +200,7 @@ function Dashboard({ token, onLogout }) {
       <header className="sticky top-0 z-30 mb-5 rounded-2xl border border-border bg-card/90 backdrop-blur">
         <div className="flex items-center justify-between px-4 py-3 sm:px-5">
           <div className="flex items-center gap-3">
-            <button onClick={() => window.history.back()} className="text-muted-foreground hover:text-foreground transition">&larr;</button>
+            <button type="button" onClick={() => window.history.back()} className="text-muted-foreground hover:text-foreground transition">&larr;</button>
             <h1 className="text-lg font-bold">JiitSphere</h1>
           </div>
           <div className="flex items-center gap-2">
@@ -211,10 +211,10 @@ function Dashboard({ token, onLogout }) {
               <option>Last 30 days</option>
             </select>
             <Button variant="ghost" size="sm" onClick={fetchData} className="gap-1.5 text-muted-foreground">
-              <RefreshCw className="h-3.5 w-3.5" /> Refresh
+              <RefreshCw className="size-[3.5]" /> Refresh
             </Button>
             <Button variant="destructive" size="sm" onClick={onLogout} className="gap-1.5">
-              <LogOut className="h-3.5 w-3.5" /> Logout
+              <LogOut className="size-[3.5]" /> Logout
             </Button>
           </div>
         </div>

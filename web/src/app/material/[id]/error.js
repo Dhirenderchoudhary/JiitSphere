@@ -8,8 +8,8 @@ export default function MaterialViewerError({ error, reset }) {
   return (
     <main className="page-shell flex min-h-[70vh] items-center justify-center py-10">
       <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 text-center shadow-sm sm:p-8">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10">
-          <AlertTriangle className="h-7 w-7 text-destructive" strokeWidth={1.5} />
+        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-destructive/10">
+          <AlertTriangle className="size-7 text-destructive" strokeWidth={1.5} />
         </div>
 
         <h1 className="mt-5 text-xl font-bold text-foreground">

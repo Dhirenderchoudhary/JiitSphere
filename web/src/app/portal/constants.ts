@@ -54,4 +54,3 @@ export const adminTabs: PortalTab[] = [
 ];
 
 export const glassPanel = 'rounded-2xl border border-border/40 bg-card shadow-sm';
-export const darkPanel = 'rounded-2xl border border-border/40 bg-card/95 shadow-xl backdrop-blur-lg';

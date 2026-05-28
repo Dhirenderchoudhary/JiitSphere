@@ -2,6 +2,9 @@
 const Material = require('../models/Material');
 const mongoose = require('mongoose');
 const asyncHandler = require('../middlewares/asyncHandler');
+const NodeCache = require('node-cache');
+
+const materialsCache = new NodeCache({ stdTTL: 30, maxKeys: 500 });
 
 const normalizeOption = (value) => String(value || '').trim();
 
@@ -99,6 +102,12 @@ const getMaterials = asyncHandler(async (req, res) => {
     }
   }
 
+  const cacheKey = JSON.stringify(req.query);
+  const cachedData = materialsCache.get(cacheKey);
+  if (cachedData) {
+    return res.json({ ...cachedData, cached: true });
+  }
+
   const pageNumber = parsePositiveInt(page, 'page', 1, { min: 1, max: 100000 });
   const limitNumber = parsePositiveInt(limit, 'limit', 20, { min: 1, max: 100 });
   const skip = (pageNumber - 1) * limitNumber;
@@ -112,7 +121,7 @@ const getMaterials = asyncHandler(async (req, res) => {
     Material.countDocuments(query)
   ]);
 
-  return res.json({
+  const responseData = {
     success: true,
     data: items,
     pagination: {
@@ -121,7 +130,11 @@ const getMaterials = asyncHandler(async (req, res) => {
       total,
       totalPages: Math.ceil(total / limitNumber)
     }
-  });
+  };
+
+  materialsCache.set(cacheKey, responseData);
+
+  return res.json(responseData);
 });
 
 const getMaterialById = asyncHandler(async (req, res) => {

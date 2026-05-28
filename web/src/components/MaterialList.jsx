@@ -69,21 +69,21 @@ export default function MaterialList({ items, isGuest = false, guestUsage = { us
               </div>
               <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
                 <p className="flex items-center gap-1">
-                  <GraduationCap className="h-3.5 w-3.5" /> {item.degree} / {item.branch}
+                  <GraduationCap className="size-[3.5]" /> {item.degree} / {item.branch}
                 </p>
                 <p className="flex items-center gap-1">
-                  <CalendarDays className="h-3.5 w-3.5" /> Year {item.year}, Sem {item.semester}
+                  <CalendarDays className="size-[3.5]" /> Year {item.year}, Sem {item.semester}
                 </p>
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 <Link href={`/material/${item._id}`}>
                   <Button className="w-full" size="lg" variant="secondary">
-                    <BookOpen className="mr-2 h-4 w-4" /> In-App View
+                    <BookOpen className="mr-2 size-4" /> In-App View
                   </Button>
                 </Link>
                 {limitReached ? (
                   <Button className="w-full" size="lg" disabled>
-                    <Download className="mr-2 h-4 w-4" /> Limit reached
+                    <Download className="mr-2 size-4" /> Limit reached
                   </Button>
                 ) : (
                   <Button
@@ -101,7 +101,7 @@ export default function MaterialList({ items, isGuest = false, guestUsage = { us
                         });
                     }}
                   >
-                    <Download className="mr-2 h-4 w-4" /> Download Now
+                    <Download className="mr-2 size-4" /> Download Now
                   </Button>
                 )}
               </div>

@@ -20,14 +20,17 @@ export const toDisplayNumber = (value, digits = 1) => {
   return num.toFixed(digits);
 };
 
+// Hoisted Intl formatter (js-hoist-intl)
+const INR_FORMATTER = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 2
+});
+
 export const formatCurrency = (value) => {
   const num = Number(value || 0);
   if (!Number.isFinite(num)) return '0';
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 2
-  }).format(num);
+  return INR_FORMATTER.format(num);
 };
 
 export const deriveFeeStatus = (item = {}) => {
@@ -73,13 +76,19 @@ export const getAttendanceTargetStorageKey = () => {
   }
 };
 
+// Hoisted regexes for date parsing (js-hoist-regexp)
+const EPOCH_MS_RE = /^\d{13}$/;
+const EPOCH_S_RE = /^\d{10}$/;
+const DD_MM_YY_RE = /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/;
+const YYYY_MM_DD_RE = /^(\d{4})[/-](\d{1,2})[/-](\d{1,2})/;
+
 export const parseExamDateToTs = (value) => {
   if (value === null || value === undefined || String(value).trim() === '') return 0;
   const text = String(value).trim();
-  if (/^\d{13}$/.test(text)) return Number(text);
-  if (/^\d{10}$/.test(text)) return Number(text) * 1000;
+  if (EPOCH_MS_RE.test(text)) return Number(text);
+  if (EPOCH_S_RE.test(text)) return Number(text) * 1000;
 
-  const ddmmyy = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);
+  const ddmmyy = text.match(DD_MM_YY_RE);
   if (ddmmyy) {
     const dd = Number(ddmmyy[1]);
     const mm = Number(ddmmyy[2]);
@@ -88,7 +97,7 @@ export const parseExamDateToTs = (value) => {
     return new Date(yyyy, mm - 1, dd).getTime();
   }
 
-  const yyyymmdd = text.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
+  const yyyymmdd = text.match(YYYY_MM_DD_RE);
   if (yyyymmdd) {
     const yyyy = Number(yyyymmdd[1]);
     const mm = Number(yyyymmdd[2]);
@@ -123,12 +132,16 @@ export const hasExamSignal = (value) => {
   return true;
 };
 
+// Hoisted regex for time extraction (js-hoist-regexp)
+const TIME_PATTERN_RE = /\b(\d{1,2}(?::\d{2})?\s*(?:AM|PM|am|pm)|\d{1,2}:\d{2})\b/gi;
+const WHITESPACE_RE = /\s+/g;
+
 export const extractTimeFromText = (value) => {
   const text = String(value || '').trim();
   if (!text) return '';
   // Find all time patterns (e.g. 10:00 AM, 12:00, 2:30 PM, 10 am)
-  const regex = /\\b(\\d{1,2}(?::\\d{2})?\\s*(?:AM|PM|am|pm)|\\d{1,2}:\\d{2})\\b/gi;
-  const times = [...text.matchAll(regex)].map(m => m[1].replace(/\\s+/g, ' ').toUpperCase());
+  TIME_PATTERN_RE.lastIndex = 0;
+  const times = [...text.matchAll(TIME_PATTERN_RE)].map(m => m[1].replace(WHITESPACE_RE, ' ').toUpperCase());
   
   if (times.length >= 2) {
       // Take the first and the very last matched times in the string to avoid duplicate pairs
@@ -448,8 +461,10 @@ export const flattenScalarPairs = (source, prefix = '', depth = 0, maxDepth = 2)
 
   if (Array.isArray(source)) {
     const scalarItems = source
-      .map((item) => toPrettyValue(item))
-      .filter(Boolean);
+      .flatMap((item) => {
+        const value = toPrettyValue(item);
+        return value ? [value] : [];
+      });
     if (scalarItems.length) {
       return [[prefix || 'value', scalarItems.join(', ')]];
     }

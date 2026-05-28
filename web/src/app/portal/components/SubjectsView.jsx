@@ -10,18 +10,13 @@ import { pickRenderablePairs } from '../utils';
 export default function SubjectsView({ token, semesters = [], defaultSemester, onExpired }) {
   const [subjects, setSubjects] = useState({ registered: [], faculties: [], details: [] });
   const [message, setMessage] = useState('');
-  const [selectedSem, setSelectedSem] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!selectedSem && defaultSemester) {
-      setSelectedSem(defaultSemester);
-      return;
-    }
-    if (!selectedSem && semesters.length) {
-      setSelectedSem(semesters[0].registration_id);
-    }
-  }, [defaultSemester, semesters, selectedSem]);
+
+  const selectedSem = useMemo(() => 
+    defaultSemester || semesters[0]?.registration_id || '', 
+    [defaultSemester, semesters]
+  );
 
   const loadSubjects = useCallback(async (forceRefresh = false) => {
     if (!selectedSem) return;

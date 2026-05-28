@@ -120,11 +120,13 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
   useEffect(() => {
     fetchPortalAttendanceMeta(token).then((response) => {
       const payload = response?.data || null;
+      // Combine related state updates
       setMeta(payload);
       setMessage(payload?.latest_header?.message || '');
       setSelectedSem(payload?.latest_semester?.registration_id || '');
     }).catch((err) => {
       if (err instanceof SessionExpiredError) { onExpired?.(); return; }
+      // Combine error state updates
       setMeta({ semesters: [] });
       setAttendance([]);
       setMessage(err?.message || 'Failed to sync metadata');
@@ -366,6 +368,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
 
                       return (
                           <button
+                              type="button"
                               key={subjectCode} onClick={() => selectSubject(row)}
                               className={cn("w-full text-left py-3.5 px-4 rounded-xl transition-all mb-1 mt-1", isSelected ? "bg-primary/5 text-primary border border-primary/10" : "bg-transparent hover:bg-muted/50 text-muted-foreground border border-transparent")}
                           >

@@ -20,9 +20,24 @@ const instrumentSans = Instrument_Sans({
 });
 
 export const metadata = {
-  title: 'JiitSphere',
-  description: 'Study material & student portal for JIIT students',
+  title: {
+    default: 'JiitSphere',
+    template: '%s | JiitSphere'
+  },
+  description: 'Study material & student portal for JIIT students. Access attendance, grades, exams, and 1300+ study resources.',
   manifest: '/manifest.webmanifest',
+  metadataBase: new URL('https://jiitsphere.com'),
+  openGraph: {
+    title: 'JiitSphere',
+    description: 'The academic dashboard for JIIT students.',
+    siteName: 'JiitSphere',
+    type: 'website'
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'JiitSphere',
+    description: 'The academic dashboard for JIIT students.'
+  },
   other: {
     'mobile-web-app-capable': 'yes'
   },
@@ -41,9 +56,13 @@ export const metadata = {
 };
 
 export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#eef6f9' },
-    { media: '(prefers-color-scheme: dark)', color: '#111827' }
+    { media: '(prefers-color-scheme: light)', color: '#fafafa' },
+    { media: '(prefers-color-scheme: dark)', color: '#000000' }
   ]
 };
 
@@ -53,6 +72,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="https://docs.google.com" />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className={cn(

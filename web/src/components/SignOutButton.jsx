@@ -28,7 +28,7 @@ export default function SignOutButton({ className = '' }) {
       onClick={handleSignOut}
       title="Sign out"
     >
-      <LogOut className="h-4 w-4" />
+      <LogOut className="size-4" />
       <span className="hidden sm:inline">Sign out</span>
     </Button>
   );

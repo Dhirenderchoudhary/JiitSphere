@@ -17,8 +17,3 @@ export async function POST() {
   return response;
 }
 
-export async function GET() {
-  const response = NextResponse.redirect(`${getSiteBase()}/`);
-  clearCookies(response);
-  return response;
-}

@@ -1,5 +1,3 @@
-'use client';
-
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -11,8 +9,8 @@ export default function Footer() {
           {/* Brand & Mission */}
           <div className="md:col-span-2 space-y-6">
             <div className="flex items-center gap-3">
-              <div className="relative h-10 w-10 overflow-hidden rounded-xl bg-card shadow-glow p-0.5 border border-border/50">
-                <Image src="/jiitsphere-logo.png" alt="JiitSphere logo" width={40} height={40} className="rounded-[8px]" />
+              <div className="relative size-10 overflow-hidden rounded-xl bg-card shadow-glow p-0.5 border border-border/50">
+                <Image src="/jiitsphere-logo.png" alt="JiitSphere logo" width={40} height={40} loading="lazy" className="rounded-[8px]" />
               </div>
               <span className="font-[var(--font-archivo)] text-xl font-black tracking-tight text-foreground">JiitSphere</span>
             </div>

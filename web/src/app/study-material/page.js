@@ -3,9 +3,11 @@ import { redirect } from 'next/navigation';
 import { getSession } from 'lib/session';
 import StudyMaterialClient from 'components/StudyMaterialClient';
 
+export const metadata = { title: 'Study Material' };
+
 export default async function StudyMaterialPage() {
   const session = await getSession();
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const isGuest = !session && cookieStore.get('guest_mode')?.value === '1';
 
   if (!session && !isGuest) {

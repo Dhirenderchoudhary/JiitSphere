@@ -38,7 +38,7 @@ export default function FilterStepper({ filters, onChange, options }) {
           <div key={step.key} className={spanClass}>
             <label className={`mb-1 block text-xs font-semibold transition-colors ${enabled ? 'text-foreground' : 'text-muted-foreground/50'}`}>
               {step.label}
-              {hasValue && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-primary align-middle" />}
+              {hasValue && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-primary align-middle" />}
             </label>
             <SelectField
               value={filters[step.key] || ''}

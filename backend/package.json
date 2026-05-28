@@ -11,7 +11,12 @@
     "import:folder": "bun src/scripts/importFromFolder.js",
     "import:s3": "bun src/scripts/importFromS3.js",
     "normalize:metadata": "bun src/scripts/normalizeMetadata.js",
-    "normalize:metadata:apply": "bun src/scripts/normalizeMetadata.js --apply"
+    "normalize:metadata:apply": "bun src/scripts/normalizeMetadata.js --apply",
+    "lint": "eslint src/",
+    "format": "prettier --write 'src/**/*.js'",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.883.0",
@@ -24,7 +29,17 @@
     "mongoose": "^8.6.1",
     "morgan": "^1.10.0",
     "multer": "^2.0.2",
+    "node-cache": "^5.1.2",
     "pdf-parse": "^2.4.5",
-    "uuid": "^10.0.0"
+    "uuid": "^10.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "eslint": "^10.4.0",
+    "jest": "^30.4.2",
+    "jest-extended": "^7.0.0",
+    "mongodb-memory-server": "^11.2.0",
+    "prettier": "^3.8.3",
+    "supertest": "^7.2.2"
   }
 }

@@ -47,6 +47,7 @@ export function middleware(request) {
   // Allow landing page, lock page, and static assets to avoid redirect loops.
   if (
     pathname === '/' ||
+    pathname === '/offline' ||
     pathname === '/study-access' ||
     pathname.startsWith('/superadmin') ||
     pathname.startsWith('/_next') ||

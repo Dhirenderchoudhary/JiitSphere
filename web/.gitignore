@@ -23,3 +23,9 @@ pnpm-debug.log*
 # misc
 .DS_Store
 
+
+# Agent tools
+.agents/
+.kiro/
+.windsurf/
+

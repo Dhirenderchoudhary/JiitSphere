@@ -182,7 +182,10 @@ export default function ProfileView({ token, onExpired }) {
         const raw = payload?.[resolved];
         if (raw !== undefined && raw !== null && String(raw).trim() !== '') return raw;
       }
-      const normalizedTokens = contains.map((token) => keyNorm(token)).filter(Boolean);
+      const normalizedTokens = contains.flatMap((token) => {
+        const normalized = keyNorm(token);
+        return normalized ? [normalized] : [];
+      });
       for (const [rawKey, rawValue] of Object.entries(payload || {})) {
         if (rawValue === undefined || rawValue === null || String(rawValue).trim() === '') continue;
         const normalizedKey = keyNorm(rawKey);
@@ -693,7 +696,7 @@ export default function ProfileView({ token, onExpired }) {
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-[1500ms]" />
           
           <div className="relative shrink-0">
-             <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl overflow-hidden border border-border shadow-sm relative z-10 bg-muted">
+             <div className="w-28 h-28 sm:size-32 rounded-2xl overflow-hidden border border-border shadow-sm relative z-10 bg-muted">
                 {displayPhotoSrc && !photoLoadFailed ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
