@@ -12,10 +12,13 @@ export default function SubjectsView({ token, semesters = [], defaultSemester, o
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const selectedSem = useMemo(
-    () => defaultSemester || semesters[0]?.registration_id || '',
-    [defaultSemester, semesters]
-  );
+  const [selectedSem, setSelectedSem] = useState(defaultSemester || semesters[0]?.registration_id || '');
+
+  useEffect(() => {
+    if (!selectedSem && semesters?.length > 0) {
+      setSelectedSem(defaultSemester || semesters[0]?.registration_id || '');
+    }
+  }, [semesters, defaultSemester, selectedSem]);
 
   const loadSubjects = useCallback(
     async (forceRefresh = false) => {
