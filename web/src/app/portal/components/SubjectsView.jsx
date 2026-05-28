@@ -12,7 +12,9 @@ export default function SubjectsView({ token, semesters = [], defaultSemester, o
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const [selectedSem, setSelectedSem] = useState(defaultSemester || semesters[0]?.registration_id || '');
+  const [selectedSem, setSelectedSem] = useState(
+    defaultSemester || semesters[0]?.registration_id || ''
+  );
 
   useEffect(() => {
     if (!selectedSem && semesters?.length > 0) {
