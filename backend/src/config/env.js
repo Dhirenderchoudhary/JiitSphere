@@ -158,7 +158,8 @@ if (!parsed.success) {
   console.error('\n╔══════════════════════════════════════════════════════╗');
   console.error('║  FATAL: Environment validation failed                ║');
   console.error('╚══════════════════════════════════════════════════════╝');
-  parsed.error.errors.forEach((e) => console.error(`  ✗ ${e.path.join('.')}: ${e.message}`));
+  const issues = parsed.error.issues || parsed.error.errors;
+  issues.forEach((e) => console.error(`  ✗ ${e.path.join('.')}: ${e.message}`));
   console.error('');
   process.exit(1);
 }

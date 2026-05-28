@@ -169,6 +169,8 @@ jobs:
 
       - name: Check Express App Loads
         working-directory: ./backend
+        env:
+          MONGODB_URI: "mongodb://localhost:27017/dummy"
         run: node -e "require('./src/app')"
 
   security-scan:
