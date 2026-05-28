@@ -29,16 +29,16 @@ Study material & student portal platform for JIIT students — notes, slides, PY
 ```bash
 cd backend
 cp .env.example .env   # fill in your values
-bun install
-bun run dev
+pnpm install
+pnpm run dev
 ```
 
 *Note: Environment variables are strictly validated on startup using Zod. The server will crash and inform you if required variables are missing.*
 
 #### Linting & Formatting
 ```bash
-bun run format   # Prettier
-bun run lint     # ESLint
+pnpm run format   # Prettier
+pnpm run lint     # ESLint
 ```
 
 ### Frontend
@@ -47,8 +47,8 @@ Open a new terminal:
 ```bash
 cd web
 cp .env.local.example .env.local   # fill in your values
-bun install
-bun run dev
+pnpm install
+pnpm run dev
 ```
 
 ## Local Setup
@@ -66,7 +66,7 @@ bun run dev
 
 2. **Install Root Dependencies (Husky):**
    ```bash
-   npm install
+   pnpm install
    ```
 
 3. **Backend Setup:**
@@ -74,23 +74,23 @@ bun run dev
    cd backend
    cp .env.example .env
    # Edit .env with your MongoDB URI and Auth secrets
-   npm install
-   npm run dev
+   pnpm install
+   pnpm run dev
    ```
 
 4. **Frontend Setup:**
    ```bash
    cd ../web
    cp .env.local.example .env.local
-   npm install
-   npm run dev
+   pnpm install
+   pnpm run dev
    ```
 
 5. **Test Everything locally:**
    From the root folder, you can run all tests and format checks:
    ```bash
-   npm run test:all
-   npm run lint:all
+   pnpm run test:all
+   pnpm run lint:all
    ```
 
 ## How to trigger manual rollback
@@ -121,8 +121,8 @@ This repository includes a Render Blueprint at `render.yaml` for monorepo deploy
 
 ```bash
 cd backend
-bun run import:s3              # import from S3 bucket
-bun run import:s3 -- --dry-run # preview only
+pnpm run import:s3              # import from S3 bucket
+pnpm run import:s3 -- --dry-run # preview only
 ```
 
 ## Docs
