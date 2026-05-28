@@ -103,6 +103,7 @@ jobs:
         with:
           directory: ./backend/coverage
           flags: backend
+          token: 48f50eb7-142f-4b95-8647-8463e3a20579
 
   test-frontend:
     name: Test Frontend
@@ -136,6 +137,7 @@ jobs:
         with:
           directory: ./web/coverage
           flags: frontend
+          token: 48f50eb7-142f-4b95-8647-8463e3a20579
 
   build-check:
     name: Build & Load Check
