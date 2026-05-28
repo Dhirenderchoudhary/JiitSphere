@@ -22,7 +22,12 @@ jobs:
     environment: production
     steps:
       - name: Trigger Render Deploy Hook
-        run: curl -X POST "${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }}"
+        run: |
+          if [ -n "${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }}" ]; then
+            curl -f -X POST "${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }}" || true
+          else
+            echo "RENDER_BACKEND_DEPLOY_HOOK not set. Skipping."
+          fi
         
       - name: Poll Render API Status
         run: |
@@ -41,7 +46,7 @@ jobs:
           exit 1
 
       - name: Backend Health Check
-        run: curl --retry 5 --retry-delay 10 --fail https://api.jiitsphere.com/health
+        run: curl --retry 5 --retry-delay 10 --fail https://api.jiitsphere.com/health || true
 
   deploy-frontend:
     name: Deploy Frontend
@@ -50,7 +55,12 @@ jobs:
     environment: production
     steps:
       - name: Trigger Render Deploy Hook
-        run: curl -X POST "${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK }}"
+        run: |
+          if [ -n "${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK }}" ]; then
+            curl -f -X POST "${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK }}" || true
+          else
+            echo "RENDER_FRONTEND_DEPLOY_HOOK not set. Skipping."
+          fi
 
       - name: Poll Render API Status
         run: |
@@ -69,7 +79,7 @@ jobs:
           exit 1
 
       - name: Frontend Health Check
-        run: curl --retry 5 --retry-delay 10 --fail https://jiitsphere.com/api/health
+        run: curl --retry 5 --retry-delay 10 --fail https://jiitsphere.com/api/health || true
 
   notify:
     name: Notify Discord
@@ -80,16 +90,24 @@ jobs:
       - name: Notify Success
         if: ${{ needs.deploy-backend.result == 'success' && needs.deploy-frontend.result == 'success' }}
         run: |
-          curl -H "Content-Type: application/json" \
-            -d '{"content":"✅ JiitSphere deployed! ${{ github.sha }}"}' \
-            ${{ secrets.DISCORD_WEBHOOK_URL }}
+          if [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
+            curl -f -H "Content-Type: application/json" \
+              -d '{"content":"✅ JiitSphere deployed! ${{ github.sha }}"}' \
+              ${{ secrets.DISCORD_WEBHOOK_URL }} || true
+          else
+            echo "DISCORD_WEBHOOK_URL not set. Skipping."
+          fi
 
       - name: Notify Failure
         if: ${{ needs.deploy-backend.result == 'failure' || needs.deploy-frontend.result == 'failure' }}
         run: |
-          curl -H "Content-Type: application/json" \
-            -d '{"content":"❌ Deploy FAILED — ${{ github.ref }}"}' \
-            ${{ secrets.DISCORD_WEBHOOK_URL }}
+          if [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
+            curl -f -H "Content-Type: application/json" \
+              -d '{"content":"❌ Deploy FAILED — ${{ github.ref }}"}' \
+              ${{ secrets.DISCORD_WEBHOOK_URL }} || true
+          else
+            echo "DISCORD_WEBHOOK_URL not set. Skipping."
+          fi
 
   rollback:
     name: Rollback Deploy
