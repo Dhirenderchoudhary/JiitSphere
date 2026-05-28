@@ -1,0 +1,17 @@
+packages:
+  - 'backend'
+  - 'web'
+
+allowBuilds:
+  core-js: true
+  mongodb-memory-server: true
+  msgpackr-extract: true
+  msw: true
+  unrs-resolver: true
+
+onlyBuiltDependencies:
+  - core-js
+  - mongodb-memory-server
+  - msgpackr-extract
+  - msw
+  - unrs-resolver

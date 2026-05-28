@@ -1,5 +1,5 @@
 {
   "framework": "nextjs",
-  "installCommand": "cd .. && bun install",
-  "buildCommand": "bun run build"
+  "installCommand": "npm i -g pnpm && pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm run build"
 }

@@ -64,3 +64,5 @@ web/package-lock.json
 
 # Optional local material storage (uncomment if needed)
 # materials/
+.pnpm-store/
+.pnpm-state.json

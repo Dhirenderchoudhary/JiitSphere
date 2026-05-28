@@ -3,7 +3,7 @@ services:
     name: jiitsphere-backend
     runtime: node
     rootDir: backend
-    buildCommand: npm ci
+    buildCommand: npm i -g pnpm && pnpm install --frozen-lockfile
     startCommand: node src/server.js
     healthCheckPath: /health
     autoDeploy: false
@@ -25,8 +25,8 @@ services:
     name: jiitsphere-frontend
     runtime: node
     rootDir: web
-    buildCommand: npm ci && npm run build
-    startCommand: npm start
+    buildCommand: npm i -g pnpm && pnpm install --frozen-lockfile && pnpm run build
+    startCommand: pnpm run start
     healthCheckPath: /api/health
     autoDeploy: false
     envVars:

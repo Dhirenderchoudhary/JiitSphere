@@ -1,14 +1,10 @@
 {
   "name": "jiitsphere-root",
   "private": true,
-  "workspaces": [
-    "backend",
-    "web"
-  ],
   "scripts": {
-    "lint:all": "npm run lint -w backend && npm run lint -w web",
-    "format:all": "npm run format -w backend && npm run format -w web",
-    "test:all": "npm run test:ci -w backend && npm run test:ci -w web",
+    "lint:all": "pnpm --filter backend lint && pnpm --filter web lint",
+    "format:all": "pnpm --filter backend format && pnpm --filter web format",
+    "test:all": "pnpm --filter backend test:ci && pnpm --filter web test:ci",
     "prepare": "husky"
   },
   "devDependencies": {
