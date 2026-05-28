@@ -1,5 +1,8 @@
 # JiitSphere
 
+[![CI/CD Pipeline](https://github.com/Dhirenderchoudhary/JiitSphere/actions/workflows/ci.yml/badge.svg)](https://github.com/Dhirenderchoudhary/JiitSphere/actions/workflows/ci.yml)
+[![Coverage Status](https://codecov.io/gh/Dhirenderchoudhary/JiitSphere/branch/main/graph/badge.svg)](https://codecov.io/gh/Dhirenderchoudhary/JiitSphere)
+
 Study material & student portal platform for JIIT students — notes, slides, PYQs, lectures, and an integrated web portal.
 
 ## Stack
@@ -125,18 +128,8 @@ pnpm run import:s3              # import from S3 bucket
 pnpm run import:s3 -- --dry-run # preview only
 ```
 
-## Docs
-
-- [Deployment Guide](docs/DEPLOYMENT.md)
-- [API Examples](docs/API_EXAMPLES.md)
-- [Admin Workflow](docs/ADMIN_WORKFLOW.md)
-- [System Guide](docs/COMPLETE_SYSTEM_GUIDE.md)
-
 ## License
 
 This project is licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later). See [LICENSE](LICENSE).
-
-[![CI/CD Pipeline](https://github.com/Dhirenderchoudhary/JiitSphere/actions/workflows/ci.yml/badge.svg)](https://github.com/Dhirenderchoudhary/JiitSphere/actions/workflows/ci.yml)
-[![Coverage Status](https://codecov.io/gh/Dhirenderchoudhary/JiitSphere/branch/main/graph/badge.svg)](https://codecov.io/gh/Dhirenderchoudhary/JiitSphere)
 
 The comprehensive study material platform and student portal for JIIT (Jaypee Institute of Information Technology), Noida.
