@@ -1,14 +1,22 @@
 module.exports = {
   env: {
     node: true,
-    commonjs: true,
-    es2021: true
+    es2022: true,
+    jest: true
   },
-  extends: 'eslint:recommended',
+  extends: [
+    'airbnb-base',
+    'plugin:node/recommended',
+    'plugin:jest/recommended',
+    'plugin:prettier/recommended'
+  ],
   parserOptions: {
-    ecmaVersion: 12
+    ecmaVersion: 2022
   },
   rules: {
-    'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }]
+    'no-console': 'warn',
+    'no-underscore-dangle': ['error', { allow: ['_id', '_next'] }],
+    'consistent-return': 'off',
+    'node/no-unsupported-features/es-syntax': 'off' // We use modern syntax
   }
 };

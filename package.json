@@ -1,0 +1,28 @@
+{
+  "name": "jiitsphere-root",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "web"
+  ],
+  "scripts": {
+    "lint:all": "npm run lint -w backend && npm run lint -w web",
+    "format:all": "npm run format -w backend && npm run format -w web",
+    "test:all": "npm run test:ci -w backend && npm run test:ci -w web",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2"
+  },
+  "lint-staged": {
+    "backend/src/**/*.js": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "web/src/**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  }
+}

@@ -1,0 +1,102 @@
+name: Deploy JiitSphere
+
+on:
+  push:
+    branches:
+      - main
+  workflow_run:
+    workflows: ["JiitSphere CI/CD Pipeline"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      deploy_id:
+        description: 'Deploy ID to rollback to'
+        required: true
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend
+    if: ${{ github.event_name != 'workflow_dispatch' && (github.event_name == 'push' || github.event.workflow_run.conclusion == 'success') }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Trigger Render Deploy Hook
+        run: curl -X POST "${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }}"
+        
+      - name: Poll Render API Status
+        run: |
+          echo "Polling Render API for backend deployment status..."
+          for i in {1..40}; do
+            STATUS=$(curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+              "https://api.render.com/v1/services/${{ secrets.RENDER_BACKEND_SERVICE_ID }}/deploys" \
+              | grep -o '"status":"[^"]*"' | head -n 1 | cut -d'"' -f4)
+            if [ "$STATUS" == "live" ]; then
+              echo "Deployment live!"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Deployment timeout."
+          exit 1
+
+      - name: Backend Health Check
+        run: curl --retry 5 --retry-delay 10 --fail https://api.jiitsphere.com/health
+
+  deploy-frontend:
+    name: Deploy Frontend
+    needs: deploy-backend
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Trigger Render Deploy Hook
+        run: curl -X POST "${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK }}"
+
+      - name: Poll Render API Status
+        run: |
+          echo "Polling Render API for frontend deployment status..."
+          for i in {1..40}; do
+            STATUS=$(curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+              "https://api.render.com/v1/services/${{ secrets.RENDER_FRONTEND_SERVICE_ID }}/deploys" \
+              | grep -o '"status":"[^"]*"' | head -n 1 | cut -d'"' -f4)
+            if [ "$STATUS" == "live" ]; then
+              echo "Deployment live!"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Deployment timeout."
+          exit 1
+
+      - name: Frontend Health Check
+        run: curl --retry 5 --retry-delay 10 --fail https://jiitsphere.com/api/health
+
+  notify:
+    name: Notify Discord
+    needs: [deploy-backend, deploy-frontend]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Success
+        if: ${{ needs.deploy-backend.result == 'success' && needs.deploy-frontend.result == 'success' }}
+        run: |
+          curl -H "Content-Type: application/json" \
+            -d '{"content":"✅ JiitSphere deployed! ${{ github.sha }}"}' \
+            ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+      - name: Notify Failure
+        if: ${{ needs.deploy-backend.result == 'failure' || needs.deploy-frontend.result == 'failure' }}
+        run: |
+          curl -H "Content-Type: application/json" \
+            -d '{"content":"❌ Deploy FAILED — ${{ github.ref }}"}' \
+            ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+  rollback:
+    name: Rollback Deploy
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Trigger Rollback
+        run: |
+          curl -X POST https://api.render.com/v1/services/${{ secrets.RENDER_BACKEND_SERVICE_ID }}/deploys/${{ github.event.inputs.deploy_id }}/rollback \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}"

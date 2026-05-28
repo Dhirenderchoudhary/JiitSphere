@@ -1,17 +1,38 @@
 services:
   - type: web
     name: jiitsphere-backend
-    env: node
+    runtime: node
     rootDir: backend
-    buildCommand: npm install
+    buildCommand: npm ci
     startCommand: node src/server.js
     healthCheckPath: /health
-    autoDeploy: true
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        value: https://jiitsphere.com
 
   - type: web
-    name: jiitsphere-web
-    env: node
+    name: jiitsphere-frontend
+    runtime: node
     rootDir: web
-    buildCommand: npm install && NEXT_RUNTIME_PREP_MODE=build node scripts/prepare-next-runtime.cjs && npx next build
-    startCommand: NEXT_RUNTIME_PREP_MODE=start node scripts/prepare-next-runtime.cjs && npx next start -p $PORT
-    autoDeploy: true
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        value: https://jiitsphere-backend.onrender.com
+      - key: NEXTAUTH_SECRET
+        sync: false

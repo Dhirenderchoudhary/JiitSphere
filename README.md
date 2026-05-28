@@ -51,7 +51,58 @@ bun install
 bun run dev
 ```
 
-## Production & Deployments
+## Local Setup
+
+### Prerequisites
+- Node.js (v20 recommended)
+- MongoDB running locally or a MongoDB Atlas URI
+
+### Installation & Execution
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Dhirenderchoudhary/JiitSphere.git
+   cd JiitSphere
+   ```
+
+2. **Install Root Dependencies (Husky):**
+   ```bash
+   npm install
+   ```
+
+3. **Backend Setup:**
+   ```bash
+   cd backend
+   cp .env.example .env
+   # Edit .env with your MongoDB URI and Auth secrets
+   npm install
+   npm run dev
+   ```
+
+4. **Frontend Setup:**
+   ```bash
+   cd ../web
+   cp .env.local.example .env.local
+   npm install
+   npm run dev
+   ```
+
+5. **Test Everything locally:**
+   From the root folder, you can run all tests and format checks:
+   ```bash
+   npm run test:all
+   npm run lint:all
+   ```
+
+## How to trigger manual rollback
+
+In case a bad deployment reaches production, you can trigger an automatic Render rollback directly from GitHub Actions:
+1. Go to the **Actions** tab in this GitHub repository.
+2. Select **Deploy JiitSphere** from the left sidebar.
+3. Click **Run workflow**.
+4. In the `deploy_id` field, enter the ID of the previous stable deployment (you can find this ID in Render's dashboard under Deploys, e.g., `dep-cjabc123...`).
+5. Click **Run workflow**. The GitHub Action will instruct Render to immediately rollback the backend and verify the health check.
+
+## API Documentation & Deployments
 
 This repository includes a Render Blueprint at `render.yaml` for monorepo deployment.
 
@@ -84,3 +135,8 @@ bun run import:s3 -- --dry-run # preview only
 ## License
 
 This project is licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later). See [LICENSE](LICENSE).
+
+[![CI/CD Pipeline](https://github.com/Dhirenderchoudhary/JiitSphere/actions/workflows/ci.yml/badge.svg)](https://github.com/Dhirenderchoudhary/JiitSphere/actions/workflows/ci.yml)
+[![Coverage Status](https://codecov.io/gh/Dhirenderchoudhary/JiitSphere/branch/main/graph/badge.svg)](https://codecov.io/gh/Dhirenderchoudhary/JiitSphere)
+
+The comprehensive study material platform and student portal for JIIT (Jaypee Institute of Information Technology), Noida.

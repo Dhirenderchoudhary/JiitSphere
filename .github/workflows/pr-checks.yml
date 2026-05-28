@@ -1,0 +1,51 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR body
+        run: |
+          if [ -z "${{ github.event.pull_request.body }}" ]; then
+            echo "Error: Pull request body cannot be empty!"
+            exit 1
+          fi
+
+      - name: Auto-label PR Size
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const linesChanged = context.payload.pull_request.additions + context.payload.pull_request.deletions;
+            let label = 'size/XL';
+            if (linesChanged < 50) label = 'size/S';
+            else if (linesChanged < 200) label = 'size/M';
+            else if (linesChanged < 500) label = 'size/L';
+            
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: [label]
+            });
+
+      - name: Post comment with changed files
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            const fileNames = files.map(f => `- ${f.filename}`).join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `### Changed Files\n${fileNames}`
+            });

@@ -15,6 +15,7 @@ const errorHandler = require('./middlewares/errorHandler');
 const requestAnalytics = require('./middlewares/requestAnalytics');
 const { apiLimiter } = require('./middlewares/rateLimiters');
 const { trackPageView } = require('./services/requestAnalyticsStore');
+const healthRoute = require('./routes/health');
 
 const app = express();
 
@@ -138,9 +139,7 @@ if (env.logHttpRequests && !env.isProduction) {
 app.use(requestAnalytics);
 app.use('/api/v1', apiLimiter);
 
-app.get('/health', (_req, res) => {
-  res.status(200).json({ status: 'ok', service: 'jiit-study-material-backend' });
-});
+app.use('/health', healthRoute);
 
 if (env.storageProvider === 'local' && env.localMaterialsRoot) {
   app.use('/local-materials', express.static(path.resolve(env.localMaterialsRoot)));
