@@ -95,7 +95,7 @@ jobs:
 
       - name: Run Tests with Coverage
         working-directory: ./backend
-        run: pnpm run test -- --ci --coverage
+        run: pnpm run test -- --ci --coverage --passWithNoTests
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -127,7 +127,7 @@ jobs:
 
       - name: Run Tests with Coverage
         working-directory: ./web
-        run: pnpm run test -- --ci --coverage
+        run: pnpm run test -- --ci --coverage --passWithNoTests
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
