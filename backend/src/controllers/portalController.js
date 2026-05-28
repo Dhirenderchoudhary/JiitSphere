@@ -1,4 +1,3 @@
-
 const PORTAL_URL = 'https://webportal.jiit.ac.in:6011/studentportal/#/';
 const JPORTAL_UI_URL = 'https://yashmalik.tech/jportal/';
 
@@ -35,8 +34,8 @@ const getPortalStatus = async (_req, res, next) => {
         jportalUiUrl: JPORTAL_UI_URL,
         productVersion,
         studentPortalVersion,
-        announcements: notices
-      }
+        announcements: notices,
+      },
     });
   } catch (error) {
     return next(error);
@@ -46,5 +45,5 @@ const getPortalStatus = async (_req, res, next) => {
 };
 
 module.exports = {
-  getPortalStatus
+  getPortalStatus,
 };

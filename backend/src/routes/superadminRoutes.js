@@ -1,4 +1,3 @@
-
 const express = require('express');
 const authSuperAdmin = require('../middlewares/authSuperAdmin');
 const { login, getAnalytics } = require('../controllers/superadminController');

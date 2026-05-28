@@ -1,4 +1,3 @@
-
 const path = require('path');
 
 const romanToNumber = {
@@ -9,7 +8,7 @@ const romanToNumber = {
   v: 5,
   vi: 6,
   vii: 7,
-  viii: 8
+  viii: 8,
 };
 
 const toWords = (value) =>
@@ -22,15 +21,18 @@ const toWords = (value) =>
 const guessBranch = (parts, filename) => {
   const joined = toWords([...parts, filename].join(' '));
 
-  if (joined.includes('smcse') || joined.includes(' cse ') || joined.includes('computer science')) return 'CSE';
-  if (joined.includes('smece') || joined.includes(' ece ') || joined.includes('electronics')) return 'ECE';
+  if (joined.includes('smcse') || joined.includes(' cse ') || joined.includes('computer science'))
+    return 'CSE';
+  if (joined.includes('smece') || joined.includes(' ece ') || joined.includes('electronics'))
+    return 'ECE';
   if (joined.includes('ecs')) return 'ECS';
   if (joined.includes(' it ')) return 'IT';
   if (joined.includes('mca')) return 'MCA';
   if (joined.includes('bca')) return 'BCA';
   if (joined.includes('smmaths') || joined.includes('math')) return 'MATHS';
   if (joined.includes('smphy') || joined.includes('physics')) return 'PHY';
-  if (joined.includes('smhss') || joined.includes('english') || joined.includes('economics')) return 'HSS';
+  if (joined.includes('smhss') || joined.includes('english') || joined.includes('economics'))
+    return 'HSS';
   if (joined.includes('t&p') || joined.includes('tnp') || joined.includes('training')) return 'TNP';
 
   return 'GENERAL';
@@ -78,10 +80,22 @@ const guessYearFromSemester = (semester) => {
 const guessResourceType = (parts, filename, fileType) => {
   const joined = toWords([...parts, filename].join(' '));
 
-  if (joined.includes('pyq') || joined.includes('question bank') || joined.includes('question paper')) return 'PYQs';
-  if (joined.includes('solution') || joined.includes('soln') || joined.includes('answer key')) return 'Solutions';
+  if (
+    joined.includes('pyq') ||
+    joined.includes('question bank') ||
+    joined.includes('question paper')
+  )
+    return 'PYQs';
+  if (joined.includes('solution') || joined.includes('soln') || joined.includes('answer key'))
+    return 'Solutions';
   if (fileType === 'mp4' || joined.includes('lecture video')) return 'Lectures';
-  if (joined.includes('tutorial') || joined.includes('assignment') || joined.includes('quiz') || joined.includes('lab')) return 'Tutorials';
+  if (
+    joined.includes('tutorial') ||
+    joined.includes('assignment') ||
+    joined.includes('quiz') ||
+    joined.includes('lab')
+  )
+    return 'Tutorials';
 
   return 'Slides';
 };
@@ -126,10 +140,10 @@ const inferMaterialMetadata = ({ relativePath, fileType }) => {
     year,
     semester,
     subject,
-    resourceType
+    resourceType,
   };
 };
 
 module.exports = {
-  inferMaterialMetadata
+  inferMaterialMetadata,
 };

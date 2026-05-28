@@ -1,31 +1,30 @@
-
 const express = require('express');
 const authUser = require('../middlewares/authUser');
 const { relayLimiter } = require('../middlewares/rateLimiters');
 const { getPortalStatus } = require('../controllers/portalController');
 const {
-	startRelaySession,
-	fetchRelayCaptcha,
-	relayRequest,
-	tryRelayLogin,
-	closeRelaySession
+  startRelaySession,
+  fetchRelayCaptcha,
+  relayRequest,
+  tryRelayLogin,
+  closeRelaySession,
 } = require('../controllers/portalRelayController');
 const {
-	loginSdk,
-	getSdkSession,
-	getAttendanceMeta,
-	getAttendance,
-	getAttendanceCounts,
-	getSubjectAttendance,
-	getProfile,
-	getProfilePhoto,
-	getGrades,
-	getMarksSemesters,
-	getExams,
-	getSubjects,
-	getFees,
-	downloadMarks,
-	getMarksData
+  loginSdk,
+  getSdkSession,
+  getAttendanceMeta,
+  getAttendance,
+  getAttendanceCounts,
+  getSubjectAttendance,
+  getProfile,
+  getProfilePhoto,
+  getGrades,
+  getMarksSemesters,
+  getExams,
+  getSubjects,
+  getFees,
+  downloadMarks,
+  getMarksData,
 } = require('../controllers/portalSdkController');
 
 const router = express.Router();

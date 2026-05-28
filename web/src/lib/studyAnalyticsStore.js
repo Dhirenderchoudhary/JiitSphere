@@ -10,7 +10,7 @@ const store = {
   dailySignIns: {},
   /** @type {Array<{email: string, at: string}>} */
   recentSignIns: [],
-  startedAt: new Date().toISOString()
+  startedAt: new Date().toISOString(),
 };
 
 function maskEmail(email) {
@@ -47,6 +47,6 @@ export function getStudySnapshot() {
     uniqueUsers: store.uniqueEmails.size,
     last7Days: last7,
     recentSignIns: store.recentSignIns.slice(0, 20),
-    startedAt: store.startedAt
+    startedAt: store.startedAt,
   };
 }

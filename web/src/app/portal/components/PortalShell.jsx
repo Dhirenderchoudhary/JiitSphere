@@ -6,8 +6,7 @@ import Link from 'next/link';
 import { LogOut, RefreshCw, BarChart2, Menu, ChevronDown } from 'lucide-react';
 import TopPanelTools from 'components/TopPanelTools';
 import { Button } from 'components/ui/button';
-import { fetchMe, fetchPortalSdkSession } from 'lib/api';
-import { SessionExpiredError } from 'lib/api';
+import { fetchMe, fetchPortalSdkSession, SessionExpiredError } from 'lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from 'lib/utils';
 import {
@@ -15,7 +14,7 @@ import {
   adminTabs,
   SHOW_PORTAL_DIAGNOSTICS,
   STALE_ON_FOCUS_MS,
-  AUTO_REFRESH_INTERVAL_MS
+  AUTO_REFRESH_INTERVAL_MS,
 } from '../constants';
 import HydrationStatusPanel from './HydrationStatusPanel';
 
@@ -25,7 +24,9 @@ const tabLoadingState = (
   </div>
 );
 
-const AttendanceView = dynamic(() => import('./AttendanceView'), { loading: () => tabLoadingState });
+const AttendanceView = dynamic(() => import('./AttendanceView'), {
+  loading: () => tabLoadingState,
+});
 const GradesView = dynamic(() => import('./GradesView'), { loading: () => tabLoadingState });
 const ExamsView = dynamic(() => import('./ExamsView'), { loading: () => tabLoadingState });
 const SubjectsView = dynamic(() => import('./SubjectsView'), { loading: () => tabLoadingState });
@@ -62,8 +63,11 @@ export default function PortalShell({ token, onLogout }) {
 
   const syncCachedIdentity = useCallback(() => {
     try {
-      const identityMode = String(window.localStorage.getItem('jaypee_buddy_identity_mode') || '').toLowerCase();
-      const inDemoSession = String(sdkSession?.mode || '').toLowerCase() === 'public-demo' || identityMode === 'demo';
+      const identityMode = String(
+        window.localStorage.getItem('jaypee_buddy_identity_mode') || ''
+      ).toLowerCase();
+      const inDemoSession =
+        String(sdkSession?.mode || '').toLowerCase() === 'public-demo' || identityMode === 'demo';
       const savedPhoto = window.localStorage.getItem('jaypee_buddy_cached_photo') || '';
       const savedName = window.localStorage.getItem('jaypee_buddy_cached_profile_name') || '';
 
@@ -82,37 +86,38 @@ export default function PortalShell({ token, onLogout }) {
   }, [sdkSession?.mode]);
 
   const triggerRefresh = useCallback(() => {
-    setRefreshKey(k => k + 1);
+    setRefreshKey((k) => k + 1);
     setLastRefreshedAt(Date.now());
     setAgoLabel('just now');
   }, []);
 
   useEffect(() => {
     setIsRefreshing(true);
-    
+
     // Fetch critical session data and identity data in parallel for instant hydration
     Promise.allSettled([
       fetchPortalSdkSession(token, false),
-      refreshKey === 0 ? fetchMe(token) : Promise.resolve({ data: { user: currentUser } })
+      refreshKey === 0 ? fetchMe(token) : Promise.resolve({ data: { user: currentUser } }),
     ]).then(([sessionResult, meResult]) => {
       // 1. Handle Session
       if (sessionResult.status === 'fulfilled') {
         setSdkSession(sessionResult.value?.data || null);
+      } else if (sessionResult.reason instanceof SessionExpiredError) {
+        onExpired();
       } else {
-        if (sessionResult.reason instanceof SessionExpiredError) {
-          onExpired();
-        } else {
-          console.warn("Portal Sync Transient Warning:", sessionResult.reason?.message || 'Unknown error');
-        }
+        console.warn(
+          'Portal Sync Transient Warning:',
+          sessionResult.reason?.message || 'Unknown error'
+        );
       }
-      
+
       // 2. Handle Identity (only fetches on initial mount)
       if (meResult.status === 'fulfilled' && refreshKey === 0) {
         setCurrentUser(meResult.value?.data?.user || null);
       } else if (meResult.status === 'rejected' && meResult.reason instanceof SessionExpiredError) {
         onExpired();
       }
-      
+
       setIsRefreshing(false);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -175,9 +180,19 @@ export default function PortalShell({ token, onLogout }) {
     const viewProps = { token, onExpired, setCustomSidebar };
     if (activeTab === 'attendance') return <AttendanceView key={refreshKey} {...viewProps} />;
     if (activeTab === 'grades') return <GradesView key={refreshKey} {...viewProps} />;
-    if (activeTab === 'exams') return <ExamsView key={refreshKey} {...viewProps} semesters={semesters} />;
-    if (activeTab === 'subjects') return <SubjectsView key={refreshKey} {...viewProps} semesters={semesters} defaultSemester={semester} />;
-    if (activeTab === 'fees') return <FeesView key={refreshKey} {...viewProps} semesters={semesters} />;
+    if (activeTab === 'exams')
+      return <ExamsView key={refreshKey} {...viewProps} semesters={semesters} />;
+    if (activeTab === 'subjects')
+      return (
+        <SubjectsView
+          key={refreshKey}
+          {...viewProps}
+          semesters={semesters}
+          defaultSemester={semester}
+        />
+      );
+    if (activeTab === 'fees')
+      return <FeesView key={refreshKey} {...viewProps} semesters={semesters} />;
     if (activeTab === 'analytics') return <AnalyticsView key={refreshKey} {...viewProps} />;
     return <ProfileView key={refreshKey} {...viewProps} />;
   }, [activeTab, semester, semesters, token, onExpired, refreshKey]);
@@ -189,13 +204,15 @@ export default function PortalShell({ token, onLogout }) {
         {/* Logo Section */}
         <div className="p-6 pb-2">
           <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-             <div className="size-8 bg-primary rounded-lg flex items-center justify-center shadow-inner">
-                <BarChart2 className="size-5 text-primary-foreground" />
-             </div>
-             <span className="font-black text-2xl font-[var(--font-instrument-sans)] tracking-tighter">JiitSphere</span>
+            <div className="size-8 bg-primary rounded-lg flex items-center justify-center shadow-inner">
+              <BarChart2 className="size-5 text-primary-foreground" />
+            </div>
+            <span className="font-black text-2xl font-[var(--font-instrument-sans)] tracking-tighter">
+              JiitSphere
+            </span>
           </Link>
         </div>
-        
+
         {/* Navigation Wrapper / Custom Contextual Sidebar */}
         {customSidebar ? (
           <>
@@ -211,8 +228,10 @@ export default function PortalShell({ token, onLogout }) {
                     onClick={() => setActiveTab(tab.id)}
                     title={tab.label}
                     className={cn(
-                      "flex-1 flex items-center justify-center p-2.5 rounded-lg transition-all",
-                      active ? "bg-primary/10 text-primary" : "text-muted-foreground/50 hover:bg-muted/50 hover:text-foreground"
+                      'flex-1 flex items-center justify-center p-2.5 rounded-lg transition-all',
+                      active
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground/50 hover:bg-muted/50 hover:text-foreground'
                     )}
                   >
                     <Icon className="size-4" />
@@ -226,146 +245,186 @@ export default function PortalShell({ token, onLogout }) {
         ) : (
           <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar mt-6">
             <div className="px-6 py-2 mb-2">
-               <span className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-[0.2em]">Platform Core</span>
+              <span className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-[0.2em]">
+                Platform Core
+              </span>
             </div>
-            
+
             <nav className="px-4 space-y-1">
-               {displayedTabs.map((tab) => {
-                  const Icon = tab.icon;
-                  const active = tab.id === activeTab;
-                  return (
-                     <button 
-                        key={tab.id} 
-                        onClick={() => setActiveTab(tab.id)} 
-                        className={cn(
-                          "w-full flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 relative", 
-                          active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                        )}
-                     >
-                        <Icon className={cn("w-4 h-4", active ? "opacity-100" : "opacity-60")} />
-                        {tab.label}
-                        {active && (
-                          <motion.div 
-                            layoutId="active-sidebar-tab"
-                            className="absolute left-0 top-[15%] bottom-[15%] w-1 bg-primary rounded-r-full"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                          />
-                        )}
-                     </button>
-                  )
-               })}
+              {displayedTabs.map((tab) => {
+                const Icon = tab.icon;
+                const active = tab.id === activeTab;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={cn(
+                      'w-full flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 relative',
+                      active
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    )}
+                  >
+                    <Icon className={cn('w-4 h-4', active ? 'opacity-100' : 'opacity-60')} />
+                    {tab.label}
+                    {active && (
+                      <motion.div
+                        layoutId="active-sidebar-tab"
+                        className="absolute left-0 top-[15%] bottom-[15%] w-1 bg-primary rounded-r-full"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                      />
+                    )}
+                  </button>
+                );
+              })}
             </nav>
           </div>
         )}
-        
+
         {/* Persistent User Profile Footer */}
         <div className="p-5 border-t border-border bg-muted/10">
-           <button 
-               onClick={() => setActiveTab('profile')} 
-               className="w-full flex items-center gap-3 px-2 py-1.5 cursor-pointer group hover:bg-muted/50 rounded-xl transition-all"
-           >
-               <div className="size-10 shrink-0 rounded-full bg-secondary border border-border shadow-sm flex items-center justify-center overflow-hidden group-hover:border-primary/20 transition-colors">
-                  {cachedPhoto ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={cachedPhoto} alt="Profile" className="w-full h-full object-cover" />
-                  ) : (
-                      <span className="text-sm font-black text-foreground group-hover:text-primary transition-colors">{displayName?.charAt(0) || "S"}</span>
-                  )}
-               </div>
-               <div className="flex flex-col text-left flex-1 min-w-0">
-                    <span className="text-sm font-bold truncate group-hover:text-primary transition-colors">{displayName}</span>
-                  <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest truncate">View Profile</span>
-               </div>
-               <div 
-                   onClick={(e) => { e.stopPropagation(); onLogout(); }}
-                   className="p-1.5 rounded-md hover:bg-rose-500/10 transition-colors"
-               >
-                   <LogOut className="size-4 text-muted-foreground/40 hover:text-rose-500 transition-colors" />
-               </div>
-           </button>
+          <button
+            onClick={() => setActiveTab('profile')}
+            className="w-full flex items-center gap-3 px-2 py-1.5 cursor-pointer group hover:bg-muted/50 rounded-xl transition-all"
+          >
+            <div className="size-10 shrink-0 rounded-full bg-secondary border border-border shadow-sm flex items-center justify-center overflow-hidden group-hover:border-primary/20 transition-colors">
+              {cachedPhoto ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={cachedPhoto} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-sm font-black text-foreground group-hover:text-primary transition-colors">
+                  {displayName?.charAt(0) || 'S'}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col text-left flex-1 min-w-0">
+              <span className="text-sm font-bold truncate group-hover:text-primary transition-colors">
+                {displayName}
+              </span>
+              <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest truncate">
+                View Profile
+              </span>
+            </div>
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                onLogout();
+              }}
+              className="p-1.5 rounded-md hover:bg-rose-500/10 transition-colors"
+            >
+              <LogOut className="size-4 text-muted-foreground/40 hover:text-rose-500 transition-colors" />
+            </div>
+          </button>
         </div>
       </aside>
 
       {/* Main Right Content Pipeline */}
       <main className="flex-1 flex flex-col h-full overflow-hidden bg-[#fafafa] dark:bg-background/95">
-        
         {/* Top Header Bar */}
         <header className="flex items-center justify-between px-4 sm:px-6 lg:px-10 py-4 sm:py-5 bg-card border-b border-border z-10 shrink-0">
-           <div className="flex items-center gap-3 sm:gap-4">
-              {/* Mobile-only Logo */}
-              <Link href="/" className="flex lg:hidden items-center gap-2 hover:opacity-80 transition-opacity">
-                 <div className="w-8 h-8 sm:w-9 sm:h-9 bg-primary rounded-lg shadow-inner flex items-center justify-center shrink-0">
-                    <BarChart2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
-                 </div>
-                 <span className="font-black text-xl font-[var(--font-instrument-sans)] tracking-tighter text-foreground pr-2 border-r border-border/50 hidden sm:block">JiitSphere</span>
-              </Link>
-              
-              <div className="flex flex-col min-w-0 justify-center lg:hidden relative">
-                 <button 
-                     onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                     className="flex items-center gap-2 px-3 py-2 bg-secondary/40 hover:bg-secondary/70 border border-border/60 rounded-xl transition-colors shadow-sm"
-                 >
-                     <Menu className="size-4 text-foreground" />
-                     <span className="text-sm font-bold truncate max-w-[100px] sm:max-w-[150px]">
-                         {displayedTabs.find(t => t.id === activeTab)?.label || 'Menu'}
-                     </span>
-                     <ChevronDown className="size-[3.5] text-muted-foreground opacity-70" />
-                 </button>
-
-                 <AnimatePresence>
-                     {mobileMenuOpen && (
-                         <>
-                             <motion.div 
-                                 initial={{ opacity: 0 }}
-                                 animate={{ opacity: 1 }}
-                                 exit={{ opacity: 0 }}
-                                 className="fixed inset-0 z-40 bg-background/50 backdrop-blur-sm lg:hidden"
-                                 onClick={() => setMobileMenuOpen(false)}
-                             />
-                             <motion.div 
-                                 initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                                 transition={{ duration: 0.2 }}
-                                 className="absolute top-12 left-0 w-64 bg-card border border-border shadow-2xl rounded-2xl z-50 overflow-hidden flex flex-col p-2 space-y-1 lg:hidden origin-top-left"
-                             >
-                                 {displayedTabs.map(t => {
-                                     const TIcon = t.icon;
-                                     const isActive = t.id === activeTab;
-                                     return (
-                                         <button
-                                             key={t.id}
-                                             onClick={() => { setActiveTab(t.id); setMobileMenuOpen(false); }}
-                                             className={cn("flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors w-full text-left", isActive ? "bg-primary/10 text-primary" : "hover:bg-muted/50 text-foreground")}
-                                         >
-                                             <TIcon className="size-4" />
-                                             {t.label}
-                                         </button>
-                                     )
-                                 })}
-                             </motion.div>
-                         </>
-                     )}
-                 </AnimatePresence>
+          <div className="flex items-center gap-3 sm:gap-4">
+            {/* Mobile-only Logo */}
+            <Link
+              href="/"
+              className="flex lg:hidden items-center gap-2 hover:opacity-80 transition-opacity"
+            >
+              <div className="w-8 h-8 sm:w-9 sm:h-9 bg-primary rounded-lg shadow-inner flex items-center justify-center shrink-0">
+                <BarChart2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
               </div>
-           </div>
-           
-           <div className="flex items-center gap-4">
-               <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 hidden sm:inline">Synced {agoLabel}</span>
-               <div className="h-5 w-px bg-border/50 mx-1 hidden sm:block" />
-               <TopPanelTools />
-               <Button variant="secondary" size="sm" onClick={triggerRefresh} disabled={isRefreshing} className="h-9 gap-2 shadow-sm rounded-lg font-bold ml-2">
-                   <RefreshCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin")} />
-                   <span className="hidden sm:inline">{isRefreshing ? 'Syncing...' : 'Sync'}</span>
-               </Button>
-           </div>
+              <span className="font-black text-xl font-[var(--font-instrument-sans)] tracking-tighter text-foreground pr-2 border-r border-border/50 hidden sm:block">
+                JiitSphere
+              </span>
+            </Link>
+
+            <div className="flex flex-col min-w-0 justify-center lg:hidden relative">
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="flex items-center gap-2 px-3 py-2 bg-secondary/40 hover:bg-secondary/70 border border-border/60 rounded-xl transition-colors shadow-sm"
+              >
+                <Menu className="size-4 text-foreground" />
+                <span className="text-sm font-bold truncate max-w-[100px] sm:max-w-[150px]">
+                  {displayedTabs.find((t) => t.id === activeTab)?.label || 'Menu'}
+                </span>
+                <ChevronDown className="size-[3.5] text-muted-foreground opacity-70" />
+              </button>
+
+              <AnimatePresence>
+                {mobileMenuOpen && (
+                  <>
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="fixed inset-0 z-40 bg-background/50 backdrop-blur-sm lg:hidden"
+                      onClick={() => setMobileMenuOpen(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute top-12 left-0 w-64 bg-card border border-border shadow-2xl rounded-2xl z-50 overflow-hidden flex flex-col p-2 space-y-1 lg:hidden origin-top-left"
+                    >
+                      {displayedTabs.map((t) => {
+                        const TIcon = t.icon;
+                        const isActive = t.id === activeTab;
+                        return (
+                          <button
+                            key={t.id}
+                            onClick={() => {
+                              setActiveTab(t.id);
+                              setMobileMenuOpen(false);
+                            }}
+                            className={cn(
+                              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors w-full text-left',
+                              isActive
+                                ? 'bg-primary/10 text-primary'
+                                : 'hover:bg-muted/50 text-foreground'
+                            )}
+                          >
+                            <TIcon className="size-4" />
+                            {t.label}
+                          </button>
+                        );
+                      })}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 hidden sm:inline">
+              Synced {agoLabel}
+            </span>
+            <div className="h-5 w-px bg-border/50 mx-1 hidden sm:block" />
+            <TopPanelTools />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={triggerRefresh}
+              disabled={isRefreshing}
+              className="h-9 gap-2 shadow-sm rounded-lg font-bold ml-2"
+            >
+              <RefreshCw className={cn('w-3.5 h-3.5', isRefreshing && 'animate-spin')} />
+              <span className="hidden sm:inline">{isRefreshing ? 'Syncing...' : 'Sync'}</span>
+            </Button>
+          </div>
         </header>
-        
+
         {/* Dynamic Content Body */}
-        <div className={cn("flex-1 relative p-4 lg:p-6 xl:p-8 portal-content-body", activeTab === 'attendance' ? "overflow-hidden" : "overflow-y-auto custom-scrollbar")}>
-           {SHOW_PORTAL_DIAGNOSTICS ? <HydrationStatusPanel diagnostics={sdkSession?.diagnostics} /> : null}
-           {content}
+        <div
+          className={cn(
+            'flex-1 relative p-4 lg:p-6 xl:p-8 portal-content-body',
+            activeTab === 'attendance' ? 'overflow-hidden' : 'overflow-y-auto custom-scrollbar'
+          )}
+        >
+          {SHOW_PORTAL_DIAGNOSTICS ? (
+            <HydrationStatusPanel diagnostics={sdkSession?.diagnostics} />
+          ) : null}
+          {content}
         </div>
       </main>
 
@@ -378,26 +437,39 @@ export default function PortalShell({ token, onLogout }) {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={cn("flex flex-1 flex-col items-center justify-center rounded-xl py-2.5 transition-all relative", active ? "text-primary bg-primary/5" : "text-muted-foreground hover:bg-muted/50")}
+              className={cn(
+                'flex flex-1 flex-col items-center justify-center rounded-xl py-2.5 transition-all relative',
+                active ? 'text-primary bg-primary/5' : 'text-muted-foreground hover:bg-muted/50'
+              )}
             >
-              <Icon className={cn("h-5 w-5 transition-transform", active && "scale-110")} />
+              <Icon className={cn('h-5 w-5 transition-transform', active && 'scale-110')} />
             </button>
           );
         })}
-        
+
         {/* Mobile Profile Navigation Link */}
         <button
           onClick={() => setActiveTab('profile')}
-          className={cn("flex flex-1 flex-col items-center justify-center rounded-xl py-2.5 transition-all relative", activeTab === 'profile' ? "bg-primary/5" : "hover:bg-muted/50")}
+          className={cn(
+            'flex flex-1 flex-col items-center justify-center rounded-xl py-2.5 transition-all relative',
+            activeTab === 'profile' ? 'bg-primary/5' : 'hover:bg-muted/50'
+          )}
         >
-            <div className={cn("w-[22px] h-[22px] rounded-full overflow-hidden border-2 transition-all flex items-center justify-center bg-secondary", activeTab === 'profile' ? "border-primary scale-110" : "border-border")}>
-               {cachedPhoto ? (
-                   /* eslint-disable-next-line @next/next/no-img-element */
-                   <img src={cachedPhoto} alt="Profile" className="w-full h-full object-cover" />
-               ) : (
-                   <span className="text-[10px] font-black text-foreground leading-none">{displayName?.charAt(0) || "S"}</span>
-               )}
-            </div>
+          <div
+            className={cn(
+              'w-[22px] h-[22px] rounded-full overflow-hidden border-2 transition-all flex items-center justify-center bg-secondary',
+              activeTab === 'profile' ? 'border-primary scale-110' : 'border-border'
+            )}
+          >
+            {cachedPhoto ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={cachedPhoto} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-[10px] font-black text-foreground leading-none">
+                {displayName?.charAt(0) || 'S'}
+              </span>
+            )}
+          </div>
         </button>
       </nav>
     </div>

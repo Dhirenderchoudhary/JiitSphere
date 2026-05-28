@@ -1,4 +1,3 @@
-
 const crypto = require('crypto');
 const env = require('../config/env');
 
@@ -49,7 +48,7 @@ const normalizeCookies = (setCookieHeaderValue = '') => {
       const [name, ...rest] = cookie.split('=');
       return {
         name: name?.trim(),
-        value: rest.join('=').trim()
+        value: rest.join('=').trim(),
       };
     })
     .filter((item) => item.name && item.value !== undefined);
@@ -71,7 +70,7 @@ const createRelaySession = (ownerId) => {
     ownerId,
     cookies: {},
     createdAt: Date.now(),
-    updatedAt: Date.now()
+    updatedAt: Date.now(),
   });
   return sessionId;
 };
@@ -111,5 +110,5 @@ module.exports = {
   ensureOwnedSession,
   updateCookiesFromResponse,
   buildCookieHeader,
-  destroyRelaySession
+  destroyRelaySession,
 };

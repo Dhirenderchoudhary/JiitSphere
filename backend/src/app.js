@@ -1,4 +1,3 @@
-
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -83,7 +82,9 @@ const corsOptions = {
       if (!env.isProduction) return callback(null, true);
       return denyCors();
     }
-    if (env.corsAllowedOrigins.some((allowedOrigin) => matchesAllowedOrigin(origin, allowedOrigin))) {
+    if (
+      env.corsAllowedOrigins.some((allowedOrigin) => matchesAllowedOrigin(origin, allowedOrigin))
+    ) {
       return callback(null, true);
     }
     return denyCors();
@@ -91,7 +92,7 @@ const corsOptions = {
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Key', 'X-Admin-Email'],
-  maxAge: 86400
+  maxAge: 86400,
 };
 
 /* ── Helmet with strict Content-Security-Policy + HSTS ───────────── */
@@ -109,23 +110,21 @@ app.use(
         frameSrc: ["'none'"],
         baseUri: ["'self'"],
         formAction: ["'self'"],
-        frameAncestors: ["'none'"]
-      }
+        frameAncestors: ["'none'"],
+      },
     },
     crossOriginEmbedderPolicy: false,
     hsts: {
       maxAge: 31536000,
       includeSubDomains: true,
-      preload: true
+      preload: true,
     },
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     noSniff: true,
-    xssFilter: true
+    xssFilter: true,
   })
 );
-app.use(
-  helmet.permittedCrossDomainPolicies({ permittedPolicies: 'none' })
-);
+app.use(helmet.permittedCrossDomainPolicies({ permittedPolicies: 'none' }));
 
 app.use(compression());
 app.use(cors(corsOptions));
@@ -158,7 +157,7 @@ app.post('/api/v1/track', (req, res) => {
     page,
     ip: req.ip,
     userAgent: req.headers['user-agent'] || '',
-    referrer: req.headers.referer || req.headers.referrer || req.body?.referrer || ''
+    referrer: req.headers.referer || req.headers.referrer || req.body?.referrer || '',
   });
   res.status(204).end();
 });

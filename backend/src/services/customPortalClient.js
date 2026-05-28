@@ -1,4 +1,3 @@
-
 class CustomPortalClient {
   constructor(baseUrl) {
     this.baseUrl = baseUrl;
@@ -27,7 +26,7 @@ class CustomPortalClient {
       username: userId,
       usertype,
       password,
-      captcha: { captcha, hidden: 'gmBctEffdSg=' }
+      captcha: { captcha, hidden: 'gmBctEffdSg=' },
     };
 
     const tokenEndpoints = ['generatewebtoken', 'pretoken-check'];
@@ -36,7 +35,7 @@ class CustomPortalClient {
         path: `/StudentPortalAPI/token/${endpoint}`,
         method: 'POST',
         contentType: 'application/json',
-        body: payload
+        body: payload,
       });
 
       // Some installations expect text payloads for token checks.
@@ -44,7 +43,7 @@ class CustomPortalClient {
         path: `/StudentPortalAPI/token/${endpoint}`,
         method: 'POST',
         contentType: 'text/plain;charset=UTF-8',
-        rawBody: JSON.stringify(payload)
+        rawBody: JSON.stringify(payload),
       });
     });
 

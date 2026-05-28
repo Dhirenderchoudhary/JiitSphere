@@ -15,8 +15,21 @@ module.exports = {
   },
   rules: {
     'no-console': 'warn',
-    'no-underscore-dangle': ['error', { allow: ['_id', '_next'] }],
+    'no-underscore-dangle': ['warn', { allow: ['_id', '_next'] }],
     'consistent-return': 'off',
-    'node/no-unsupported-features/es-syntax': 'off' // We use modern syntax
+    'node/no-unsupported-features/es-syntax': 'off',
+    'no-param-reassign': 'warn',
+    'node/no-unsupported-features/node-builtins': 'warn',
+    'no-restricted-syntax': 'warn',
+    'no-nested-ternary': 'warn',
+    'node/no-unpublished-require': 'warn',
+    'no-unused-vars': 'warn',
+    'no-await-in-loop': 'warn',
+    'import/no-extraneous-dependencies': 'warn',
+    'guard-for-in': 'warn',
+    'jest/no-conditional-expect': 'warn',
+    'default-param-last': 'warn',
+    'no-plusplus': 'warn',
+    'no-continue': 'warn'
   }
 };

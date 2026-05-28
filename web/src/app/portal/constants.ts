@@ -1,4 +1,11 @@
-import { CalendarClock, ClipboardList, GraduationCap, UserCircle2, BookCopy, DollarSign } from 'lucide-react';
+import {
+  CalendarClock,
+  ClipboardList,
+  GraduationCap,
+  UserCircle2,
+  BookCopy,
+  DollarSign,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 export const TOKEN_KEY = 'jaypee_buddy_token';
@@ -15,14 +22,22 @@ export const AUTO_REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const envFlag = (value: string | undefined, fallback = 'false') =>
   String(value || fallback).toLowerCase() === 'true';
 
-export const ALLOW_UNVERIFIED_PORTAL_LOGIN =
-  envFlag(process.env.NEXT_PUBLIC_ALLOW_UNVERIFIED_PORTAL_LOGIN, 'false');
-export const SHOW_PORTAL_DIAGNOSTICS =
-  envFlag(process.env.NEXT_PUBLIC_SHOW_PORTAL_DIAGNOSTICS, 'false');
-export const SHOW_PORTAL_LOGIN_DIAGNOSTICS =
-  envFlag(process.env.NEXT_PUBLIC_SHOW_PORTAL_LOGIN_DIAGNOSTICS, 'false');
-export const SHOW_TECHNICAL_DETAILS =
-  envFlag(process.env.NEXT_PUBLIC_SHOW_TECHNICAL_DETAILS, 'false');
+export const ALLOW_UNVERIFIED_PORTAL_LOGIN = envFlag(
+  process.env.NEXT_PUBLIC_ALLOW_UNVERIFIED_PORTAL_LOGIN,
+  'false'
+);
+export const SHOW_PORTAL_DIAGNOSTICS = envFlag(
+  process.env.NEXT_PUBLIC_SHOW_PORTAL_DIAGNOSTICS,
+  'false'
+);
+export const SHOW_PORTAL_LOGIN_DIAGNOSTICS = envFlag(
+  process.env.NEXT_PUBLIC_SHOW_PORTAL_LOGIN_DIAGNOSTICS,
+  'false'
+);
+export const SHOW_TECHNICAL_DETAILS = envFlag(
+  process.env.NEXT_PUBLIC_SHOW_TECHNICAL_DETAILS,
+  'false'
+);
 
 export type PortalTabId =
   | 'attendance'
@@ -45,12 +60,12 @@ export const tabs: PortalTab[] = [
   { id: 'exams', label: 'Exams', icon: CalendarClock },
   { id: 'subjects', label: 'Subjects', icon: BookCopy },
   { id: 'fees', label: 'Fees', icon: DollarSign },
-  { id: 'profile', label: 'Profile', icon: UserCircle2 }
+  { id: 'profile', label: 'Profile', icon: UserCircle2 },
 ];
 
 export const adminTabs: PortalTab[] = [
   ...tabs,
-  { id: 'analytics', label: 'Analytics', icon: CalendarClock }
+  { id: 'analytics', label: 'Analytics', icon: CalendarClock },
 ];
 
 export const glassPanel = 'rounded-2xl border border-border/40 bg-card shadow-sm';

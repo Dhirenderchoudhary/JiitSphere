@@ -5,7 +5,7 @@ import {
   ADMIN_COOKIE_MAX_AGE_SECONDS,
   ADMIN_COOKIE_NAME,
   createAdminCookieToken,
-  verifyAdminCookieToken
+  verifyAdminCookieToken,
 } from 'lib/adminAuthCookie';
 
 const limiter = rateLimit({ name: 'admin-login', windowMs: 15 * 60 * 1000, max: 5 });
@@ -15,7 +15,9 @@ const ADMIN_PASSWORD_HASH = (process.env.ADMIN_LOGIN_PASSWORD_HASH || '').toLowe
 const ADMIN_COOKIE_SECRET = process.env.ADMIN_COOKIE_SECRET || process.env.NEXTAUTH_SECRET || '';
 
 function hashValue(value) {
-  return createHash('sha256').update(String(value || '')).digest('hex');
+  return createHash('sha256')
+    .update(String(value || ''))
+    .digest('hex');
 }
 
 function safeEqual(a, b) {
@@ -29,7 +31,7 @@ const authCookieBaseOptions = {
   path: '/',
   httpOnly: true,
   sameSite: 'lax',
-  secure: process.env.NODE_ENV === 'production'
+  secure: process.env.NODE_ENV === 'production',
 };
 
 export async function GET(request) {
@@ -39,7 +41,7 @@ export async function GET(request) {
   return NextResponse.json({
     ok: true,
     authenticated: Boolean(result.valid),
-    adminId: result.valid ? String(result.payload?.id || '') : ''
+    adminId: result.valid ? String(result.payload?.id || '') : '',
   });
 }
 

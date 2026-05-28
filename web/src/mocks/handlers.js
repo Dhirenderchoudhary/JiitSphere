@@ -11,7 +11,7 @@ export const handlers = [
           subject: 'Physics',
           resourceType: 'notes',
           year: 1,
-          semester: 1
+          semester: 1,
         },
         {
           _id: '2',
@@ -19,7 +19,7 @@ export const handlers = [
           subject: 'Maths',
           resourceType: 'pyq',
           year: 1,
-          semester: 1
+          semester: 1,
         },
         {
           _id: '3',
@@ -27,10 +27,10 @@ export const handlers = [
           subject: 'Computer Science',
           resourceType: 'slides',
           year: 2,
-          semester: 3
-        }
+          semester: 3,
+        },
       ],
-      pagination: { total: 3, page: 1, limit: 20, totalPages: 1 }
+      pagination: { total: 3, page: 1, limit: 20, totalPages: 1 },
     });
   }),
 
@@ -39,8 +39,8 @@ export const handlers = [
       success: true,
       data: {
         token: 'mock-token',
-        user: { name: 'Student', email: 'student@mail.jiit.ac.in', role: 'student' }
-      }
+        user: { name: 'Student', email: 'student@mail.jiit.ac.in', role: 'student' },
+      },
     });
   }),
 
@@ -48,8 +48,8 @@ export const handlers = [
     return HttpResponse.json({
       success: true,
       data: {
-        subjects: ['Physics', 'Maths', 'Computer Science']
-      }
+        subjects: ['Physics', 'Maths', 'Computer Science'],
+      },
     });
-  })
+  }),
 ];

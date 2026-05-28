@@ -1,4 +1,3 @@
-
 /**
  * portalClient.js — Stateful portal API client with retry, timeout, and deduplication.
  *
@@ -52,7 +51,7 @@ const dateCode = (date = new Date()) => {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-    weekday: 'short'
+    weekday: 'short',
   });
 
   const parts = formatter.formatToParts(date);
@@ -105,7 +104,7 @@ class PortalClient {
       'Content-Type': contentType,
       Origin: 'https://webportal.jiit.ac.in:6011',
       Referer: 'https://webportal.jiit.ac.in:6011/studentportal/#/',
-      'X-Requested-With': 'XMLHttpRequest'
+      'X-Requested-With': 'XMLHttpRequest',
     };
     const cookieHeader = buildCookieHeader(this.relaySession);
     if (cookieHeader) headers.Cookie = cookieHeader;
@@ -130,7 +129,9 @@ class PortalClient {
   async post(path, payload, opts = {}) {
     const { encrypted = true, timeout = DEFAULT_TIMEOUT_MS } = opts;
 
-    const safeUserId = String(this.auth.userid || this.auth.clientid || this.auth.memberid || 'anon');
+    const safeUserId = String(
+      this.auth.userid || this.auth.clientid || this.auth.memberid || 'anon'
+    );
     const dedupKey = `POST:${safeUserId}:${path}:${payloadHash(payload)}`;
     const existing = inFlightCache.get(dedupKey);
     if (existing) return existing;
@@ -169,7 +170,7 @@ class PortalClient {
       const response = await fetch(url, {
         method: 'GET',
         headers,
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -185,7 +186,7 @@ class PortalClient {
     } catch (err) {
       if (err instanceof PortalError) throw err;
       throw new PortalError('FETCH_ERROR', `GET ${path} failed: ${err.message}`, {
-        code: err.code || err.name
+        code: err.code || err.name,
       });
     } finally {
       clearTimeout(timer);
@@ -198,7 +199,7 @@ class PortalClient {
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       if (attempt > 0) {
-        await sleep(BACKOFF_BASE_MS * Math.pow(2, attempt - 1));
+        await sleep(BACKOFF_BASE_MS * 2 ** (attempt - 1));
       }
 
       try {
@@ -227,7 +228,7 @@ class PortalClient {
 
     try {
       let body;
-      let contentType = 'application/json';
+      const contentType = 'application/json';
 
       if (encrypted) {
         // Match jiit behavior: encrypt → base64 → JSON.stringify (wraps in quotes)
@@ -247,7 +248,7 @@ class PortalClient {
         method: 'POST',
         headers: this._headers(contentType),
         body,
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -261,7 +262,7 @@ class PortalClient {
           }
         }
         throw new PortalError('FETCH_ERROR', `POST ${path} returned HTTP ${response.status}`, {
-          httpStatus: response.status
+          httpStatus: response.status,
         });
       }
 
@@ -279,7 +280,7 @@ class PortalClient {
           'Portal returned non-success status';
         throw new PortalError('FETCH_ERROR', `POST ${path}: ${errMsg}`, {
           httpStatus: response.status,
-          portalStatus: data?.status
+          portalStatus: data?.status,
         });
       }
 
@@ -287,7 +288,7 @@ class PortalClient {
     } catch (err) {
       if (err instanceof PortalError) throw err;
       throw new PortalError('FETCH_ERROR', `POST ${path} failed: ${err.message}`, {
-        code: err.cause?.code || err.code || err.name
+        code: err.cause?.code || err.code || err.name,
       });
     } finally {
       clearTimeout(timer);

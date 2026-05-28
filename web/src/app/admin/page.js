@@ -9,7 +9,18 @@ import { Input } from 'components/ui/input';
 import { Badge } from 'components/ui/badge';
 
 const DEGREE_OPTIONS = ['BTech', 'MTech', 'BCA', 'MCA'];
-const BRANCH_OPTIONS = ['CSE', 'ECE', 'IT', 'EE', 'ME', 'CE', 'BIO', 'AIML', 'ECM', 'CYBER SECURITY'];
+const BRANCH_OPTIONS = [
+  'CSE',
+  'ECE',
+  'IT',
+  'EE',
+  'ME',
+  'CE',
+  'BIO',
+  'AIML',
+  'ECM',
+  'CYBER SECURITY',
+];
 const YEAR_OPTIONS = [1, 2, 3, 4, 5];
 const SEMESTER_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const RESOURCE_TYPE_OPTIONS = ['Slides', 'Lectures', 'Tutorials', 'PYQs', 'Solutions'];
@@ -51,7 +62,9 @@ function AdminLogin({ onSuccess }) {
             <Lock className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Restricted Area</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Restricted Area
+            </p>
             <h1 className="mt-0.5 text-2xl font-black tracking-tight">Admin Login</h1>
           </div>
         </div>
@@ -65,12 +78,37 @@ function AdminLogin({ onSuccess }) {
             )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label htmlFor="admin-id" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Admin ID</label>
-                <Input id="admin-id" placeholder="Enter admin ID" value={id} onChange={(e) => setId(e.target.value)} required autoComplete="username" />
+                <label
+                  htmlFor="admin-id"
+                  className="text-xs font-semibold text-muted-foreground uppercase tracking-wide"
+                >
+                  Admin ID
+                </label>
+                <Input
+                  id="admin-id"
+                  placeholder="Enter admin ID"
+                  value={id}
+                  onChange={(e) => setId(e.target.value)}
+                  required
+                  autoComplete="username"
+                />
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="admin-password" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Password</label>
-                <Input id="admin-password" type="password" placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
+                <label
+                  htmlFor="admin-password"
+                  className="text-xs font-semibold text-muted-foreground uppercase tracking-wide"
+                >
+                  Password
+                </label>
+                <Input
+                  id="admin-password"
+                  type="password"
+                  placeholder="Enter password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
               </div>
               <Button type="submit" className="w-full" size="lg" disabled={loading}>
                 {loading ? 'Verifying...' : 'Sign In'}
@@ -86,16 +124,31 @@ function AdminLogin({ onSuccess }) {
 /* ── Combo Field (select + custom input) ─────────────────────── */
 function ComboField({ label, value, onChange, options, placeholder }) {
   const [custom, setCustom] = useState(false);
-  const isCustom = custom || (value && !options.includes(value) && !options.map(String).includes(String(value)));
+  const isCustom =
+    custom || (value && !options.includes(value) && !options.map(String).includes(String(value)));
 
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</label>
+      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+        {label}
+      </label>
       {isCustom ? (
         <div className="flex gap-1.5">
-          <Input placeholder={`Enter ${label}`} value={value} onChange={(e) => onChange(e.target.value)} required className="flex-1" />
-          <button type="button" onClick={() => { setCustom(false); onChange(''); }}
-            className="shrink-0 rounded-xl border border-border px-2.5 text-xs font-medium text-muted-foreground hover:bg-muted transition">
+          <Input
+            placeholder={`Enter ${label}`}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            required
+            className="flex-1"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setCustom(false);
+              onChange('');
+            }}
+            className="shrink-0 rounded-xl border border-border px-2.5 text-xs font-medium text-muted-foreground hover:bg-muted transition"
+          >
             List
           </button>
         </div>
@@ -108,11 +161,21 @@ function ComboField({ label, value, onChange, options, placeholder }) {
             className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option value="">{placeholder || `Select ${label}`}</option>
-            {options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+            {options.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
           </select>
-          <button type="button" onClick={() => { setCustom(true); onChange(''); }}
+          <button
+            type="button"
+            onClick={() => {
+              setCustom(true);
+              onChange('');
+            }}
             className="shrink-0 rounded-xl border border-border px-2.5 text-xs font-medium text-muted-foreground hover:bg-muted transition"
-            title={`Add new ${label}`}>
+            title={`Add new ${label}`}
+          >
             + New
           </button>
         </div>
@@ -126,7 +189,13 @@ export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
   const [form, setForm] = useState({
-    title: '', degree: '', branch: '', year: '', semester: '', subject: '', resourceType: ''
+    title: '',
+    degree: '',
+    branch: '',
+    year: '',
+    semester: '',
+    subject: '',
+    resourceType: '',
   });
   const [file, setFile] = useState(null);
   const [message, setMessage] = useState('');
@@ -166,7 +235,9 @@ export default function AdminPage() {
     if (!authed) return;
     fetch('/api/backend/materials/filters/options')
       .then((r) => r.json())
-      .then((d) => { if (d.data?.subjects) setSubjects(d.data.subjects); })
+      .then((d) => {
+        if (d.data?.subjects) setSubjects(d.data.subjects);
+      })
       .catch(() => {});
   }, [authed]);
 
@@ -226,7 +297,12 @@ export default function AdminPage() {
       {/* Header */}
       <div className="mb-5 flex items-center justify-between">
         <CollegeBrand />
-        <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground gap-1.5">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleLogout}
+          className="text-muted-foreground gap-1.5"
+        >
           <LogOut className="h-4 w-4" /> Logout
         </Button>
       </div>
@@ -243,7 +319,9 @@ export default function AdminPage() {
             <p className="text-sm text-white/60">Add notes, slides, PYQs, and more for students</p>
           </div>
           {filledCount > 0 && (
-            <Badge className="ml-auto bg-white/20 text-white border-0">{filledCount}/7 fields</Badge>
+            <Badge className="ml-auto bg-white/20 text-white border-0">
+              {filledCount}/7 fields
+            </Badge>
           )}
         </div>
       </div>
@@ -254,68 +332,128 @@ export default function AdminPage() {
           <form onSubmit={onSubmit} className="space-y-5">
             {/* Title */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Title</label>
-              <Input placeholder="e.g. Unit 1 - Introduction to OS" value={form.title} onChange={(e) => set('title', e.target.value)} required />
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Title
+              </label>
+              <Input
+                placeholder="e.g. Unit 1 - Introduction to OS"
+                value={form.title}
+                onChange={(e) => set('title', e.target.value)}
+                required
+              />
             </div>
 
             {/* Row 1: Degree + Branch */}
             <div className="grid gap-4 md:grid-cols-2">
-              <ComboField label="Degree" value={form.degree} onChange={(v) => set('degree', v)} options={DEGREE_OPTIONS} />
-              <ComboField label="Branch" value={form.branch} onChange={(v) => set('branch', v)} options={BRANCH_OPTIONS} />
+              <ComboField
+                label="Degree"
+                value={form.degree}
+                onChange={(v) => set('degree', v)}
+                options={DEGREE_OPTIONS}
+              />
+              <ComboField
+                label="Branch"
+                value={form.branch}
+                onChange={(v) => set('branch', v)}
+                options={BRANCH_OPTIONS}
+              />
             </div>
 
             {/* Row 2: Year + Semester */}
             <div className="grid gap-4 md:grid-cols-2">
-              <ComboField label="Year" value={form.year} onChange={(v) => set('year', v)} options={YEAR_OPTIONS} />
-              <ComboField label="Semester" value={form.semester} onChange={(v) => set('semester', v)} options={SEMESTER_OPTIONS} />
+              <ComboField
+                label="Year"
+                value={form.year}
+                onChange={(v) => set('year', v)}
+                options={YEAR_OPTIONS}
+              />
+              <ComboField
+                label="Semester"
+                value={form.semester}
+                onChange={(v) => set('semester', v)}
+                options={SEMESTER_OPTIONS}
+              />
             </div>
 
             {/* Row 3: Subject + Resource Type */}
             <div className="grid gap-4 md:grid-cols-2">
-              <ComboField label="Subject" value={form.subject} onChange={(v) => set('subject', v)} options={subjects} />
-              <ComboField label="Resource Type" value={form.resourceType} onChange={(v) => set('resourceType', v)} options={RESOURCE_TYPE_OPTIONS} />
+              <ComboField
+                label="Subject"
+                value={form.subject}
+                onChange={(v) => set('subject', v)}
+                options={subjects}
+              />
+              <ComboField
+                label="Resource Type"
+                value={form.resourceType}
+                onChange={(v) => set('resourceType', v)}
+                options={RESOURCE_TYPE_OPTIONS}
+              />
             </div>
 
             {/* File upload area */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">File</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                File
+              </label>
               <label className="group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/20 p-6 transition-all hover:border-primary hover:bg-primary/5">
                 <FileUp className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors" />
                 <p className="mt-2 text-sm font-bold group-hover:text-primary transition-colors">
                   {file ? file.name : 'Click to upload a file'}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : 'PDF, PPT, DOC, XLS, or any document'}
+                  {file
+                    ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+                    : 'PDF, PPT, DOC, XLS, or any document'}
                 </p>
-                <input type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} required={!file} />
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  required={!file}
+                />
               </label>
             </div>
 
             {/* Progress bar */}
             {uploadProgress > 0 && (
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${uploadProgress}%` }} />
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-500"
+                  style={{ width: `${uploadProgress}%` }}
+                />
               </div>
             )}
 
             {/* Submit */}
             <Button type="submit" className="w-full" size="lg" disabled={loading}>
               {loading ? (
-                <><span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> Uploading...</>
+                <>
+                  <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />{' '}
+                  Uploading...
+                </>
               ) : (
-                <><Upload className="mr-2 h-4 w-4" /> Upload Material</>
+                <>
+                  <Upload className="mr-2 h-4 w-4" /> Upload Material
+                </>
               )}
             </Button>
           </form>
 
           {/* Status message */}
           {message && (
-            <div className={`mt-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium ${
-              messageType === 'success'
-                ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
-                : 'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/50 dark:text-red-300'
-            }`}>
-              {messageType === 'success' ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+            <div
+              className={`mt-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium ${
+                messageType === 'success'
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                  : 'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/50 dark:text-red-300'
+              }`}
+            >
+              {messageType === 'success' ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+              ) : (
+                <AlertCircle className="h-4 w-4 shrink-0" />
+              )}
               {message}
             </div>
           )}

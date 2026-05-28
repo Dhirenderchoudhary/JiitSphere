@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 const STUDY_ACCESS_COOKIE = 'study_material_access';
 
 export function middleware(request) {
-  const pathname = request.nextUrl.pathname;
+  const { pathname } = request.nextUrl;
   const isStudyMaterialRoute =
     pathname === '/study-material' ||
     pathname.startsWith('/study-material/') ||
@@ -87,5 +87,5 @@ export function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|robots.txt|study-access|sitemap.xml).*)']
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|robots.txt|study-access|sitemap.xml).*)'],
 };

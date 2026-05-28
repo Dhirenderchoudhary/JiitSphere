@@ -8,7 +8,7 @@ export default function HistoryBackButton({
   children = 'Back',
   className = '',
   variant = 'ghost',
-  size = 'sm'
+  size = 'sm',
 }) {
   const router = useRouter();
 

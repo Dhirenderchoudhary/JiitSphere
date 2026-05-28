@@ -1,4 +1,3 @@
-
 /**
  * portalAttendanceService.js — Clean attendance service layer.
  *
@@ -16,8 +15,8 @@ const { PortalClient } = require('./portalClient');
 const cache = require('./portalCache');
 
 // ── Cache TTLs ─────────────────────────────────────────────────────────────
-const META_CACHE_TTL_MS = 10 * 60 * 1000;  // 10 min — semesters rarely change
-const ATTEND_CACHE_TTL_MS = 5 * 60 * 1000;   // 5 min  — attendance can update
+const META_CACHE_TTL_MS = 10 * 60 * 1000; // 10 min — semesters rarely change
+const ATTEND_CACHE_TTL_MS = 5 * 60 * 1000; // 5 min  — attendance can update
 const COUNTS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -32,7 +31,8 @@ const userKey = (authContext) =>
 const normalizeSemester = (row) => {
   if (!row) return null;
   const id = row.registrationid || row.registration_id || row.value || null;
-  const code = row.registrationcode || row.registration_code || row.registrationdesc || row.label || null;
+  const code =
+    row.registrationcode || row.registration_code || row.registrationdesc || row.label || null;
   const stynumber = row.stynumber || row.sty_number || null;
   if (!id || !code) return null;
   return { registration_id: id, registration_code: code, stynumber };
@@ -54,7 +54,9 @@ const semesterSortScore = (code = '', id = '') => {
   const yearMatch = text.match(/(20\d{2})/);
   const year = yearMatch ? Number(yearMatch[1]) : 0;
   const term = text.includes('ODD') ? 2 : text.includes('EVE') || text.includes('EVEN') ? 1 : 0;
-  const tie = String(id).split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  const tie = String(id)
+    .split('')
+    .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
   return year * 100000 + term * 1000 + tie;
 };
 
@@ -112,7 +114,7 @@ const normalizeAttendanceRow = (row) => {
     LsubjectComponentId: Lcomp || null,
     TsubjectComponentId: Tcomp || null,
     PsubjectComponentId: Pcomp || null,
-    raw: row
+    raw: row,
   };
 };
 
@@ -141,27 +143,38 @@ const fetchAttendanceMeta = async (relaySession, authContext, opts = {}) => {
   // 2. Registered semesters (jiit: get_registered_semesters - the complete list)
   // 3. Grade card registrations (another source)
   const [attendanceMetaData, registeredSemsData, gradeRegData] = await Promise.all([
-    client.post(
-      '/StudentPortalAPI/StudentClassAttendance/getstudentInforegistrationforattendence',
-      {
-        clientid: authContext.clientid,
-        instituteid: authContext.instituteid,
-        membertype: authContext.membertype || 'S'
-      },
-      { encrypted: false }
-    ).catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; }),
+    client
+      .post(
+        '/StudentPortalAPI/StudentClassAttendance/getstudentInforegistrationforattendence',
+        {
+          clientid: authContext.clientid,
+          instituteid: authContext.instituteid,
+          membertype: authContext.membertype || 'S',
+        },
+        { encrypted: false }
+      )
+      .catch((e) => {
+        console.error('PORTAL API ERROR:', e.message);
+        return { error: true };
+      }),
     // jiit's get_registered_semesters() — encrypted payload
-    client.post(
-      '/StudentPortalAPI/reqsubfaculty/getregistrationList',
-      {
+    client
+      .post('/StudentPortalAPI/reqsubfaculty/getregistrationList', {
         instituteid: authContext.instituteid,
-        studentid: authContext.memberid
-      }
-    ).catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; }),
-    client.post(
-      '/StudentPortalAPI/studentgradecard/getregistrationList',
-      { instituteid: authContext.instituteid }
-    ).catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; })
+        studentid: authContext.memberid,
+      })
+      .catch((e) => {
+        console.error('PORTAL API ERROR:', e.message);
+        return { error: true };
+      }),
+    client
+      .post('/StudentPortalAPI/studentgradecard/getregistrationList', {
+        instituteid: authContext.instituteid,
+      })
+      .catch((e) => {
+        console.error('PORTAL API ERROR:', e.message);
+        return { error: true };
+      }),
   ]);
 
   // Extract headers (contain stynumber)
@@ -177,9 +190,7 @@ const fetchAttendanceMeta = async (relaySession, authContext, opts = {}) => {
   }
 
   // Extract semesters from attendance meta
-  const attendanceSems = (attendanceMetaData?.semlist || [])
-    .map(normalizeSemester)
-    .filter(Boolean);
+  const attendanceSems = (attendanceMetaData?.semlist || []).map(normalizeSemester).filter(Boolean);
 
   // Extract from reqsubfaculty/getregistrationList (jiit's canonical list)
   const registeredSems = (registeredSemsData?.registrations || [])
@@ -187,9 +198,7 @@ const fetchAttendanceMeta = async (relaySession, authContext, opts = {}) => {
     .filter(Boolean);
 
   // Extract from grade card registrations
-  const gradeSems = (gradeRegData?.registrations || [])
-    .map(normalizeSemester)
-    .filter(Boolean);
+  const gradeSems = (gradeRegData?.registrations || []).map(normalizeSemester).filter(Boolean);
 
   // Merge all sources: attendance → registered → grades
   const seenIds = new Set();
@@ -207,7 +216,10 @@ const fetchAttendanceMeta = async (relaySession, authContext, opts = {}) => {
   // Enrich with stynumber from headers
   const semesters = sortSemestersDesc(merged).map((sem, idx) => ({
     ...sem,
-    stynumber: sem.stynumber || stynumberByRegId[String(sem.registration_id)] || (idx === 0 ? latestStynumber : null)
+    stynumber:
+      sem.stynumber ||
+      stynumberByRegId[String(sem.registration_id)] ||
+      (idx === 0 ? latestStynumber : null),
   }));
 
   const result = { semesters, headers: headerlist, latestStynumber };
@@ -249,7 +261,7 @@ const fetchAttendance = async (relaySession, authContext, semesterId, opts = {})
   }
 
   // Get meta if not provided (need stynumber + semester details)
-  const attendanceMeta = meta || await fetchAttendanceMeta(relaySession, authContext);
+  const attendanceMeta = meta || (await fetchAttendanceMeta(relaySession, authContext));
   const semesterRow = attendanceMeta.semesters.find(
     (s) => String(s.registration_id) === String(semesterId)
   );
@@ -263,24 +275,28 @@ const fetchAttendance = async (relaySession, authContext, semesterId, opts = {})
 
   // Fire attendance + subjects in parallel (like jiit does)
   const [attendanceData, subjectsData] = await Promise.all([
-    client.post(
-      '/StudentPortalAPI/StudentClassAttendance/getstudentattendancedetail',
-      {
+    client
+      .post('/StudentPortalAPI/StudentClassAttendance/getstudentattendancedetail', {
         clientid: authContext.clientid,
         instituteid: authContext.instituteid,
         registrationcode: semesterRow.registration_code,
         registrationid: semesterRow.registration_id,
-        stynumber: stynumber || ''
-      }
-    ).catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; }),
-    client.post(
-      '/StudentPortalAPI/reqsubfaculty/getfaculties',
-      {
+        stynumber: stynumber || '',
+      })
+      .catch((e) => {
+        console.error('PORTAL API ERROR:', e.message);
+        return { error: true };
+      }),
+    client
+      .post('/StudentPortalAPI/reqsubfaculty/getfaculties', {
         instituteid: authContext.instituteid,
         studentid: authContext.memberid,
-        registrationid: semesterRow.registration_id
-      }
-    ).catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; })
+        registrationid: semesterRow.registration_id,
+      })
+      .catch((e) => {
+        console.error('PORTAL API ERROR:', e.message);
+        return { error: true };
+      }),
   ]);
 
   const rawRows = attendanceData?.studentattendancelist || [];
@@ -303,7 +319,13 @@ const fetchAttendance = async (relaySession, authContext, semesterId, opts = {})
  *
  * Returns: { studentAttdsummarylist: [] }
  */
-const fetchSubjectDailyAttendance = async (relaySession, authContext, semesterId, subjectCode, opts = {}) => {
+const fetchSubjectDailyAttendance = async (
+  relaySession,
+  authContext,
+  semesterId,
+  subjectCode,
+  opts = {}
+) => {
   const { forceRefresh = false, meta = null, attendanceRows = null } = opts;
   const uid = userKey(authContext);
   const cacheScope = `subject-daily:${semesterId}:${subjectCode}`;
@@ -313,7 +335,7 @@ const fetchSubjectDailyAttendance = async (relaySession, authContext, semesterId
     if (cached) return cached;
   }
 
-  const attendanceMeta = meta || await fetchAttendanceMeta(relaySession, authContext);
+  const attendanceMeta = meta || (await fetchAttendanceMeta(relaySession, authContext));
   const semesterRow = attendanceMeta.semesters.find(
     (s) => String(s.registration_id) === String(semesterId)
   );
@@ -322,12 +344,15 @@ const fetchSubjectDailyAttendance = async (relaySession, authContext, semesterId
   // Find the subject in attendance rows to get component IDs
   let rows = attendanceRows;
   if (!rows) {
-    const attendResult = await fetchAttendance(relaySession, authContext, semesterId, { meta: attendanceMeta });
+    const attendResult = await fetchAttendance(relaySession, authContext, semesterId, {
+      meta: attendanceMeta,
+    });
     rows = attendResult.studentattendancelist;
   }
 
   const subjectRow = rows.find(
-    (r) => String(r.subjectcode || r.individualsubjectcode || '').trim() === String(subjectCode).trim()
+    (r) =>
+      String(r.subjectcode || r.individualsubjectcode || '').trim() === String(subjectCode).trim()
   );
   if (!subjectRow) return { studentAttdsummarylist: [] };
 
@@ -339,30 +364,35 @@ const fetchSubjectDailyAttendance = async (relaySession, authContext, semesterId
   if (!cmpidkey.length) {
     // Fallback: try all standard component fields
     const components = [];
-    if (subjectRow.LsubjectComponentId) components.push({ subjectcomponentid: subjectRow.LsubjectComponentId });
-    if (subjectRow.TsubjectComponentId) components.push({ subjectcomponentid: subjectRow.TsubjectComponentId });
-    if (subjectRow.PsubjectComponentId) components.push({ subjectcomponentid: subjectRow.PsubjectComponentId });
+    if (subjectRow.LsubjectComponentId)
+      components.push({ subjectcomponentid: subjectRow.LsubjectComponentId });
+    if (subjectRow.TsubjectComponentId)
+      components.push({ subjectcomponentid: subjectRow.TsubjectComponentId });
+    if (subjectRow.PsubjectComponentId)
+      components.push({ subjectcomponentid: subjectRow.PsubjectComponentId });
     if (components.length) cmpidkey.push(...components);
   }
 
   if (!cmpidkey.length) return { studentAttdsummarylist: [] };
 
   const client = new PortalClient(relaySession, authContext);
-  const data = await client.post(
-    '/StudentPortalAPI/StudentClassAttendance/getstudentsubjectpersentage',
-    {
+  const data = await client
+    .post('/StudentPortalAPI/StudentClassAttendance/getstudentsubjectpersentage', {
       cmpidkey,
       clientid: authContext.clientid,
       instituteid: authContext.instituteid,
       registrationcode: semesterRow.registration_code,
       registrationid: semesterRow.registration_id,
       subjectcode: subjectRow.individualsubjectcode || subjectCode,
-      subjectid: subjectRow.subjectid
-    }
-  ).catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; });
+      subjectid: subjectRow.subjectid,
+    })
+    .catch((e) => {
+      console.error('PORTAL API ERROR:', e.message);
+      return { error: true };
+    });
 
   const result = {
-    studentAttdsummarylist: data?.studentAttdsummarylist || []
+    studentAttdsummarylist: data?.studentAttdsummarylist || [],
   };
 
   if (result.studentAttdsummarylist.length) {
@@ -380,7 +410,9 @@ const computeCountsFromDaily = (dailyRows = []) => {
   let total = 0;
   for (const row of dailyRows) {
     total += 1;
-    const present = String(row.present || row.Present || '').trim().toLowerCase();
+    const present = String(row.present || row.Present || '')
+      .trim()
+      .toLowerCase();
     if (present === 'present' || present === 'p' || present === '1') {
       attended += 1;
     }
@@ -420,5 +452,5 @@ module.exports = {
   computeCountsFromDaily,
   resolveStynumber,
   normalizeAttendanceRow,
-  normalizeSemester
+  normalizeSemester,
 };

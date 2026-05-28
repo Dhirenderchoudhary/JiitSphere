@@ -12,12 +12,11 @@ export default function MaterialViewerError({ error, reset }) {
           <AlertTriangle className="size-7 text-destructive" strokeWidth={1.5} />
         </div>
 
-        <h1 className="mt-5 text-xl font-bold text-foreground">
-          Unable to Load Material
-        </h1>
+        <h1 className="mt-5 text-xl font-bold text-foreground">Unable to Load Material</h1>
 
         <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-          Something went wrong while loading this study material. The file might be temporarily unavailable or there was a connection issue.
+          Something went wrong while loading this study material. The file might be temporarily
+          unavailable or there was a connection issue.
         </p>
 
         {error?.message && process.env.NEXT_PUBLIC_SHOW_TECHNICAL_DETAILS === 'true' && (

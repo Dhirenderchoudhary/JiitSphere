@@ -1,4 +1,3 @@
-
 /**
  * portalMarks.js — Marks PDF fetching & deterministic parsing.
  *
@@ -33,7 +32,10 @@ const { validateMarksResponse, numberOr } = require('../utils/validation');
 function parseMarksText(text) {
   const result = { courses: [], exams: [], studentInfo: {} };
 
-  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const lines = text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
 
   // ── Extract student info ──
   for (const line of lines) {
@@ -54,7 +56,10 @@ function parseMarksText(text) {
   for (let i = 0; i < lines.length; i++) {
     if (/^Subject\s+Code\b/i.test(lines[i])) {
       const after = lines[i].replace(/^Subject\s+Code\s*/i, '');
-      examNames = after.split(/\s{2,}/).filter(Boolean).map((e) => e.trim());
+      examNames = after
+        .split(/\s{2,}/)
+        .filter(Boolean)
+        .map((e) => e.trim());
       headerIdx = i;
       break;
     }
@@ -86,7 +91,7 @@ function parseMarksText(text) {
     codePositions.push({
       code: match[1],
       index: match.index,
-      endIndex: match.index + match[0].length
+      endIndex: match.index + match[0].length,
     });
   }
 
@@ -110,9 +115,7 @@ function parseMarksText(text) {
     const name = nameLines.join(' ').trim() || code;
 
     // Marks: text after (CODE) until next subject name
-    const nextStart = s < codePositions.length - 1
-      ? codePositions[s + 1].index
-      : joinedData.length;
+    const nextStart = s < codePositions.length - 1 ? codePositions[s + 1].index : joinedData.length;
 
     let marksStr = joinedData.substring(endIndex, nextStart).trim();
 
@@ -141,7 +144,7 @@ function parseMarksText(text) {
       code,
       totalObtained: 0,
       totalFull: 0,
-      exams: {}
+      exams: {},
     };
 
     let examIdx = 0;
@@ -173,7 +176,7 @@ function parseMarksText(text) {
       tokenIdx += frac.consumed;
       const marks = {
         obtainedMarks: frac.num,
-        fullMarks: frac.den
+        fullMarks: frac.den,
       };
 
       // Parse OW/WT pair
@@ -213,7 +216,7 @@ function parseFraction(tokens, startIdx) {
     return {
       num: parseFloat(fullMatch[1]),
       den: parseFloat(fullMatch[2]),
-      consumed: 1
+      consumed: 1,
     };
   }
 
@@ -226,7 +229,7 @@ function parseFraction(tokens, startIdx) {
       return {
         num: parseFloat(partialMatch[1]),
         den: nextNum,
-        consumed: 2
+        consumed: 2,
       };
     }
   }
@@ -304,8 +307,14 @@ const fetchMarks = async (client, registrationId, registrationCode) => {
 
     try {
       const [textResult, tableResult] = await Promise.all([
-        parser.getText().catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; }),
-        parser.getTable().catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; })
+        parser.getText().catch((e) => {
+          console.error('PORTAL API ERROR:', e.message);
+          return { error: true };
+        }),
+        parser.getTable().catch((e) => {
+          console.error('PORTAL API ERROR:', e.message);
+          return { error: true };
+        }),
       ]);
 
       const chunks = [];
@@ -351,7 +360,10 @@ const fetchMarks = async (client, registrationId, registrationCode) => {
         parsed = parseMarksText(rawText);
       }
     } finally {
-      await parser.destroy().catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; });
+      await parser.destroy().catch((e) => {
+        console.error('PORTAL API ERROR:', e.message);
+        return { error: true };
+      });
     }
   } catch (err) {
     throw new PortalError('PARSE_ERROR', `Failed to parse marks PDF: ${err.message}`);
@@ -389,5 +401,5 @@ module.exports = {
   fetchMarks,
   parseMarksText,
   parseFraction,
-  mergeParsedMarksChunks
+  mergeParsedMarksChunks,
 };

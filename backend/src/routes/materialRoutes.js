@@ -1,10 +1,9 @@
-
 const express = require('express');
 const {
   getMaterials,
   getMaterialById,
   getFilterOptions,
-  getBrowseOptions
+  getBrowseOptions,
 } = require('../controllers/materialController');
 
 const router = express.Router();

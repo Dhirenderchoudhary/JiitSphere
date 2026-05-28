@@ -1,4 +1,3 @@
-
 const env = require('../config/env');
 const { verify } = require('../utils/token');
 

@@ -16,9 +16,13 @@ export default function StudyMaterialError({ reset }) {
           Something went wrong while loading this page. You can retry or go back to home.
         </p>
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-          <Button type="button" onClick={reset}>Try Again</Button>
+          <Button type="button" onClick={reset}>
+            Try Again
+          </Button>
           <Link href="/">
-            <Button type="button" variant="secondary">Go Home</Button>
+            <Button type="button" variant="secondary">
+              Go Home
+            </Button>
           </Link>
         </div>
       </div>

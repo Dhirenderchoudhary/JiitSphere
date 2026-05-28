@@ -22,37 +22,38 @@ const instrumentSans = Instrument_Sans({
 export const metadata = {
   title: {
     default: 'JiitSphere',
-    template: '%s | JiitSphere'
+    template: '%s | JiitSphere',
   },
-  description: 'Study material & student portal for JIIT students. Access attendance, grades, exams, and 1300+ study resources.',
+  description:
+    'Study material & student portal for JIIT students. Access attendance, grades, exams, and 1300+ study resources.',
   manifest: '/manifest.webmanifest',
   metadataBase: new URL('https://jiitsphere.com'),
   openGraph: {
     title: 'JiitSphere',
     description: 'The academic dashboard for JIIT students.',
     siteName: 'JiitSphere',
-    type: 'website'
+    type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'JiitSphere',
-    description: 'The academic dashboard for JIIT students.'
+    description: 'The academic dashboard for JIIT students.',
   },
   other: {
-    'mobile-web-app-capable': 'yes'
+    'mobile-web-app-capable': 'yes',
   },
   icons: {
     icon: [
       { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' }
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
     ],
-    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }]
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'JiitSphere'
-  }
+    title: 'JiitSphere',
+  },
 };
 
 export const viewport = {
@@ -62,8 +63,8 @@ export const viewport = {
   viewportFit: 'cover',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#fafafa' },
-    { media: '(prefers-color-scheme: dark)', color: '#000000' }
-  ]
+    { media: '(prefers-color-scheme: dark)', color: '#000000' },
+  ],
 };
 
 const themeScript = `(function(){try{var r=document.documentElement;r.classList.add('dark');r.style.setProperty('--primary','45 93% 47%');r.style.setProperty('--primary-foreground','0 0% 0%');r.style.setProperty('--ring','45 93% 47%');}catch(e){}})();`;
@@ -78,11 +79,13 @@ export default function RootLayout({ children }) {
         <link rel="dns-prefetch" href="https://docs.google.com" />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className={cn(
-        "flex min-h-screen flex-col bg-background",
-        inter.variable,
-        instrumentSans.variable
-      )}>
+      <body
+        className={cn(
+          'flex min-h-screen flex-col bg-background',
+          inter.variable,
+          instrumentSans.variable
+        )}
+      >
         <ServiceWorkerRegistration />
         <PageTracker />
         <div className="flex-1">{children}</div>

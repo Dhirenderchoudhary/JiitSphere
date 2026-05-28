@@ -24,7 +24,7 @@ export const toDisplayNumber = (value, digits = 1) => {
 const INR_FORMATTER = new Intl.NumberFormat('en-IN', {
   style: 'currency',
   currency: 'INR',
-  maximumFractionDigits: 2
+  maximumFractionDigits: 2,
 });
 
 export const formatCurrency = (value) => {
@@ -37,7 +37,9 @@ export const deriveFeeStatus = (item = {}) => {
   const totalDemand = Number(item?.total_demand || 0);
   const paidAmount = Number(item?.paid_amount || 0);
   const dueAmount = Number(item?.due_amount || 0);
-  const rawStatus = String(item?.status || '').trim().toLowerCase();
+  const rawStatus = String(item?.status || '')
+    .trim()
+    .toLowerCase();
 
   if (dueAmount <= 0 && paidAmount > 0) return 'Paid';
   if (paidAmount > 0 && dueAmount > 0) return 'Partially Paid';
@@ -45,8 +47,10 @@ export const deriveFeeStatus = (item = {}) => {
   if (totalDemand > 0 && paidAmount <= 0 && dueAmount <= 0) return 'Unpaid';
 
   if (rawStatus.includes('partial')) return 'Partially Paid';
-  if (rawStatus.includes('paid') || rawStatus.includes('clear') || rawStatus.includes('settled')) return 'Paid';
-  if (rawStatus.includes('pending') || rawStatus.includes('unpaid') || rawStatus.includes('due')) return 'Unpaid';
+  if (rawStatus.includes('paid') || rawStatus.includes('clear') || rawStatus.includes('settled'))
+    return 'Paid';
+  if (rawStatus.includes('pending') || rawStatus.includes('unpaid') || rawStatus.includes('due'))
+    return 'Unpaid';
   return 'Unknown';
 };
 
@@ -125,7 +129,9 @@ export const toExamDateLabel = (value) => {
 };
 
 export const hasExamSignal = (value) => {
-  const text = String(value || '').trim().toLowerCase();
+  const text = String(value || '')
+    .trim()
+    .toLowerCase();
   if (!text || text === '-') return false;
   if (text.includes('pending')) return false;
   if (text === 'tba' || text === 'na' || text === 'n/a') return false;
@@ -141,14 +147,16 @@ export const extractTimeFromText = (value) => {
   if (!text) return '';
   // Find all time patterns (e.g. 10:00 AM, 12:00, 2:30 PM, 10 am)
   TIME_PATTERN_RE.lastIndex = 0;
-  const times = [...text.matchAll(TIME_PATTERN_RE)].map(m => m[1].replace(WHITESPACE_RE, ' ').toUpperCase());
-  
+  const times = [...text.matchAll(TIME_PATTERN_RE)].map((m) =>
+    m[1].replace(WHITESPACE_RE, ' ').toUpperCase()
+  );
+
   if (times.length >= 2) {
-      // Take the first and the very last matched times in the string to avoid duplicate pairs
-      return `${times[0]} - ${times[times.length - 1]}`;
+    // Take the first and the very last matched times in the string to avoid duplicate pairs
+    return `${times[0]} - ${times[times.length - 1]}`;
   }
   if (times.length === 1) {
-      return times[0];
+    return times[0];
   }
   return text;
 };
@@ -158,10 +166,10 @@ export const extactCleanTimeRange = (from, to) => {
   const cleanTo = String(to || '').trim();
   if (cleanFrom && cleanTo) {
     if (cleanTo.toLowerCase().includes(cleanFrom.toLowerCase())) {
-        return cleanTo;
+      return cleanTo;
     }
     if (cleanFrom.toLowerCase().includes(cleanTo.toLowerCase())) {
-        return cleanFrom;
+      return cleanFrom;
     }
     return `${cleanFrom} - ${cleanTo}`;
   }
@@ -177,11 +185,11 @@ export const toExamTimeLabel = (exam = {}) => {
   const raw = exam?.raw || {};
   const fromTime = raw?.datetimefrom || raw?.timefrom || raw?.fromtime || raw?.starttime || '';
   const toTime = raw?.datetimeupto || raw?.timeto || raw?.totime || raw?.endtime || '';
-  
+
   if (fromTime || toTime) {
-      const combined = extactCleanTimeRange(fromTime, toTime);
-      const extracted = extractTimeFromText(combined);
-      return extracted || combined;
+    const combined = extactCleanTimeRange(fromTime, toTime);
+    const extracted = extractTimeFromText(combined);
+    return extracted || combined;
   }
 
   const fromSlot = extractTimeFromText(exam?.slot);
@@ -201,8 +209,15 @@ export const toExamSlotLabel = (exam = {}) => {
   if (fromTime && toTime) return `${String(fromTime).trim()} - ${String(toTime).trim()}`;
 
   const candidate =
-    raw?.slot || raw?.slotdesc || raw?.slotname || raw?.slotcode ||
-    raw?.sessionname || raw?.examshift || raw?.shift || raw?.examslot || '';
+    raw?.slot ||
+    raw?.slotdesc ||
+    raw?.slotname ||
+    raw?.slotcode ||
+    raw?.sessionname ||
+    raw?.examshift ||
+    raw?.shift ||
+    raw?.examslot ||
+    '';
 
   return hasExamSignal(candidate) ? String(candidate).trim() : '';
 };
@@ -213,9 +228,17 @@ export const toExamRoomLabel = (exam = {}) => {
 
   const raw = exam?.raw || {};
   const candidate =
-    raw?.roomcode || raw?.room || raw?.roomno || raw?.roomnumber ||
-    raw?.hall || raw?.hallname || raw?.examcenter || raw?.centrename ||
-    raw?.venue || raw?.venuedesc || '';
+    raw?.roomcode ||
+    raw?.room ||
+    raw?.roomno ||
+    raw?.roomnumber ||
+    raw?.hall ||
+    raw?.hallname ||
+    raw?.examcenter ||
+    raw?.centrename ||
+    raw?.venue ||
+    raw?.venuedesc ||
+    '';
 
   return hasExamSignal(candidate) ? String(candidate).trim() : '';
 };
@@ -226,15 +249,24 @@ export const toExamSeatLabel = (exam = {}) => {
 
   const raw = exam?.raw || {};
   const candidate =
-    raw?.seatno || raw?.seatnumber || raw?.seat || raw?.seat_no ||
-    raw?.rollno || raw?.rollnumber || raw?.seating || '';
+    raw?.seatno ||
+    raw?.seatnumber ||
+    raw?.seat ||
+    raw?.seat_no ||
+    raw?.rollno ||
+    raw?.rollnumber ||
+    raw?.seating ||
+    '';
 
   return hasExamSignal(candidate) ? String(candidate).trim() : '';
 };
 
 export const shouldHideUnknownExam = (exam = {}) => {
-  const subject = String(exam?.subject || '').trim().toLowerCase();
-  const isUnknown = !subject || subject === 'subject' || subject === 'unknown' || subject === 'exam event';
+  const subject = String(exam?.subject || '')
+    .trim()
+    .toLowerCase();
+  const isUnknown =
+    !subject || subject === 'subject' || subject === 'unknown' || subject === 'exam event';
   if (!isUnknown) return false;
 
   return !(
@@ -353,7 +385,7 @@ export const resolveAttendanceCounts = (row, targetPct, options = {}) => {
     return {
       attended: Math.max(0, Math.min(directAttended, directTotal)),
       total: directTotal,
-      source: 'direct'
+      source: 'direct',
     };
   }
 
@@ -409,12 +441,19 @@ export const semesterSortScore = (semesterCode = '', registrationId = '') => {
   const text = String(semesterCode || '').toUpperCase();
   const yearMatch = text.match(/(20\d{2})/);
   const year = yearMatch ? Number(yearMatch[1]) : 0;
-  const termScore = text.includes('EVE') || text.includes('EVEN') ? 3
-    : text.includes('ODD') ? 2
-    : text.includes('SUP') ? 1
-    : text.includes('SUMMER') ? 1
-    : 0;
-  const tieBreaker = String(registrationId || '').split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  const termScore =
+    text.includes('EVE') || text.includes('EVEN')
+      ? 3
+      : text.includes('ODD')
+        ? 2
+        : text.includes('SUP')
+          ? 1
+          : text.includes('SUMMER')
+            ? 1
+            : 0;
+  const tieBreaker = String(registrationId || '')
+    .split('')
+    .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
   return year * 100000 + termScore * 1000 + tieBreaker;
 };
 
@@ -437,7 +476,8 @@ export const toPrettyValue = (value) => {
   if (typeof value === 'object') return '';
   const text = String(value).trim();
   if (!text) return '';
-  if (text === '-' || text.toLowerCase() === 'null' || text.toLowerCase() === 'undefined') return '';
+  if (text === '-' || text.toLowerCase() === 'null' || text.toLowerCase() === 'undefined')
+    return '';
   return text;
 };
 
@@ -460,16 +500,22 @@ export const flattenScalarPairs = (source, prefix = '', depth = 0, maxDepth = 2)
   if (source === null || source === undefined || depth > maxDepth) return [];
 
   if (Array.isArray(source)) {
-    const scalarItems = source
-      .flatMap((item) => {
-        const value = toPrettyValue(item);
-        return value ? [value] : [];
-      });
+    const scalarItems = source.flatMap((item) => {
+      const value = toPrettyValue(item);
+      return value ? [value] : [];
+    });
     if (scalarItems.length) {
       return [[prefix || 'value', scalarItems.join(', ')]];
     }
 
-    return source.flatMap((item, idx) => flattenScalarPairs(item, prefix ? `${prefix}.${idx + 1}` : String(idx + 1), depth + 1, maxDepth));
+    return source.flatMap((item, idx) =>
+      flattenScalarPairs(
+        item,
+        prefix ? `${prefix}.${idx + 1}` : String(idx + 1),
+        depth + 1,
+        maxDepth
+      )
+    );
   }
 
   if (typeof source === 'object') {
@@ -490,7 +536,11 @@ export const pickIdPairs = (obj = {}, limit = 12) => {
 
   for (const [key, value] of Object.entries(obj || {})) {
     const low = String(key).toLowerCase();
-    if (!/(^id$|id$|_id$|code$|registration|student|member|branch|program|subject|grade|event|client|institute)/.test(low)) {
+    if (
+      !/(^id$|id$|_id$|code$|registration|student|member|branch|program|subject|grade|event|client|institute)/.test(
+        low
+      )
+    ) {
       continue;
     }
     const pretty = toPrettyValue(value);
@@ -528,14 +578,16 @@ export const relayAttemptLooksAuthenticated = (attempt) => {
   if (!payload || typeof payload !== 'object') return false;
 
   const endpoint = String(attempt?.endpoint || '').toLowerCase();
-  const responseStatus = String(payload?.status?.responseStatus || payload?.responseStatus || '').toLowerCase();
+  const responseStatus = String(
+    payload?.status?.responseStatus || payload?.responseStatus || ''
+  ).toLowerCase();
   const hasAuthArtifacts = Boolean(
     payload?.response?.token ||
-      payload?.response?.jwt ||
-      payload?.response?.regdata?.token ||
-      payload?.response?.studentDetails ||
-      payload?.response?.studentProfile ||
-      payload?.response?.enrollmentno
+    payload?.response?.jwt ||
+    payload?.response?.regdata?.token ||
+    payload?.response?.studentDetails ||
+    payload?.response?.studentProfile ||
+    payload?.response?.enrollmentno
   );
 
   const message = extractRelayMessage(payload);
@@ -545,7 +597,11 @@ export const relayAttemptLooksAuthenticated = (attempt) => {
     return (responseStatus === 'success' || responseStatus === 'ok') && !hasFailureSignal;
   }
 
-  return (responseStatus === 'success' || responseStatus === 'ok') && hasAuthArtifacts && !hasFailureSignal;
+  return (
+    (responseStatus === 'success' || responseStatus === 'ok') &&
+    hasAuthArtifacts &&
+    !hasFailureSignal
+  );
 };
 
 export const relayNeedsEncryptedPayload = (attempts = []) => {
@@ -553,7 +609,10 @@ export const relayNeedsEncryptedPayload = (attempts = []) => {
   const alreadyTriedEncryptedFlow = attempts.some((attempt) => {
     const endpoint = String(attempt?.endpoint || '').toLowerCase();
     const contentType = String(attempt?.contentType || '').toLowerCase();
-    return endpoint.includes('generatewebtoken') || (endpoint.includes('pretoken-check') && contentType.includes('text/plain'));
+    return (
+      endpoint.includes('generatewebtoken') ||
+      (endpoint.includes('pretoken-check') && contentType.includes('text/plain'))
+    );
   });
 
   if (alreadyTriedEncryptedFlow) {

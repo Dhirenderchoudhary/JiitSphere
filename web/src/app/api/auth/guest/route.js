@@ -34,6 +34,9 @@ export async function POST(request) {
     response.headers.set('cache-control', 'no-store');
     return response;
   } catch (_error) {
-    return NextResponse.json({ ok: false, message: 'Guest access is temporarily unavailable' }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, message: 'Guest access is temporarily unavailable' },
+      { status: 500 }
+    );
   }
 }

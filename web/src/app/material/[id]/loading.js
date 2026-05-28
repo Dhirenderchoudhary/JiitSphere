@@ -36,14 +36,15 @@ export default function MaterialViewerLoading() {
             <div className="relative flex h-[78vh] w-full flex-col items-center justify-center overflow-hidden rounded-2xl border border-border bg-muted/20">
               <div className="flex flex-col items-center gap-4">
                 <div className="relative">
-                  <div className="absolute inset-0 rounded-full bg-primary/15 animate-ping" style={{ animationDuration: '2s' }} />
+                  <div
+                    className="absolute inset-0 rounded-full bg-primary/15 animate-ping"
+                    style={{ animationDuration: '2s' }}
+                  />
                   <div className="relative rounded-full bg-primary/10 p-5">
                     <div className="size-7 animate-spin rounded-full border-[3px] border-primary/30 border-t-primary" />
                   </div>
                 </div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Loading material…
-                </p>
+                <p className="text-sm font-medium text-muted-foreground">Loading material…</p>
               </div>
             </div>
           </div>

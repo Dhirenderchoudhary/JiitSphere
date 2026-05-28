@@ -1,4 +1,3 @@
-
 const crypto = require('crypto');
 const env = require('../config/env');
 
@@ -12,7 +11,9 @@ const timingSafeEqual = (a, b) => {
 
 const authAdmin = (req, res, next) => {
   const token = req.headers['x-admin-key'];
-  const email = String(req.headers['x-admin-email'] || '').trim().toLowerCase();
+  const email = String(req.headers['x-admin-email'] || '')
+    .trim()
+    .toLowerCase();
 
   if (!token || !env.adminApiKey || !timingSafeEqual(token, env.adminApiKey)) {
     return res.status(401).json({ success: false, message: 'Unauthorized admin access' });

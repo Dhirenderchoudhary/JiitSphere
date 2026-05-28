@@ -1,4 +1,3 @@
-
 const crypto = require('crypto');
 const env = require('../config/env');
 const { sign } = require('../utils/token');
@@ -38,7 +37,9 @@ const DEMO_USER_ID = 'dhirender.choudhary@jiitsphere.local';
 const DEMO_DISPLAY_NAME = 'Dhirender Choudhary';
 
 const normalizeDemoUser = (user = {}) => {
-  const normalizedUserId = String(user?.userId || '').trim().toLowerCase();
+  const normalizedUserId = String(user?.userId || '')
+    .trim()
+    .toLowerCase();
   const isLocalDemoId = normalizedUserId.endsWith('@jiitsphere.local');
   const isDemoUser =
     Boolean(user?.demo) ||
@@ -54,7 +55,7 @@ const normalizeDemoUser = (user = {}) => {
     name: DEMO_DISPLAY_NAME,
     role: 'student',
     demo: true,
-    mode: 'public-demo'
+    mode: 'public-demo',
   };
 };
 
@@ -82,27 +83,31 @@ const login = async (req, res) => {
       userId: normalizedIdentifier,
       name: makeDisplayName(normalizedIdentifier),
       role: 'portal-pending',
-      portalMode: true
+      portalMode: true,
     };
 
     const token = sign(
       {
         ...user,
         scope: ['portal:relay', 'portal:sdk-login'],
-        exp: Date.now() + env.portalTokenMaxAgeMs
+        exp: Date.now() + env.portalTokenMaxAgeMs,
       },
       env.authSecret
     );
 
-    return res.status(200).json({ success: true, message: 'Portal pre-auth successful', data: { token, user } });
+    return res
+      .status(200)
+      .json({ success: true, message: 'Portal pre-auth successful', data: { token, user } });
   }
 
   if (!env.userAllowAll && !allowedUsers[normalizedIdentifier]) {
-    return res.status(403).json({ success: false, message: 'User ID is not allowed for this portal' });
+    return res
+      .status(403)
+      .json({ success: false, message: 'User ID is not allowed for this portal' });
   }
 
-  await new Promise(r => setImmediate(r));
-    const incomingHash = crypto.createHash('sha256').update(normalizedPassword).digest('hex');
+  await new Promise((r) => setImmediate(r));
+  const incomingHash = crypto.createHash('sha256').update(normalizedPassword).digest('hex');
   if (!timingSafeHashEquals(incomingHash, env.userPasswordHash)) {
     return res.status(401).json({ success: false, message: 'Invalid credentials' });
   }
@@ -110,18 +115,20 @@ const login = async (req, res) => {
   const user = {
     userId: normalizedIdentifier,
     name: makeDisplayName(normalizedIdentifier),
-    role: env.adminAllowedEmails.includes(normalizedIdentifier) ? 'admin' : 'student'
+    role: env.adminAllowedEmails.includes(normalizedIdentifier) ? 'admin' : 'student',
   };
 
   const token = sign(
     {
       ...user,
-      exp: Date.now() + 1000 * 60 * 60 * 24
+      exp: Date.now() + 1000 * 60 * 60 * 24,
     },
     env.authSecret
   );
 
-  return res.status(200).json({ success: true, message: 'Login successful', data: { token, user } });
+  return res
+    .status(200)
+    .json({ success: true, message: 'Login successful', data: { token, user } });
 };
 
 const me = (req, res) => {
@@ -137,25 +144,28 @@ const demoLogin = (req, res) => {
   const requested = String(req.body?.userId || '')
     .trim()
     .toLowerCase();
-  const safeDemoId = requested && requested.endsWith('@jiitsphere.local') ? requested : defaultDemoId;
+  const safeDemoId =
+    requested && requested.endsWith('@jiitsphere.local') ? requested : defaultDemoId;
 
   const user = {
     userId: safeDemoId,
     name: DEMO_DISPLAY_NAME,
     role: 'student',
     demo: true,
-    mode: 'public-demo'
+    mode: 'public-demo',
   };
 
   const token = sign(
     {
       ...user,
-      exp: Date.now() + 1000 * 60 * 60 * 24 * 7
+      exp: Date.now() + 1000 * 60 * 60 * 24 * 7,
     },
     env.authSecret
   );
 
-  return res.status(200).json({ success: true, message: 'Demo login successful', data: { token, user } });
+  return res
+    .status(200)
+    .json({ success: true, message: 'Demo login successful', data: { token, user } });
 };
 
 const analytics = (req, res) => {
@@ -170,5 +180,5 @@ module.exports = {
   login,
   demoLogin,
   me,
-  analytics
+  analytics,
 };

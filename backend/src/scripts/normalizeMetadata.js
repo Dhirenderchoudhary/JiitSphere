@@ -1,4 +1,3 @@
-
 /* eslint-disable no-console */
 const mongoose = require('mongoose');
 const connectDb = require('../config/db');
@@ -83,13 +82,19 @@ const run = async () => {
 
   const distinctSubjects = await Material.distinct('subject');
 
-  console.log(JSON.stringify({
-    mode: APPLY ? 'apply' : 'dry-run',
-    scanned,
-    changed,
-    distinctSubjectCount: distinctSubjects.length,
-    sampleChanges
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        mode: APPLY ? 'apply' : 'dry-run',
+        scanned,
+        changed,
+        distinctSubjectCount: distinctSubjects.length,
+        sampleChanges,
+      },
+      null,
+      2
+    )
+  );
 
   await mongoose.connection.close();
 };

@@ -1,4 +1,3 @@
-
 /**
  * validation.js — Data integrity validators for academic data.
  *
@@ -13,10 +12,7 @@ const { PortalError } = require('../services/portalClient');
  */
 const assertFinite = (value, fieldName, min = -Infinity, max = Infinity) => {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw new PortalError(
-      'VALIDATION_ERROR',
-      `${fieldName} is not a finite number: ${value}`
-    );
+    throw new PortalError('VALIDATION_ERROR', `${fieldName} is not a finite number: ${value}`);
   }
   if (value < min || value > max) {
     throw new PortalError(
@@ -114,10 +110,7 @@ const validateMarksResponse = (data) => {
     }
 
     if (typeof course.exams !== 'object' || course.exams === null) {
-      throw new PortalError(
-        'VALIDATION_ERROR',
-        `Course ${course.name} has no exams object`
-      );
+      throw new PortalError('VALIDATION_ERROR', `Course ${course.name} has no exams object`);
     }
 
     for (const [examName, marks] of Object.entries(course.exams)) {
@@ -159,5 +152,5 @@ module.exports = {
   validateMarksResponse,
   assertFinite,
   numberOr,
-  PortalError
+  PortalError,
 };

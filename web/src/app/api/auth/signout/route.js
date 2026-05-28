@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { SESSION_COOKIE } from 'lib/session';
 
 const getSiteBase = () =>
-  String(process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/+$/, '');
+  String(
+    process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  ).replace(/\/+$/, '');
 
 const clearCookies = (response) => {
   const base = { path: '/', maxAge: 0 };
@@ -16,4 +18,3 @@ export async function POST() {
   clearCookies(response);
   return response;
 }
-

@@ -1,4 +1,3 @@
-
 const multer = require('multer');
 const os = require('os');
 const path = require('path');
@@ -15,24 +14,33 @@ const allowedMimeTypes = new Set([
   'application/x-zip-compressed',
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'text/plain'
+  'text/plain',
 ]);
 
 const allowedExtensions = new Set([
-  '.pdf', '.ppt', '.pptx', '.doc', '.docx',
-  '.mp4', '.zip', '.xls', '.xlsx', '.txt'
+  '.pdf',
+  '.ppt',
+  '.pptx',
+  '.doc',
+  '.docx',
+  '.mp4',
+  '.zip',
+  '.xls',
+  '.xlsx',
+  '.txt',
 ]);
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, os.tmpdir()),
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname || '').toLowerCase();
-    const safeBase = path
-      .basename(file.originalname || 'upload', ext)
-      .replace(/[^a-zA-Z0-9._-]/g, '_')
-      .slice(0, 80) || 'upload';
+    const safeBase =
+      path
+        .basename(file.originalname || 'upload', ext)
+        .replace(/[^a-zA-Z0-9._-]/g, '_')
+        .slice(0, 80) || 'upload';
     cb(null, `${Date.now()}-${safeBase}${ext}`);
-  }
+  },
 });
 
 const upload = multer({
@@ -47,7 +55,7 @@ const upload = multer({
       return cb(new Error('Unsupported file extension'));
     }
     cb(null, true);
-  }
+  },
 });
 
 module.exports = upload;

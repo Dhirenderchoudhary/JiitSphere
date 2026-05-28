@@ -27,7 +27,7 @@ export default function PageTracker() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body,
-        keepalive: true
+        keepalive: true,
       }).catch(() => {});
     }
   }, [pathname]);

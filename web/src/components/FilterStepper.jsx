@@ -8,7 +8,7 @@ const steps = [
   { key: 'year', label: 'Year', span: 1 },
   { key: 'semester', label: 'Semester', span: 1 },
   { key: 'subject', label: 'Subject', span: 2 },
-  { key: 'resourceType', label: 'Resource Type', span: 2 }
+  { key: 'resourceType', label: 'Resource Type', span: 2 },
 ];
 
 const optionKeyMap = {
@@ -17,7 +17,7 @@ const optionKeyMap = {
   year: 'years',
   semester: 'semesters',
   subject: 'subjects',
-  resourceType: 'resourceTypes'
+  resourceType: 'resourceTypes',
 };
 
 export default function FilterStepper({ filters, onChange, options }) {
@@ -36,9 +36,13 @@ export default function FilterStepper({ filters, onChange, options }) {
 
         return (
           <div key={step.key} className={spanClass}>
-            <label className={`mb-1 block text-xs font-semibold transition-colors ${enabled ? 'text-foreground' : 'text-muted-foreground/50'}`}>
+            <label
+              className={`mb-1 block text-xs font-semibold transition-colors ${enabled ? 'text-foreground' : 'text-muted-foreground/50'}`}
+            >
               {step.label}
-              {hasValue && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-primary align-middle" />}
+              {hasValue && (
+                <span className="ml-1.5 inline-block size-1.5 rounded-full bg-primary align-middle" />
+              )}
             </label>
             <SelectField
               value={filters[step.key] || ''}

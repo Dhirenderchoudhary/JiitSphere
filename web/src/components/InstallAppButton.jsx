@@ -5,7 +5,8 @@ import { Download, Share2 } from 'lucide-react';
 import { Button } from 'components/ui/button';
 
 const isIosUserAgent = (userAgent = '') => /iphone|ipad|ipod/i.test(userAgent);
-const isSafariBrowser = (userAgent = '') => /safari/i.test(userAgent) && !/crios|fxios|edgios|android/i.test(userAgent);
+const isSafariBrowser = (userAgent = '') =>
+  /safari/i.test(userAgent) && !/crios|fxios|edgios|android/i.test(userAgent);
 
 export default function InstallAppButton({ className = '' }) {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -14,7 +15,10 @@ export default function InstallAppButton({ className = '' }) {
   const [isIosSafari, setIsIosSafari] = useState(false);
   const [isStandalone, setIsStandalone] = useState(() => {
     if (typeof window === 'undefined') return false;
-    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    return (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true
+    );
   });
 
   useEffect(() => {

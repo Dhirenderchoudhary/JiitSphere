@@ -19,18 +19,20 @@ describe('Frontend API wrapper', () => {
     });
 
     it('returns the correct URL for downloading', () => {
-      expect(materialAccessUrl('123', 'download')).toBe('/api/study-material/access/123?action=download');
+      expect(materialAccessUrl('123', 'download')).toBe(
+        '/api/study-material/access/123?action=download'
+      );
     });
   });
 
   describe('fetchMaterials', () => {
     it('calls the backend endpoint with correct params and parses JSON', async () => {
       const mockData = { success: true, data: [{ title: 'Notes' }] };
-      
+
       global.fetch.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
-        json: async () => mockData
+        json: async () => mockData,
       });
 
       const params = { subject: 'Math', year: 1 };
@@ -48,7 +50,7 @@ describe('Frontend API wrapper', () => {
       global.fetch.mockResolvedValueOnce({
         ok: false,
         headers: new Headers({ 'content-type': 'application/json' }),
-        json: async () => ({ message: 'Server error' })
+        json: async () => ({ message: 'Server error' }),
       });
 
       await expect(fetchMaterials({})).rejects.toThrow('Server error');

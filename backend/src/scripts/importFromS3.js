@@ -1,4 +1,3 @@
-
 /* eslint-disable no-console */
 const { ListObjectsV2Command } = require('@aws-sdk/client-s3');
 const path = require('path');
@@ -27,19 +26,47 @@ const extractNumber = (str) => {
 };
 
 const guessResourceType = (folderName) => {
-  const lower = String(folderName || '').toLowerCase().trim();
+  const lower = String(folderName || '')
+    .toLowerCase()
+    .trim();
   // Check solutions first (before tutorials, since "tut solutions" contains both)
   if (lower.includes('solution') || lower.includes('soln')) return 'Solutions';
   if (lower.includes('pyq') || lower.includes('question')) return 'PYQs';
-  if (lower.includes('lecture') || lower.includes('_lec') || lower.includes('lec_') || /\blect?\b/.test(lower) || lower.endsWith('_lec') || lower.includes('notes')) return 'Lectures';
-  if (lower.includes('tutorial') || lower.includes('tut') || lower.includes('lab') || lower.includes('assignment')) return 'Tutorials';
+  if (
+    lower.includes('lecture') ||
+    lower.includes('_lec') ||
+    lower.includes('lec_') ||
+    /\blect?\b/.test(lower) ||
+    lower.endsWith('_lec') ||
+    lower.includes('notes')
+  )
+    return 'Lectures';
+  if (
+    lower.includes('tutorial') ||
+    lower.includes('tut') ||
+    lower.includes('lab') ||
+    lower.includes('assignment')
+  )
+    return 'Tutorials';
   if (lower.includes('slide') || lower.includes('ppt')) return 'Slides';
   return 'Lectures';
 };
 
 const SUPPORTED_EXTENSIONS = new Set([
-  '.pdf', '.ppt', '.pptx', '.pptm', '.doc', '.docx',
-  '.mp4', '.zip', '.xls', '.xlsx', '.txt', '.jpg', '.jpeg', '.png'
+  '.pdf',
+  '.ppt',
+  '.pptx',
+  '.pptm',
+  '.doc',
+  '.docx',
+  '.mp4',
+  '.zip',
+  '.xls',
+  '.xlsx',
+  '.txt',
+  '.jpg',
+  '.jpeg',
+  '.png',
 ]);
 
 const isSupportedFile = (filename) => {
@@ -50,10 +77,20 @@ const isSupportedFile = (filename) => {
 const getFileType = (filename) => {
   const ext = path.extname(filename).toLowerCase();
   const map = {
-    '.pdf': 'pdf', '.ppt': 'ppt', '.pptx': 'pptx', '.pptm': 'ppt',
-    '.doc': 'doc', '.docx': 'docx', '.mp4': 'mp4', '.zip': 'zip',
-    '.xls': 'xls', '.xlsx': 'xlsx', '.txt': 'txt',
-    '.jpg': 'other', '.jpeg': 'other', '.png': 'other'
+    '.pdf': 'pdf',
+    '.ppt': 'ppt',
+    '.pptx': 'pptx',
+    '.pptm': 'ppt',
+    '.doc': 'doc',
+    '.docx': 'docx',
+    '.mp4': 'mp4',
+    '.zip': 'zip',
+    '.xls': 'xls',
+    '.xlsx': 'xlsx',
+    '.txt': 'txt',
+    '.jpg': 'other',
+    '.jpeg': 'other',
+    '.png': 'other',
   };
   return map[ext] || 'other';
 };
@@ -80,12 +117,15 @@ const parseS3Key = (s3Key, prefix) => {
   let subject = parts.length >= 4 ? parts[3].trim() : 'General';
 
   // Clean subject: remove course codes like (18B11EC315), normalize case
-  subject = subject.replace(/\s*\([\w\d]+\)\s*$/, '').trim().toUpperCase();
+  subject = subject
+    .replace(/\s*\([\w\d]+\)\s*$/, '')
+    .trim()
+    .toUpperCase();
 
   // Fix known typos
   const SUBJECT_TYPOS = {
     'MTHEMATICS-1': 'MATHEMATICS-1',
-    'UNIVERAL HUMAN VALUES': 'UNIVERSAL HUMAN VALUES'
+    'UNIVERAL HUMAN VALUES': 'UNIVERSAL HUMAN VALUES',
   };
   if (SUBJECT_TYPOS[subject]) subject = SUBJECT_TYPOS[subject];
 
@@ -108,7 +148,7 @@ const parseS3Key = (s3Key, prefix) => {
     semester: semester || 1,
     subject,
     resourceType,
-    fileType: getFileType(filename)
+    fileType: getFileType(filename),
   };
 };
 
@@ -122,7 +162,7 @@ const listAllObjects = async (prefix) => {
     const command = new ListObjectsV2Command({
       Bucket: env.awsS3Bucket,
       Prefix: prefix,
-      ContinuationToken: continuationToken
+      ContinuationToken: continuationToken,
     });
 
     const response = await s3Client.send(command);
@@ -189,12 +229,14 @@ const run = async () => {
       fileUrl,
       s3Key,
       uploadedBy: 's3-import',
-      isPublished: true
+      isPublished: true,
     };
 
     if (DRY_RUN) {
       console.log(`  [DRY] ${s3Key}`);
-      console.log(`         -> ${JSON.stringify({ degree: doc.degree, branch: doc.branch, year: doc.year, sem: doc.semester, subject: doc.subject, type: doc.resourceType })}`);
+      console.log(
+        `         -> ${JSON.stringify({ degree: doc.degree, branch: doc.branch, year: doc.year, sem: doc.semester, subject: doc.subject, type: doc.resourceType })}`
+      );
       imported += 1;
       continue;
     }

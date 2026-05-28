@@ -10,31 +10,55 @@ export default function Footer() {
           <div className="md:col-span-2 space-y-6">
             <div className="flex items-center gap-3">
               <div className="relative size-10 overflow-hidden rounded-xl bg-card shadow-glow p-0.5 border border-border/50">
-                <Image src="/jiitsphere-logo.png" alt="JiitSphere logo" width={40} height={40} loading="lazy" className="rounded-[8px]" />
+                <Image
+                  src="/jiitsphere-logo.png"
+                  alt="JiitSphere logo"
+                  width={40}
+                  height={40}
+                  loading="lazy"
+                  className="rounded-[8px]"
+                />
               </div>
-              <span className="font-[var(--font-archivo)] text-xl font-black tracking-tight text-foreground">JiitSphere</span>
+              <span className="font-[var(--font-archivo)] text-xl font-black tracking-tight text-foreground">
+                JiitSphere
+              </span>
             </div>
             <p className="max-w-xs text-sm text-muted-foreground leading-relaxed">
-              Academic essentials in one polished student workspace. Built for the daily workflows of JIIT students.
+              Academic essentials in one polished student workspace. Built for the daily workflows
+              of JIIT students.
             </p>
           </div>
 
           {/* Navigation */}
           <div className="space-y-6">
-            <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-foreground">QUICK LINKS</h4>
+            <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-foreground">
+              QUICK LINKS
+            </h4>
             <ul className="space-y-4">
               <li>
-                <Link href="/portal" className="text-sm text-muted-foreground hover:text-primary transition-colors">Student Portal</Link>
+                <Link
+                  href="/portal"
+                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Student Portal
+                </Link>
               </li>
               <li>
-                <Link href="/study-material" className="text-sm text-muted-foreground hover:text-primary transition-colors">Study Material</Link>
+                <Link
+                  href="/study-material"
+                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Study Material
+                </Link>
               </li>
             </ul>
           </div>
 
           {/* Credits */}
           <div className="space-y-6">
-            <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-foreground">COMMUNITY</h4>
+            <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-foreground">
+              COMMUNITY
+            </h4>
             <div className="flex flex-col gap-4 text-sm text-muted-foreground">
               <p>
                 Made with ❤️ by{' '}

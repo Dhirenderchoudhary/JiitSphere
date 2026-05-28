@@ -14,19 +14,16 @@ import {
   fetchPortalAttendanceMeta,
   fetchPortalSdkSession,
   fetchPortalExams,
-  fetchPortalSubjects
+  fetchPortalSubjects,
 } from 'lib/api';
 import {
   TOKEN_KEY,
   LAST_PORTAL_USER_ID,
   PORTAL_VERIFIED_KEY,
   ALLOW_UNVERIFIED_PORTAL_LOGIN,
-  SHOW_PORTAL_LOGIN_DIAGNOSTICS
+  SHOW_PORTAL_LOGIN_DIAGNOSTICS,
 } from '../constants';
-import {
-  extractRelayMessage,
-  relayAttemptLooksAuthenticated
-} from '../utils';
+import { extractRelayMessage, relayAttemptLooksAuthenticated } from '../utils';
 
 export default function LoginView({ onAuth }) {
   const [userId, setUserId] = useState('');
@@ -46,7 +43,11 @@ export default function LoginView({ onAuth }) {
     if (/unavailable|timeout|network|fetch failed|bad gateway/i.test(text)) {
       return 'Official Portal is currently unavailable. Please try again later.';
     }
-    if (/official portal credentials verification failed|invalid credentials|invalid login|invalid user/i.test(text)) {
+    if (
+      /official portal credentials verification failed|invalid credentials|invalid login|invalid user/i.test(
+        text
+      )
+    ) {
       return 'Invalid Credentials. Please check your enrollment number and password.';
     }
     return text;
@@ -54,7 +55,7 @@ export default function LoginView({ onAuth }) {
 
   const fetchCaptchaChallenge = async (activeToken, activeRelaySessionId) => {
     const captchaResponse = await fetchPortalRelayCaptcha(activeToken, {
-      sessionId: activeRelaySessionId
+      sessionId: activeRelaySessionId,
     });
 
     const image =
@@ -92,7 +93,7 @@ export default function LoginView({ onAuth }) {
       }
 
       await portalSdkLogin(activeToken, { userId: demoUserId });
-      
+
       // Warm up API cache before navigating
       fetchPortalSdkSession(activeToken, false).catch(() => {});
       fetchPortalAttendanceMeta(activeToken).catch(() => {});
@@ -118,7 +119,7 @@ export default function LoginView({ onAuth }) {
   const handleLogin = async (event) => {
     event.preventDefault();
     if (loading) return;
-    
+
     setLoading(true);
     setError('');
     setProbeMessage('');
@@ -163,11 +164,11 @@ export default function LoginView({ onAuth }) {
           userId: normalizedUserId,
           password,
           captcha: sanitizedCaptcha || undefined,
-          usertype: effectiveUserType
-        }).catch(err => {
-            throw new Error('Official Portal is currently unavailable. Please try again later.');
+          usertype: effectiveUserType,
+        }).catch((err) => {
+          throw new Error('Official Portal is currently unavailable. Please try again later.');
         });
-        
+
         const attempts = probe?.data?.attempts || [];
         setAttemptDiagnostics(
           attempts.map((attempt) => ({
@@ -175,23 +176,28 @@ export default function LoginView({ onAuth }) {
             phase: attempt?.phase || '-',
             endpoint: attempt?.endpoint || '-',
             status: attempt?.status,
-            message: String(attempt?.message || extractRelayMessage(attempt?.response) || '')
+            message: String(attempt?.message || extractRelayMessage(attempt?.response) || ''),
           }))
         );
-        
-        const relayFailure = String(probe?.data?.failureMessage || '').trim() ||
+
+        const relayFailure =
+          String(probe?.data?.failureMessage || '').trim() ||
           attempts
-            .map((attempt) => String(attempt?.message || extractRelayMessage(attempt?.response) || '').trim())
-            .find(Boolean) || '';
-            
-        const anyOk = Boolean(probe?.data?.authenticated) || attempts.some(relayAttemptLooksAuthenticated);
+            .map((attempt) =>
+              String(attempt?.message || extractRelayMessage(attempt?.response) || '').trim()
+            )
+            .find(Boolean) ||
+          '';
+
+        const anyOk =
+          Boolean(probe?.data?.authenticated) || attempts.some(relayAttemptLooksAuthenticated);
 
         if (!anyOk) {
           // Total wipe of stale state to break locks
           setToken('');
           setRelaySessionId('');
           setCaptchaValue('');
-          
+
           if (/captcha|challenge/i.test(relayFailure)) {
             await fetchCaptchaChallenge(activeToken, activeRelaySessionId).catch(() => {});
             throw new Error('Verification required. Please enter the captcha.');
@@ -200,21 +206,28 @@ export default function LoginView({ onAuth }) {
             throw new Error('Official Portal is currently unavailable. Please try again later.');
           } else {
             setCaptchaImage('');
-            throw new Error('Invalid Credentials. Please check your enrollment number and password.');
+            throw new Error(
+              'Invalid Credentials. Please check your enrollment number and password.'
+            );
           }
         }
       }
 
       setProbeMessage('Finalizing session...');
-      // Start background tasks so they warm the cache/network channel implicitly before navigating 
+      // Start background tasks so they warm the cache/network channel implicitly before navigating
       // Do not await them to block UI transition
-      portalSdkLogin(activeToken, { userId: normalizedUserId, relaySessionId: activeRelaySessionId }).then(() => {
+      portalSdkLogin(activeToken, {
+        userId: normalizedUserId,
+        relaySessionId: activeRelaySessionId,
+      })
+        .then(() => {
           fetchPortalSdkSession(activeToken, false).catch(() => {});
           fetchPortalAttendanceMeta(activeToken).catch(() => {});
           fetchPortalExams(activeToken, false).catch(() => {});
           fetchPortalSubjects(activeToken, '', false).catch(() => {});
-      }).catch(() => {});
-      
+        })
+        .catch(() => {});
+
       window.localStorage.setItem(TOKEN_KEY, activeToken);
       window.localStorage.setItem(LAST_PORTAL_USER_ID, normalizedUserId);
       window.localStorage.setItem(PORTAL_VERIFIED_KEY, 'true');
@@ -246,25 +259,32 @@ export default function LoginView({ onAuth }) {
       <div className="w-full max-w-[420px] relative z-10 space-y-8">
         {/* Branding */}
         <div className="space-y-2">
-           <div className="flex items-center gap-3">
-              <div className="size-10 bg-primary flex items-center justify-center rounded-xl shadow-sm">
-                 <span className="text-primary-foreground font-black text-xl tracking-tighter">J</span>
-              </div>
-              <div>
-                 <p className="text-xs font-bold text-muted-foreground">Secure Access</p>
-                 <h2 className="text-2xl font-bold tracking-tight text-foreground font-[var(--font-instrument-sans)]">JiitSphere Portal</h2>
-              </div>
-           </div>
-           <p className="text-xs text-muted-foreground font-medium leading-relaxed">
-             Sign in with your WebPortal credentials to access your dashboard.
-           </p>
+          <div className="flex items-center gap-3">
+            <div className="size-10 bg-primary flex items-center justify-center rounded-xl shadow-sm">
+              <span className="text-primary-foreground font-black text-xl tracking-tighter">J</span>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-muted-foreground">Secure Access</p>
+              <h2 className="text-2xl font-bold tracking-tight text-foreground font-[var(--font-instrument-sans)]">
+                JiitSphere Portal
+              </h2>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground font-medium leading-relaxed">
+            Sign in with your WebPortal credentials to access your dashboard.
+          </p>
         </div>
 
         <div className="rounded-2xl border border-border/40 bg-card shadow-lg">
           <div className="p-8">
             <form onSubmit={handleLogin} className="space-y-5">
               <div className="space-y-1.5">
-                <label htmlFor="portal-enrollment" className="text-xs font-medium text-muted-foreground">Enrollment Number</label>
+                <label
+                  htmlFor="portal-enrollment"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Enrollment Number
+                </label>
                 <Input
                   id="portal-enrollment"
                   placeholder="e.g. 9921103XXX"
@@ -276,7 +296,12 @@ export default function LoginView({ onAuth }) {
                 />
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="portal-password" className="text-xs font-medium text-muted-foreground">Password</label>
+                <label
+                  htmlFor="portal-password"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Password
+                </label>
                 <Input
                   id="portal-password"
                   type="password"
@@ -317,13 +342,18 @@ export default function LoginView({ onAuth }) {
               ) : null}
 
               {error ? (
-                <div aria-live="polite" className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-xs font-medium text-red-500">
+                <div
+                  aria-live="polite"
+                  className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-xs font-medium text-red-500"
+                >
                   {error}
                 </div>
               ) : null}
 
               {SHOW_PORTAL_LOGIN_DIAGNOSTICS && probeMessage && (
-                <p className="text-xs font-medium text-muted-foreground text-center animate-pulse">{probeMessage}</p>
+                <p className="text-xs font-medium text-muted-foreground text-center animate-pulse">
+                  {probeMessage}
+                </p>
               )}
 
               <Button
@@ -336,7 +366,9 @@ export default function LoginView({ onAuth }) {
               <div className="space-y-2 pt-1">
                 <div className="flex items-center gap-3">
                   <div className="h-px flex-1 bg-border/60" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/70">or</span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/70">
+                    or
+                  </span>
                   <div className="h-px flex-1 bg-border/60" />
                 </div>
                 <Button
@@ -359,7 +391,7 @@ export default function LoginView({ onAuth }) {
         </div>
 
         <div className="flex justify-center">
-           <span className="text-[10px] text-muted-foreground/40">JiitSphere v2.5</span>
+          <span className="text-[10px] text-muted-foreground/40">JiitSphere v2.5</span>
         </div>
       </div>
     </main>

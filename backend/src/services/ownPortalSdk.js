@@ -1,4 +1,3 @@
-
 const crypto = require('crypto');
 const env = require('../config/env');
 
@@ -36,7 +35,12 @@ const purgeExpiredSdkSessions = () => {
 
 setInterval(purgeExpiredSdkSessions, env.sessionCleanupIntervalMs).unref();
 
-const createOrUpdateSession = ({ ownerId, userId, relaySessionId = null, dataset: initialDataset = null }) => {
+const createOrUpdateSession = ({
+  ownerId,
+  userId,
+  relaySessionId = null,
+  dataset: initialDataset = null,
+}) => {
   if (!sessionsByOwner.has(ownerId) && sessionsByOwner.size >= MAX_SDK_SESSIONS) {
     evictOldestSdkSession();
   }
@@ -53,14 +57,14 @@ const createOrUpdateSession = ({ ownerId, userId, relaySessionId = null, dataset
     exams: [],
     profile: null,
     subjects: {},
-    diagnostics: null
+    diagnostics: null,
   };
 
   const dataset = initialDataset
     ? {
         ...baseDataset,
         ...initialDataset,
-        relaySessionId
+        relaySessionId,
       }
     : baseDataset;
 
@@ -70,7 +74,7 @@ const createOrUpdateSession = ({ ownerId, userId, relaySessionId = null, dataset
     userId,
     dataset,
     createdAt: Date.now(),
-    updatedAt: Date.now()
+    updatedAt: Date.now(),
   };
 
   sessionsByOwner.set(ownerId, session);
@@ -87,5 +91,5 @@ const getSessionByOwner = (ownerId) => {
 
 module.exports = {
   createOrUpdateSession,
-  getSessionByOwner
+  getSessionByOwner,
 };

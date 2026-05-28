@@ -1,4 +1,3 @@
-
 const crypto = require('crypto');
 const env = require('../config/env');
 const { sign } = require('../utils/token');
@@ -40,7 +39,11 @@ const login = asyncHandler(async (req, res) => {
   }
 
   const token = sign(
-    { role: 'superadmin', iat: Math.floor(Date.now() / 1000), exp: Date.now() + 24 * 60 * 60 * 1000 },
+    {
+      role: 'superadmin',
+      iat: Math.floor(Date.now() / 1000),
+      exp: Date.now() + 24 * 60 * 60 * 1000,
+    },
     env.authSecret
   );
 
@@ -53,7 +56,7 @@ const getAnalytics = asyncHandler(async (_req, res) => {
   const [totalMaterials, materialsByDegree, materialsByType] = await Promise.all([
     Material.countDocuments(),
     Material.aggregate([{ $group: { _id: '$degree', count: { $sum: 1 } } }]),
-    Material.aggregate([{ $group: { _id: '$resourceType', count: { $sum: 1 } } }])
+    Material.aggregate([{ $group: { _id: '$resourceType', count: { $sum: 1 } } }]),
   ]);
 
   return res.json({
@@ -63,9 +66,9 @@ const getAnalytics = asyncHandler(async (_req, res) => {
       materials: {
         total: totalMaterials,
         byDegree: materialsByDegree.map((d) => ({ name: d._id, count: d.count })),
-        byType: materialsByType.map((t) => ({ name: t._id, count: t.count }))
-      }
-    }
+        byType: materialsByType.map((t) => ({ name: t._id, count: t.count })),
+      },
+    },
   });
 });
 

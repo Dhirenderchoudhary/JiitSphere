@@ -1,4 +1,3 @@
-
 const { createOrUpdateSession, getSessionByOwner } = require('../services/ownPortalSdk');
 const env = require('../config/env');
 const { ensureOwnedSession, buildCookieHeader } = require('../services/portalRelayService');
@@ -30,7 +29,10 @@ const parseRelayBody = async (response) => {
   const text = await response.text();
   const trimmed = String(text || '').trim();
   if (!trimmed) return '';
-  if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+  if (
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  ) {
     try {
       return JSON.parse(trimmed);
     } catch (_error) {
@@ -53,9 +55,17 @@ const isLikelyImageBuffer = (buffer) => {
   // PNG: 89 50 4E 47
   if (sig[0] === 0x89 && sig[1] === 0x50 && sig[2] === 0x4e && sig[3] === 0x47) return true;
   // GIF: GIF87a / GIF89a
-  if (sig.subarray(0, 6).toString('ascii') === 'GIF87a' || sig.subarray(0, 6).toString('ascii') === 'GIF89a') return true;
+  if (
+    sig.subarray(0, 6).toString('ascii') === 'GIF87a' ||
+    sig.subarray(0, 6).toString('ascii') === 'GIF89a'
+  )
+    return true;
   // WEBP: RIFF....WEBP
-  if (sig.subarray(0, 4).toString('ascii') === 'RIFF' && sig.subarray(8, 12).toString('ascii') === 'WEBP') return true;
+  if (
+    sig.subarray(0, 4).toString('ascii') === 'RIFF' &&
+    sig.subarray(8, 12).toString('ascii') === 'WEBP'
+  )
+    return true;
   return false;
 };
 
@@ -136,7 +146,10 @@ const decodeInlinePhotoSource = (rawSource) => {
     payload = String(dataUrlMatch[2] || '');
   }
 
-  const compact = String(payload || '').replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+  const compact = String(payload || '')
+    .replace(/\s+/g, '')
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
   if (compact.length < 80 || !/^[A-Za-z0-9+/=]+$/.test(compact)) return null;
 
   const padded = compact.padEnd(Math.ceil(compact.length / 4) * 4, '=');
@@ -145,9 +158,15 @@ const decodeInlinePhotoSource = (rawSource) => {
 
   if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
     contentType = 'image/png';
-  } else if (buffer.subarray(0, 6).toString('ascii') === 'GIF87a' || buffer.subarray(0, 6).toString('ascii') === 'GIF89a') {
+  } else if (
+    buffer.subarray(0, 6).toString('ascii') === 'GIF87a' ||
+    buffer.subarray(0, 6).toString('ascii') === 'GIF89a'
+  ) {
     contentType = 'image/gif';
-  } else if (buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP') {
+  } else if (
+    buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+    buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+  ) {
     contentType = 'image/webp';
   } else {
     contentType = 'image/jpeg';
@@ -174,7 +193,7 @@ const resolveProfilePhotoSourceFromSession = (profile = {}) => {
     'profileimageurl',
     'studentphotourl',
     'imageurl',
-    'photourl'
+    'photourl',
   ];
 
   for (const key of preferred) {
@@ -193,7 +212,7 @@ const dateCode = (date = new Date(), timeZone = PORTAL_TIME_ZONE) => {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-    weekday: 'short'
+    weekday: 'short',
   });
 
   const parts = formatter.formatToParts(date);
@@ -212,7 +231,11 @@ const dateCode = (date = new Date(), timeZone = PORTAL_TIME_ZONE) => {
 const buildLocalNameHeader = (tokenDate = new Date().toString()) => {
   const head = String(tokenDate).substring(0, 4);
   const tail = String(tokenDate).substring(4, 9);
-  return encryptPortalPayload(`${head}${dateCode(new Date(), PORTAL_TIME_ZONE)}${tail}`, new Date(), PORTAL_TIME_ZONE);
+  return encryptPortalPayload(
+    `${head}${dateCode(new Date(), PORTAL_TIME_ZONE)}${tail}`,
+    new Date(),
+    PORTAL_TIME_ZONE
+  );
 };
 
 const looksLikeJsonParseError = (payload) => {
@@ -231,7 +254,7 @@ const buildCommonHeaders = (relaySession, authContext, contentType) => {
     'Content-Type': contentType,
     Origin: 'https://webportal.jiit.ac.in:6011',
     Referer: 'https://webportal.jiit.ac.in:6011/studentportal/#/',
-    'X-Requested-With': 'XMLHttpRequest'
+    'X-Requested-With': 'XMLHttpRequest',
   };
 
   const cookieHeader = buildCookieHeader(relaySession);
@@ -252,25 +275,32 @@ const postPortal = async (relaySession, authContext, path, payload, options = {}
     return {
       ok: true,
       status: 200,
-      data: { status: { responseStatus: 'success' }, response: data }
+      data: { status: { responseStatus: 'success' }, response: data },
     };
   } catch (err) {
     const httpStatus = err.details?.httpStatus || 500;
-    const isNetworkError = err.type === 'FETCH_ERROR' && (!err.details?.httpStatus || err.details?.httpStatus >= 500);
+    const isNetworkError =
+      err.type === 'FETCH_ERROR' && (!err.details?.httpStatus || err.details?.httpStatus >= 500);
     return {
       ok: false,
       status: httpStatus,
       data: {
         status: err.details?.portalStatus || { responseStatus: 'FAILED', errors: [err.message] },
         message: err.message,
-        meta: { networkError: isNetworkError, code: err.details?.code || err.code || 'PORTAL_FETCH_ERROR', path }
-      }
+        meta: {
+          networkError: isNetworkError,
+          code: err.details?.code || err.code || 'PORTAL_FETCH_ERROR',
+          path,
+        },
+      },
     };
   }
 };
 
 const statusSuccess = (payload) => {
-  const normalized = String(payload?.status?.responseStatus || payload?.responseStatus || '').toLowerCase();
+  const normalized = String(
+    payload?.status?.responseStatus || payload?.responseStatus || ''
+  ).toLowerCase();
   return normalized === 'success' || normalized === 'ok';
 };
 
@@ -279,11 +309,14 @@ const extractStatusMessage = (payload) => {
   const errors = payload?.status?.errors;
   if (Array.isArray(errors) && errors.length) return String(errors[0]);
   if (typeof errors === 'string' && errors) return errors;
-  return String(payload?.message || payload?.status?.identifier || payload?.status?.responseStatus || '').trim();
+  return String(
+    payload?.message || payload?.status?.identifier || payload?.status?.responseStatus || ''
+  ).trim();
 };
 
 const firstRegistration = (payload) => {
-  const rows = payload?.response?.registrations || payload?.response?.semesterCodeinfo?.semestercode || [];
+  const rows =
+    payload?.response?.registrations || payload?.response?.semesterCodeinfo?.semestercode || [];
   if (!Array.isArray(rows) || !rows.length) return null;
   return rows[0];
 };
@@ -355,7 +388,7 @@ const normalizeSemesters = (rows = []) => {
         row?.registrationdesc ||
         row?.label ||
         (row?.registrationid ? String(row.registrationid) : null),
-      stynumber: row?.stynumber || row?.sty_number || null
+      stynumber: row?.stynumber || row?.sty_number || null,
     }))
     .filter((row) => row.registration_id && row.registration_code);
 };
@@ -365,7 +398,9 @@ const semesterSortScore = (registrationCode = '', registrationId = '') => {
   const yearMatch = text.match(/(20\d{2})/);
   const year = yearMatch ? Number(yearMatch[1]) : 0;
   const term = text.includes('ODD') ? 2 : text.includes('EVE') || text.includes('EVEN') ? 1 : 0;
-  const tie = String(registrationId || '').split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  const tie = String(registrationId || '')
+    .split('')
+    .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
   return year * 100000 + term * 1000 + tie;
 };
 
@@ -383,16 +418,17 @@ const normalizeGradeRows = (rows = []) => {
   return rows.map((row) => ({
     registration_id: row?.registrationid || row?.registration_id || null,
     registration_code:
-      row?.registrationcode || row?.registration_code || row?.registrationdesc || row?.semestercode || 'Semester',
-    sgpa: numberOr(
-      row?.sgpa ?? row?.semestergpa ?? row?.semestersgpa ?? row?.sgpaobtained,
-      0
-    ),
+      row?.registrationcode ||
+      row?.registration_code ||
+      row?.registrationdesc ||
+      row?.semestercode ||
+      'Semester',
+    sgpa: numberOr(row?.sgpa ?? row?.semestergpa ?? row?.semestersgpa ?? row?.sgpaobtained, 0),
     cgpa: numberOr(
       row?.cgpa ?? row?.cumulativecgpa ?? row?.overallcgpa ?? row?.semestercgpa ?? row?.sgpa,
       0
     ),
-    raw: row
+    raw: row,
   }));
 };
 
@@ -415,15 +451,17 @@ const findSemesterByLabel = (semesters = [], registrationLabel = '') => {
   const odd = labelToken.includes('ODD');
   const even = labelToken.includes('EVE') || labelToken.includes('EVEN');
 
-  return semesters.find((sem) => {
-    const semToken = normalizeSemesterLabelToken(sem?.registration_code);
-    if (!semToken) return false;
-    if (labelToken.includes(semToken) || semToken.includes(labelToken)) return true;
-    if (!year || !semToken.includes(year)) return false;
-    if (odd) return semToken.includes('ODD');
-    if (even) return semToken.includes('EVE') || semToken.includes('EVEN');
-    return false;
-  }) || null;
+  return (
+    semesters.find((sem) => {
+      const semToken = normalizeSemesterLabelToken(sem?.registration_code);
+      if (!semToken) return false;
+      if (labelToken.includes(semToken) || semToken.includes(labelToken)) return true;
+      if (!year || !semToken.includes(year)) return false;
+      if (odd) return semToken.includes('ODD');
+      if (even) return semToken.includes('EVE') || semToken.includes('EVEN');
+      return false;
+    }) || null
+  );
 };
 
 const normalizeSgpaCgpaRows = (rows = [], semesters = []) => {
@@ -431,127 +469,143 @@ const normalizeSgpaCgpaRows = (rows = [], semesters = []) => {
 
   const sortedSemesters = sortSemestersDesc(semesters || []);
 
-  return rows.map((row, index) => {
-    const semLabelFromRow = pickFirst(row, [
-      'registrationcode',
-      'registration_code',
-      'registrationdesc',
-      'registrationlabel',
-      'semestercode',
-      'semestername',
-      'semester',
-      'session',
-      'term'
-    ]) || null;
+  return rows
+    .map((row, index) => {
+      const semLabelFromRow =
+        pickFirst(row, [
+          'registrationcode',
+          'registration_code',
+          'registrationdesc',
+          'registrationlabel',
+          'semestercode',
+          'semestername',
+          'semester',
+          'session',
+          'term',
+        ]) || null;
 
-    const regIdFromRow = pickFirst(row, [
-      'registrationid',
-      'registration_id',
-      'regid',
-      'registration',
-      'registrationvalue'
-    ]);
+      const regIdFromRow = pickFirst(row, [
+        'registrationid',
+        'registration_id',
+        'regid',
+        'registration',
+        'registrationvalue',
+      ]);
 
-    const styFromRow = pickFirst(row, [
-      'stynumber',
-      'sty_number',
-      'sty',
-      'styno',
-      'sty_no',
-      'semesterno',
-      'semester_no',
-      'semester_number',
-      'currentsemester',
-      'semno',
-      'sem'
-    ]);
+      const styFromRow = pickFirst(row, [
+        'stynumber',
+        'sty_number',
+        'sty',
+        'styno',
+        'sty_no',
+        'semesterno',
+        'semester_no',
+        'semester_number',
+        'currentsemester',
+        'semno',
+        'sem',
+      ]);
 
-    const semesterById = regIdFromRow
-      ? sortedSemesters.find((sem) => String(sem?.registration_id) === String(regIdFromRow))
-      : null;
+      const semesterById = regIdFromRow
+        ? sortedSemesters.find((sem) => String(sem?.registration_id) === String(regIdFromRow))
+        : null;
 
-    const semesterByRegIdAsLabel = semesterById || !regIdFromRow
-      ? null
-      : findSemesterByLabel(sortedSemesters, regIdFromRow);
+      const semesterByRegIdAsLabel =
+        semesterById || !regIdFromRow ? null : findSemesterByLabel(sortedSemesters, regIdFromRow);
 
-    const semesterByStyle = semesterById || !styFromRow
-      ? null
-      : sortedSemesters.find((sem) => String(sem?.stynumber || '') === String(styFromRow));
-    const semesterByLabel = (semesterById || semesterByRegIdAsLabel || semesterByStyle)
-      ? null
-      : findSemesterByLabel(sortedSemesters, semLabelFromRow);
+      const semesterByStyle =
+        semesterById || !styFromRow
+          ? null
+          : sortedSemesters.find((sem) => String(sem?.stynumber || '') === String(styFromRow));
+      const semesterByLabel =
+        semesterById || semesterByRegIdAsLabel || semesterByStyle
+          ? null
+          : findSemesterByLabel(sortedSemesters, semLabelFromRow);
 
-    const semNumFromLabelMatch = String(semLabelFromRow || '').match(/\bSEM(?:ESTER)?\s*[-:]?\s*(\d+)\b/i);
-    const semNumFromLabel = semNumFromLabelMatch ? Number(semNumFromLabelMatch[1]) : NaN;
-    const plainSemNo = Number(String(semLabelFromRow || '').trim());
-    const semesterBySemNo = (semesterById || semesterByRegIdAsLabel || semesterByStyle || semesterByLabel || !Number.isFinite(semNumFromLabel))
-      ? null
-      : sortedSemesters.find((sem) => Number(sem?.stynumber) === semNumFromLabel);
+      const semNumFromLabelMatch = String(semLabelFromRow || '').match(
+        /\bSEM(?:ESTER)?\s*[-:]?\s*(\d+)\b/i
+      );
+      const semNumFromLabel = semNumFromLabelMatch ? Number(semNumFromLabelMatch[1]) : NaN;
+      const plainSemNo = Number(String(semLabelFromRow || '').trim());
+      const semesterBySemNo =
+        semesterById ||
+        semesterByRegIdAsLabel ||
+        semesterByStyle ||
+        semesterByLabel ||
+        !Number.isFinite(semNumFromLabel)
+          ? null
+          : sortedSemesters.find((sem) => Number(sem?.stynumber) === semNumFromLabel);
 
-    const semesterByPlainSemNo =
-      (semesterById || semesterByRegIdAsLabel || semesterByStyle || semesterByLabel || semesterBySemNo || !Number.isFinite(plainSemNo))
-        ? null
-        : sortedSemesters.find((sem) => Number(sem?.stynumber) === plainSemNo);
+      const semesterByPlainSemNo =
+        semesterById ||
+        semesterByRegIdAsLabel ||
+        semesterByStyle ||
+        semesterByLabel ||
+        semesterBySemNo ||
+        !Number.isFinite(plainSemNo)
+          ? null
+          : sortedSemesters.find((sem) => Number(sem?.stynumber) === plainSemNo);
 
-    const resolvedSemester =
-      semesterById ||
-      semesterByRegIdAsLabel ||
-      semesterByStyle ||
-      semesterByLabel ||
-      semesterBySemNo ||
-      semesterByPlainSemNo;
+      const resolvedSemester =
+        semesterById ||
+        semesterByRegIdAsLabel ||
+        semesterByStyle ||
+        semesterByLabel ||
+        semesterBySemNo ||
+        semesterByPlainSemNo;
 
-    if (!resolvedSemester) {
-      return null;
-    }
+      if (!resolvedSemester) {
+        return null;
+      }
 
-    const sgpa = numberOr(
-      pickFirst(row, [
-        'sgpa',
-        'semester_sgpa',
-        'semestersgpa',
-        'semestergpa',
-        'sgpaobtained',
-        'stygpa',
-        'semesterstygpa',
-        'semgpa',
-        'semsgpa',
-        'gradepointaverage'
-      ]),
-      0
-    );
+      const sgpa = numberOr(
+        pickFirst(row, [
+          'sgpa',
+          'semester_sgpa',
+          'semestersgpa',
+          'semestergpa',
+          'sgpaobtained',
+          'stygpa',
+          'semesterstygpa',
+          'semgpa',
+          'semsgpa',
+          'gradepointaverage',
+        ]),
+        0
+      );
 
-    const cgpa = numberOr(
-      pickFirst(row, [
-        'cgpa',
-        'cumulativecgpa',
-        'cummulativecgpa',
-        'overallcgpa',
-        'cumulativegpa',
-        'cummulativegpa',
-        'overallgpa',
-        'totalcgpa',
-        'semestercgpa',
-        'stycgpa',
-        'cumulativegradepointaverage',
-        'cummulativegradepointaverage',
-        'overallgradepointaverage'
-      ]),
-      0
-    );
+      const cgpa = numberOr(
+        pickFirst(row, [
+          'cgpa',
+          'cumulativecgpa',
+          'cummulativecgpa',
+          'overallcgpa',
+          'cumulativegpa',
+          'cummulativegpa',
+          'overallgpa',
+          'totalcgpa',
+          'semestercgpa',
+          'stycgpa',
+          'cumulativegradepointaverage',
+          'cummulativegradepointaverage',
+          'overallgradepointaverage',
+        ]),
+        0
+      );
 
-    if (!(sgpa > 0 || cgpa > 0)) {
-      return null;
-    }
+      if (!(sgpa > 0 || cgpa > 0)) {
+        return null;
+      }
 
-    return {
-      registration_id: resolvedSemester.registration_id,
-      registration_code: resolvedSemester.registration_code,
-      sgpa,
-      cgpa,
-      raw: row
-    };
-  }).filter(Boolean);
+      return {
+        registration_id: resolvedSemester.registration_id,
+        registration_code: resolvedSemester.registration_code,
+        sgpa,
+        cgpa,
+        raw: row,
+      };
+    })
+    .filter(Boolean);
 };
 
 const mergeGradeSummaries = (primaryRows = [], fallbackRows = []) => {
@@ -563,7 +617,9 @@ const mergeGradeSummaries = (primaryRows = [], fallbackRows = []) => {
 
     const registrationId = String(row?.registration_id || '').trim();
     const codeToken = normalizeSemesterLabelToken(row?.registration_code || '');
-    const defaultKey = registrationId || (codeToken ? `code:${codeToken}` : String(row.registration_code || 'Semester'));
+    const defaultKey =
+      registrationId ||
+      (codeToken ? `code:${codeToken}` : String(row.registration_code || 'Semester'));
     const codeMappedKey = codeToken ? byCodeToken.get(codeToken) : null;
     const key = codeMappedKey || defaultKey;
     const existing = bySem.get(key);
@@ -576,7 +632,7 @@ const mergeGradeSummaries = (primaryRows = [], fallbackRows = []) => {
         cgpa: numberOr(row.cgpa, 0),
         credits: numberOr(row.credits, 0),
         earnedPoints: numberOr(row.earnedPoints, 0),
-        raw: row.raw || null
+        raw: row.raw || null,
       });
       if (codeToken) {
         byCodeToken.set(codeToken, key);
@@ -589,7 +645,10 @@ const mergeGradeSummaries = (primaryRows = [], fallbackRows = []) => {
     const currentSgpa = numberOr(existing.sgpa, 0);
     const currentCgpa = numberOr(existing.cgpa, 0);
 
-    if ((!existing.registration_id || String(existing.registration_id).startsWith('code:')) && registrationId) {
+    if (
+      (!existing.registration_id || String(existing.registration_id).startsWith('code:')) &&
+      registrationId
+    ) {
       existing.registration_id = registrationId;
     }
     existing.registration_code = row.registration_code || existing.registration_code;
@@ -609,14 +668,18 @@ const mergeGradeSummaries = (primaryRows = [], fallbackRows = []) => {
     const incomingCredits = numberOr(row.credits, 0);
     const incomingEarned = numberOr(row.earnedPoints, 0);
     if (incomingCredits > 0) existing.credits = Math.max(existing.credits || 0, incomingCredits);
-    if (incomingEarned > 0) existing.earnedPoints = Math.max(existing.earnedPoints || 0, incomingEarned);
+    if (incomingEarned > 0)
+      existing.earnedPoints = Math.max(existing.earnedPoints || 0, incomingEarned);
   };
 
   fallbackRows.forEach((row) => upsert(row, false));
   primaryRows.forEach((row) => upsert(row, true));
 
   const entries = [...bySem.values()].sort((a, b) => {
-    return semesterSortScore(a.registration_code, a.registration_id) - semesterSortScore(b.registration_code, b.registration_id);
+    return (
+      semesterSortScore(a.registration_code, a.registration_id) -
+      semesterSortScore(b.registration_code, b.registration_id)
+    );
   });
 
   let cumulativePoints = 0;
@@ -660,9 +723,35 @@ const normalizeGradeCardRows = (rows = []) => {
       programid: pickFirst(row, ['programid', 'program_id']),
       gradeid: pickFirst(row, ['gradeid', 'grade_id', 'grademasterid']),
       subjectid: pickFirst(row, ['subjectid', 'subject_id']),
-      subjectcode: pickFirst(row, ['subjectcode', 'individualsubjectcode', 'stsubjectcode', 'subcode', 'coursecode', 'subject_code']) || null,
-      subjectdesc: pickFirst(row, ['subjectdesc', 'subjectname', 'subjectdescription', 'coursename', 'subjecttitle']) || 'Subject',
-      credit: numberOr(pickFirst(row, ['earnedcredit', 'coursecreditpoint', 'credit', 'credits', 'subjectcredit', 'coursecredit', 'stcredit']), 0),
+      subjectcode:
+        pickFirst(row, [
+          'subjectcode',
+          'individualsubjectcode',
+          'stsubjectcode',
+          'subcode',
+          'coursecode',
+          'subject_code',
+        ]) || null,
+      subjectdesc:
+        pickFirst(row, [
+          'subjectdesc',
+          'subjectname',
+          'subjectdescription',
+          'coursename',
+          'subjecttitle',
+        ]) || 'Subject',
+      credit: numberOr(
+        pickFirst(row, [
+          'earnedcredit',
+          'coursecreditpoint',
+          'credit',
+          'credits',
+          'subjectcredit',
+          'coursecredit',
+          'stcredit',
+        ]),
+        0
+      ),
       marksobtained: pickFirst(row, [
         'marksobtained',
         'obtainedmarks',
@@ -674,7 +763,7 @@ const normalizeGradeCardRows = (rows = []) => {
         'internalmarksobtained',
         'externalmarksobtained',
         'obtained',
-        'marks'
+        'marks',
       ]),
       totalmarks: pickFirst(row, [
         'totalmarks',
@@ -686,10 +775,17 @@ const normalizeGradeCardRows = (rows = []) => {
         'wttotal',
         'totalweightage',
         'maxweightage',
-        'totalmaxmarks'
+        'totalmaxmarks',
       ]),
       grade: pickFirst(row, ['grade', 'lettergrade', 'stgrade', 'finalgrade']) || '-',
-      gradepoint: pickFirst(row, ['gradepoint', 'grpoint', 'point', 'stgradepoint', 'gpoint', 'gradepoints']),
+      gradepoint: pickFirst(row, [
+        'gradepoint',
+        'grpoint',
+        'point',
+        'stgradepoint',
+        'gpoint',
+        'gradepoints',
+      ]),
       assessment:
         pickFirst(row, [
           'assessment',
@@ -705,13 +801,13 @@ const normalizeGradeCardRows = (rows = []) => {
           'gradecomponent',
           'eventname',
           'eventdesc',
-          'assessmenthead'
+          'assessmenthead',
         ]) || null,
       assessmentorder: numberOr(
         pickFirst(row, ['assessmentorder', 'sequence', 'srno', 'orderid', 'serialno']),
         0
       ),
-      raw: row
+      raw: row,
     }))
     .filter((row) => row.subjectdesc);
 };
@@ -758,14 +854,21 @@ const normalizeSubjectDailyRows = (rows = []) => {
   };
 
   return rows.map((row) => {
-    const presentRaw = pickFirst(row, ['present', 'attendance', 'status', 'attendancestatus', 'ispresent']);
+    const presentRaw = pickFirst(row, [
+      'present',
+      'attendance',
+      'status',
+      'attendancestatus',
+      'ispresent',
+    ]);
     const present = normalizePresence(presentRaw);
 
     return {
-      datetime: pickFirst(row, ['datetime', 'attendancedate', 'date', 'classdate', 'dateofclass']) || '-',
+      datetime:
+        pickFirst(row, ['datetime', 'attendancedate', 'date', 'classdate', 'dateofclass']) || '-',
       present,
       topic: pickFirst(row, ['topic', 'lecturedetail', 'description']) || null,
-      raw: row
+      raw: row,
     };
   });
 };
@@ -788,7 +891,7 @@ const normalizeAttendanceRows = (rows = []) => {
         'attendedclass',
         'attendedclasses',
         'presentcount',
-        'presentclasses'
+        'presentclasses',
       ]),
       0
     );
@@ -805,13 +908,25 @@ const normalizeAttendanceRows = (rows = []) => {
         'totalcount',
         'conductedclass',
         'heldclasses',
-        'totalheldclasses'
+        'totalheldclasses',
       ]),
       0
     );
 
-    const attendedRegex = numberOr(findNumericByRegex(row, /(lt.*attend|attend.*lt|attended.?class|present.?class|classattend|attendcount)/i), 0);
-    const totalRegex = numberOr(findNumericByRegex(row, /(lt.*total|total.*class|class.?total|conducted|held.?class|delivered)/i), 0);
+    const attendedRegex = numberOr(
+      findNumericByRegex(
+        row,
+        /(lt.*attend|attend.*lt|attended.?class|present.?class|classattend|attendcount)/i
+      ),
+      0
+    );
+    const totalRegex = numberOr(
+      findNumericByRegex(
+        row,
+        /(lt.*total|total.*class|class.?total|conducted|held.?class|delivered)/i
+      ),
+      0
+    );
 
     const rawRatio = extractRatioCounts(row);
 
@@ -826,35 +941,81 @@ const normalizeAttendanceRows = (rows = []) => {
     const reliablePair = normalizeAttendancePair({
       attended: attendedclasses,
       total: totalclasses,
-      percent: ltPercentage
+      percent: ltPercentage,
     });
 
     return {
       subjectcode:
-        pickFirst(row, ['subjectcode', 'subject_code', 'individualsubjectcode', 'individual_subject_code', 'subcode']) ||
+        pickFirst(row, [
+          'subjectcode',
+          'subject_code',
+          'individualsubjectcode',
+          'individual_subject_code',
+          'subcode',
+        ]) ||
         row?.subjectdesc ||
         'SUBJECT',
       subjectdesc:
-        pickFirst(row, ['subjectdesc', 'subjectdescription', 'subjectname', 'coursename', 'subjecttitle', 'name', 'subjectcode']) ||
-        'Subject',
-      subjectid: pickFirst(row, ['subjectid', 'subject_id', 'subjectId', 'subid', 'subjectmasterid']) || null,
+        pickFirst(row, [
+          'subjectdesc',
+          'subjectdescription',
+          'subjectname',
+          'coursename',
+          'subjecttitle',
+          'name',
+          'subjectcode',
+        ]) || 'Subject',
+      subjectid:
+        pickFirst(row, ['subjectid', 'subject_id', 'subjectId', 'subid', 'subjectmasterid']) ||
+        null,
       individualsubjectcode:
-        pickFirst(row, ['individualsubjectcode', 'individual_subject_code', 'subjectcode', 'subject_code', 'subcode']) || null,
+        pickFirst(row, [
+          'individualsubjectcode',
+          'individual_subject_code',
+          'subjectcode',
+          'subject_code',
+          'subcode',
+        ]) || null,
       Lsubjectcomponentid:
-        pickFirst(row, ['Lsubjectcomponentid', 'lsubjectcomponentid', 'lsubjectcomponent_id', 'lecturecomponentid', 'lcomponentid']) || null,
+        pickFirst(row, [
+          'Lsubjectcomponentid',
+          'lsubjectcomponentid',
+          'lsubjectcomponent_id',
+          'lecturecomponentid',
+          'lcomponentid',
+        ]) || null,
       Tsubjectcomponentid:
-        pickFirst(row, ['Tsubjectcomponentid', 'tsubjectcomponentid', 'tsubjectcomponent_id', 'tutorialcomponentid', 'tcomponentid']) || null,
+        pickFirst(row, [
+          'Tsubjectcomponentid',
+          'tsubjectcomponentid',
+          'tsubjectcomponent_id',
+          'tutorialcomponentid',
+          'tcomponentid',
+        ]) || null,
       Psubjectcomponentid:
-        pickFirst(row, ['Psubjectcomponentid', 'psubjectcomponentid', 'psubjectcomponent_id', 'practicalcomponentid', 'labcomponentid', 'pcomponentid']) || null,
+        pickFirst(row, [
+          'Psubjectcomponentid',
+          'psubjectcomponentid',
+          'psubjectcomponent_id',
+          'practicalcomponentid',
+          'labcomponentid',
+          'pcomponentid',
+        ]) || null,
       Lpercentage: numberOr(row?.Lpercentage ?? row?.lpercentage ?? row?.lecturepercentage, 0),
       Tpercentage: numberOr(row?.Tpercentage ?? row?.tpercentage ?? row?.tutorialpercentage, 0),
       Ppercentage: numberOr(row?.Ppercentage ?? row?.ppercentage ?? row?.practicalpercentage, 0),
       LTpercantage: ltPercentage,
       attendedclasses: reliablePair.attended,
       totalclasses: reliablePair.total,
-      canmissclasses: numberOr(pickFirst(row, ['canmiss', 'canmissclass', 'canmissclasses', 'canmisscount']), 0),
-      needattendclasses: numberOr(pickFirst(row, ['needattend', 'needtoattend', 'requiredclasses', 'mustattend']), 0),
-      raw: row
+      canmissclasses: numberOr(
+        pickFirst(row, ['canmiss', 'canmissclass', 'canmissclasses', 'canmisscount']),
+        0
+      ),
+      needattendclasses: numberOr(
+        pickFirst(row, ['needattend', 'needtoattend', 'requiredclasses', 'mustattend']),
+        0
+      ),
+      raw: row,
     };
   });
 };
@@ -873,7 +1034,9 @@ const normalizeRegisteredSubjects = (payload) => {
         if (!Array.isArray(value) || !value.length || typeof value[0] !== 'object') continue;
         const localScore = value.reduce((acc, row) => {
           const rowKeys = Object.keys(row || {}).map((key) => normalizeKey(key));
-          const rowSignal = tokens.some((token) => rowKeys.some((key) => key.includes(token))) ? 1 : 0;
+          const rowSignal = tokens.some((token) => rowKeys.some((key) => key.includes(token)))
+            ? 1
+            : 0;
           return acc + rowSignal;
         }, 0);
         if (localScore > bestScore) {
@@ -887,14 +1050,30 @@ const normalizeRegisteredSubjects = (payload) => {
   };
 
   const response = payload?.response;
-  const directRows = response?.registrations || response?.registrationlist || response?.subjectlist || response?.subjects || response;
+  const directRows =
+    response?.registrations ||
+    response?.registrationlist ||
+    response?.subjectlist ||
+    response?.subjects ||
+    response;
   const rows = Array.isArray(directRows) ? directRows : extractCandidateSubjectRows(payload);
   if (!Array.isArray(rows)) return { registered: [], faculties: [] };
 
   const registered = rows
-    .map((row) => row?.subjectdesc || row?.subjectdescription || row?.subjectname || row?.coursename || row?.subjecttitle || row?.subjectcode)
+    .map(
+      (row) =>
+        row?.subjectdesc ||
+        row?.subjectdescription ||
+        row?.subjectname ||
+        row?.coursename ||
+        row?.subjecttitle ||
+        row?.subjectcode
+    )
     .filter(Boolean);
-  const faculties = rows.map((row) => row?.employeename || row?.facultyname || row?.facultydesc || row?.employeecode || 'Faculty');
+  const faculties = rows.map(
+    (row) =>
+      row?.employeename || row?.facultyname || row?.facultydesc || row?.employeecode || 'Faculty'
+  );
 
   const details = rows.map((row) => ({
     registrationid: row?.registrationid || row?.registration_id || null,
@@ -904,11 +1083,7 @@ const normalizeRegisteredSubjects = (payload) => {
     facultyid: row?.employeeid || row?.employeecode || row?.facultyid || null,
     subjectid: row?.subjectid || row?.subject_id || null,
     subjectcode:
-      row?.subjectcode ||
-      row?.individualsubjectcode ||
-      row?.subject_code ||
-      row?.subcode ||
-      null,
+      row?.subjectcode || row?.individualsubjectcode || row?.subject_code || row?.subcode || null,
     subjectdesc:
       row?.subjectdesc ||
       row?.subjectdescription ||
@@ -921,8 +1096,9 @@ const normalizeRegisteredSubjects = (payload) => {
     credits: row?.credit ?? row?.credits ?? row?.subjectcredit ?? null,
     component: row?.subjectcomponent || row?.component || row?.subtype || null,
     section: row?.sectioncode || row?.section || null,
-    faculty: row?.employeename || row?.facultyname || row?.facultydesc || row?.employeecode || 'Faculty',
-    raw: row
+    faculty:
+      row?.employeename || row?.facultyname || row?.facultydesc || row?.employeecode || 'Faculty',
+    raw: row,
   }));
 
   return { registered, faculties, details };
@@ -973,7 +1149,10 @@ const extractScalarFields = (obj = {}, blockedKeys = []) => {
   return out;
 };
 
-const normalizeKey = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const normalizeKey = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
 
 const stripEmptyProfileValues = (record = {}) => {
   return Object.fromEntries(
@@ -1028,7 +1207,7 @@ const extractPhotoScalar = (value, depth = 0) => {
     'img',
     'url',
     'base64',
-    'data'
+    'data',
   ];
 
   for (const key of preferredKeys) {
@@ -1042,7 +1221,9 @@ const extractPhotoScalar = (value, depth = 0) => {
 
     // Some official payloads nest media fields under profile-like objects.
     const isDirectMediaKey = /(photo|image|img|base64|avatar|signature)/.test(normalized);
-    const isProfileContainer = /profile/.test(normalized) && (Array.isArray(rawValue) || (rawValue && typeof rawValue === 'object'));
+    const isProfileContainer =
+      /profile/.test(normalized) &&
+      (Array.isArray(rawValue) || (rawValue && typeof rawValue === 'object'));
     if (!isDirectMediaKey && !isProfileContainer) continue;
 
     const extracted = extractPhotoScalar(rawValue, depth + 1);
@@ -1059,7 +1240,9 @@ const collectObjectNodes = (source, depth = 0, maxDepth = 4) => {
   }
   if (typeof source !== 'object') return [];
 
-  const children = Object.values(source).flatMap((value) => collectObjectNodes(value, depth + 1, maxDepth));
+  const children = Object.values(source).flatMap((value) =>
+    collectObjectNodes(value, depth + 1, maxDepth)
+  );
   return [source, ...children];
 };
 
@@ -1094,7 +1277,7 @@ const extractBestProfileSource = (payload = {}) => {
     'gender',
     'dob',
     'birth',
-    'address'
+    'address',
   ];
 
   let best = null;
@@ -1149,7 +1332,9 @@ const extractCandidateFeeRows = (payload = {}) => {
       if (!Array.isArray(value) || !value.length || typeof value[0] !== 'object') continue;
       const localScore = value.reduce((acc, row) => {
         const rowKeys = Object.keys(row || {}).map((key) => normalizeKey(key));
-        const rowSignal = tokenSet.some((token) => rowKeys.some((key) => key.includes(token))) ? 1 : 0;
+        const rowSignal = tokenSet.some((token) => rowKeys.some((key) => key.includes(token)))
+          ? 1
+          : 0;
         return acc + rowSignal;
       }, 0);
 
@@ -1178,30 +1363,54 @@ const mapProfile = (studentInfo = {}) => {
       'profileimageurl',
       'studentphotourl',
       'imageurl',
-      'photourl'
+      'photourl',
     ],
     ['profile photo', 'student photo', 'photo base64', 'profile image', 'image url', 'photo url']
   );
 
   const normalized = {
     studentname: pick(['studentname', 'name', 'student_name'], ['student name', 'name']),
-    enrollmentno: pick(['enrollmentno', 'enrollment', 'enrollno', 'enrollmentnumber'], ['enrollment']),
+    enrollmentno: pick(
+      ['enrollmentno', 'enrollment', 'enrollno', 'enrollmentnumber'],
+      ['enrollment']
+    ),
     apaarid: pick(['apaarid', 'apaar_id', 'abcid'], ['apaar', 'abc id']),
-    program: pick(['program', 'programdesc', 'programname', 'programcode'], ['program', 'course', 'degree']),
-    programdesc: pick(['programdesc', 'programdescription'], ['program desc', 'program description']),
-    semester: pick(['semester', 'currentsemester', 'stynumber', 'stymax', 'semestercode'], ['semester', 'term']),
+    program: pick(
+      ['program', 'programdesc', 'programname', 'programcode'],
+      ['program', 'course', 'degree']
+    ),
+    programdesc: pick(
+      ['programdesc', 'programdescription'],
+      ['program desc', 'program description']
+    ),
+    semester: pick(
+      ['semester', 'currentsemester', 'stynumber', 'stymax', 'semestercode'],
+      ['semester', 'term']
+    ),
     sectioncode: pick(['sectioncode', 'section', 'sec', 'sectionname'], ['section']),
     batch: pick(['batch', 'batchyear', 'admissionbatch'], ['batch']),
     academicyear: pick(['academicyear', 'academic_year'], ['academic year']),
     admissionyear: pick(['admissionyear', 'yearofadmission'], ['admission year']),
-    instituteemail: pick(['instituteemail', 'studentemail', 'studentemailid'], ['institute email', 'student email']),
-    personalemail: pick(['personalemail', 'personal_email', 'alt_email', 'studentpersonalemailid', 'parentemailid'], ['personal email', 'parent email']),
+    instituteemail: pick(
+      ['instituteemail', 'studentemail', 'studentemailid'],
+      ['institute email', 'student email']
+    ),
+    personalemail: pick(
+      ['personalemail', 'personal_email', 'alt_email', 'studentpersonalemailid', 'parentemailid'],
+      ['personal email', 'parent email']
+    ),
     fathername: pick(['fathername', 'father_name', 'fathersname'], ['father name']),
     mothername: pick(['mothername', 'mother_name', 'mothersname'], ['mother name']),
     gender: pick(['gender'], ['gender']),
     dateofbirth: pick(['dateofbirth', 'dob', 'birthdate', 'studentdob'], ['date of birth', 'dob']),
-    mobile: pick(['mobileno', 'mobile', 'phone', 'studentmobile', 'studentcellno'], ['mobile', 'phone', 'cell']),
-    alternatecontact: pick(['alternatecontact', 'altmobile', 'alternate_mobile', 'parentcellno', 'parenttelephoneno'], ['alternate contact', 'guardian mobile', 'parent mobile']),
+    mobile: pick(
+      ['mobileno', 'mobile', 'phone', 'studentmobile', 'studentcellno'],
+      ['mobile', 'phone', 'cell']
+    ),
+    alternatecontact: pick(
+      ['alternatecontact', 'altmobile', 'alternate_mobile', 'parentcellno', 'parenttelephoneno'],
+      ['alternate contact', 'guardian mobile', 'parent mobile']
+    ),
     bloodgroup: pick(['bloodgroup', 'blood_group'], ['blood group']),
     category: pick(['category'], ['category']),
     nationality: pick(['nationality'], ['nationality']),
@@ -1209,8 +1418,14 @@ const mapProfile = (studentInfo = {}) => {
     studentid: pick(['studentid', 'student_id'], ['student id']),
     memberid: pick(['memberid', 'member_id'], ['member id']),
     branchid: pick(['branchid', 'branch_id'], ['branch id']),
-    branch: pick(['branch', 'branchname', 'specialization', 'stream'], ['branch', 'specialization', 'stream']),
-    branchcode: pick(['branchcode', 'branch_code', 'branchabbr', 'branchshortcode'], ['branch code', 'branch abbr']),
+    branch: pick(
+      ['branch', 'branchname', 'specialization', 'stream'],
+      ['branch', 'specialization', 'stream']
+    ),
+    branchcode: pick(
+      ['branchcode', 'branch_code', 'branchabbr', 'branchshortcode'],
+      ['branch code', 'branch abbr']
+    ),
     branchdesc: pick(
       ['branchdesc', 'branchdescription', 'branchname', 'branch', 'specialization'],
       ['branch desc', 'branch description', 'branch name', 'specialization']
@@ -1222,17 +1437,23 @@ const mapProfile = (studentInfo = {}) => {
     registrationno: pick(['registrationno', 'registration_no'], ['registration no']),
     institutecode: pick(['institutecode', 'institute_code'], ['institute code']),
     address: pick(['address', 'currentaddress', 'caddress'], ['address', 'current address']),
-    permanentaddress: pick(['permanentaddress', 'permanent_address', 'paddress'], ['permanent address']),
+    permanentaddress: pick(
+      ['permanentaddress', 'permanent_address', 'paddress'],
+      ['permanent address']
+    ),
     city: pick(['city', 'cityname', 'ccityname', 'pcityname'], ['city']),
     state: pick(['state', 'statename', 'cstate', 'cstatename', 'pstatename'], ['state']),
-    pincode: pick(['pincode', 'zip', 'postalcode', 'cpostalcode', 'ppostalcode'], ['postal code', 'pincode', 'zip']),
+    pincode: pick(
+      ['pincode', 'zip', 'postalcode', 'cpostalcode', 'ppostalcode'],
+      ['postal code', 'pincode', 'zip']
+    ),
     cdistrict: pick(['cdistrict'], ['district']),
-    studentphoto: extractPhotoScalar(rawPhoto) || extractPhotoScalar(source)
+    studentphoto: extractPhotoScalar(rawPhoto) || extractPhotoScalar(source),
   };
 
   return {
     ...normalized,
-    ...extractScalarFields(source, Object.keys(normalized))
+    ...extractScalarFields(source, Object.keys(normalized)),
   };
 };
 
@@ -1246,7 +1467,7 @@ const mapAttendanceHeaderToProfile = (header = {}, latestSemesterCode = null) =>
   branchdesc: pickFirst(header, ['branchdesc', 'branchdescription', 'branch', 'branchname']),
   branchcode: pickFirst(header, ['branchcode', 'branch_code']),
   branchid: pickFirst(header, ['branchid', 'branch_id']),
-  programid: pickFirst(header, ['programid', 'program_id'])
+  programid: pickFirst(header, ['programid', 'program_id']),
 });
 
 const getSemesterById = (semesters = [], registrationId) =>
@@ -1292,7 +1513,7 @@ const normalizeGradeCardSummaries = (semesters = [], gradeCards = {}) => {
 
       for (const subject of subjectMap.values()) {
         const gp = subject.gradepoint;
-        const credit = subject.credit;
+        const { credit } = subject;
         if (Number.isFinite(gp)) {
           plainPoints += gp;
           plainCount += 1;
@@ -1303,7 +1524,12 @@ const normalizeGradeCardSummaries = (semesters = [], gradeCards = {}) => {
         }
       }
 
-      const sgpa = totalCredits > 0 ? weightedPoints / totalCredits : plainCount > 0 ? plainPoints / plainCount : 0;
+      const sgpa =
+        totalCredits > 0
+          ? weightedPoints / totalCredits
+          : plainCount > 0
+            ? plainPoints / plainCount
+            : 0;
 
       // Skip semesters that only have assessment rows without grade points yet.
       if (plainCount <= 0 && totalCredits <= 0) {
@@ -1316,11 +1542,15 @@ const normalizeGradeCardSummaries = (semesters = [], gradeCards = {}) => {
         credits: totalCredits,
         earnedPoints: weightedPoints,
         sgpa,
-        cgpa: 0
+        cgpa: 0,
       };
     })
     .filter(Boolean)
-    .sort((a, b) => semesterSortScore(a.registration_code, a.registration_id) - semesterSortScore(b.registration_code, b.registration_id));
+    .sort(
+      (a, b) =>
+        semesterSortScore(a.registration_code, a.registration_id) -
+        semesterSortScore(b.registration_code, b.registration_id)
+    );
 
   let cumulativePoints = 0;
   let cumulativeCredits = 0;
@@ -1340,9 +1570,13 @@ const normalizeGradeCardSummaries = (semesters = [], gradeCards = {}) => {
       sgpa: numberOr(row.sgpa, 0),
       cgpa: numberOr(row.cgpa, 0),
       credits: row.credits,
-      earnedPoints: numberOr(row.earnedPoints, 0)
+      earnedPoints: numberOr(row.earnedPoints, 0),
     }))
-    .sort((a, b) => semesterSortScore(b.registration_code, b.registration_id) - semesterSortScore(a.registration_code, a.registration_id));
+    .sort(
+      (a, b) =>
+        semesterSortScore(b.registration_code, b.registration_id) -
+        semesterSortScore(a.registration_code, a.registration_id)
+    );
 };
 
 const buildAuthContextFromRelaySession = (relaySession) => {
@@ -1356,7 +1590,7 @@ const buildAuthContextFromRelaySession = (relaySession) => {
     enrollmentno: regdata?.enrollmentno || null,
     userid: regdata?.userid || null,
     memberid: regdata?.memberid || null,
-    membertype: regdata?.membertype || null
+    membertype: regdata?.membertype || null,
   };
 };
 
@@ -1373,7 +1607,9 @@ const extractCandidateExamRows = (payload = {}) => {
       if (!Array.isArray(value) || !value.length || typeof value[0] !== 'object') continue;
       const localScore = value.reduce((acc, row) => {
         const rowKeys = Object.keys(row || {}).map((key) => normalizeKey(key));
-        const rowSignal = tokens.some((token) => rowKeys.some((key) => key.includes(token))) ? 1 : 0;
+        const rowSignal = tokens.some((token) => rowKeys.some((key) => key.includes(token)))
+          ? 1
+          : 0;
         return acc + rowSignal;
       }, 0);
       if (localScore > bestScore) {
@@ -1474,7 +1710,7 @@ const formatExamTimeValue = (value) => {
     return fromTimestamp.toLocaleTimeString('en-IN', {
       hour: '2-digit',
       minute: '2-digit',
-      hour12: true
+      hour12: true,
     });
   }
 
@@ -1502,7 +1738,9 @@ const extractTimeRangeFromText = (value) => {
 };
 
 const hasMeaningfulExamValue = (value) => {
-  const text = String(value || '').trim().toLowerCase();
+  const text = String(value || '')
+    .trim()
+    .toLowerCase();
   if (!text || text === '-') return false;
   if (text.includes('pending')) return false;
   if (text === 'tba' || text === 'na' || text === 'n/a') return false;
@@ -1510,8 +1748,14 @@ const hasMeaningfulExamValue = (value) => {
 };
 
 const shouldDropUnknownExamRow = (row = {}) => {
-  const subjectText = String(row?.subject || '').trim().toLowerCase();
-  const unknownSubject = !subjectText || subjectText === 'subject' || subjectText === 'exam event' || subjectText === 'unknown';
+  const subjectText = String(row?.subject || '')
+    .trim()
+    .toLowerCase();
+  const unknownSubject =
+    !subjectText ||
+    subjectText === 'subject' ||
+    subjectText === 'exam event' ||
+    subjectText === 'unknown';
   if (!unknownSubject) return false;
 
   const hasSignals =
@@ -1532,25 +1776,47 @@ const normalizeExamRows = (payload) => {
     response?.examlist,
     response?.timetable,
     Array.isArray(response) ? response : null,
-    extractCandidateExamRows(payload)
+    extractCandidateExamRows(payload),
   ];
 
-  const rawRows = candidates
-    .filter((rows) => Array.isArray(rows) && rows.length)
-    .flat();
+  const rawRows = candidates.filter((rows) => Array.isArray(rows) && rows.length).flat();
 
   const mapped = rawRows.map((row) => {
-    const firstMeaningful = (...values) => values.find((value) => hasMeaningfulExamValue(value)) || null;
-    const dynamicDateValue = pickByKeyContains(row, ['exam date', 'schedule date', 'date', 'exam on', 'paper date']);
-    const dynamicSlotValue = pickByKeyContains(row, ['slot', 'shift', 'session', 'period', 'window']);
-    const dynamicTimeValue = pickByKeyContains(row, ['exam time', 'time', 'timing', 'slot time', 'from time', 'to time']);
-    const dynamicRoomValue = pickByKeyContains(row, ['room', 'hall', 'center', 'venue', 'block', 'building']);
+    const firstMeaningful = (...values) =>
+      values.find((value) => hasMeaningfulExamValue(value)) || null;
+    const dynamicDateValue = pickByKeyContains(row, [
+      'exam date',
+      'schedule date',
+      'date',
+      'exam on',
+      'paper date',
+    ]);
+    const dynamicSlotValue = pickByKeyContains(row, [
+      'slot',
+      'shift',
+      'session',
+      'period',
+      'window',
+    ]);
+    const dynamicTimeValue = pickByKeyContains(row, [
+      'exam time',
+      'time',
+      'timing',
+      'slot time',
+      'from time',
+      'to time',
+    ]);
+    const dynamicRoomValue = pickByKeyContains(row, [
+      'room',
+      'hall',
+      'center',
+      'venue',
+      'block',
+      'building',
+    ]);
     const dynamicSeatValue = pickByKeyContains(row, ['seat', 'roll']);
 
-    const examDateTime =
-      row?.examdatetime ||
-      row?.examdateandtime ||
-      null;
+    const examDateTime = row?.examdatetime || row?.examdateandtime || null;
 
     const slotStart =
       row?.datetimefrom ||
@@ -1698,7 +1964,7 @@ const normalizeExamRows = (payload) => {
           row?.seatalloted,
           dynamicSeatValue
         ) || null,
-      raw: row
+      raw: row,
     };
   });
 
@@ -1712,7 +1978,7 @@ const normalizeExamRows = (payload) => {
       String(row.date || '').toLowerCase(),
       String(row.time || '').toLowerCase(),
       String(row.slot || '').toLowerCase(),
-      String(row.room || '').toLowerCase()
+      String(row.room || '').toLowerCase(),
     ].join('|');
     if (seen.has(key)) continue;
     seen.add(key);
@@ -1730,19 +1996,32 @@ const normalizeExamEvents = (payload) => {
     exameventid: row?.exameventid || null,
     studentid: row?.studentid || row?.student_id || row?.memberid || null,
     subject: row?.exameventdesc || row?.exameventcode || 'Exam Event',
-    date: formatExamDateValue(row?.eventfrom || row?.examfrom || row?.eventdate || row?.eventdatetime || '-'),
+    date: formatExamDateValue(
+      row?.eventfrom || row?.examfrom || row?.eventdate || row?.eventdatetime || '-'
+    ),
     slot: row?.slot || row?.slotdesc || row?.eventslot || row?.exameventcode || '-',
-    time: formatExamTimeValue(row?.eventtime || row?.timing || row?.eventto || row?.eventdatetime || '-'),
+    time: formatExamTimeValue(
+      row?.eventtime || row?.timing || row?.eventto || row?.eventdatetime || '-'
+    ),
     room: row?.venue || row?.hall || row?.examcenter || row?.centrename || 'TBA',
-    seat_number: row?.seatno || row?.seatnumber || row?.seat || row?.seat_no || row?.rollno || row?.rollnumber || null,
+    seat_number:
+      row?.seatno ||
+      row?.seatnumber ||
+      row?.seat ||
+      row?.seat_no ||
+      row?.rollno ||
+      row?.rollnumber ||
+      null,
     registration_id: row?.registrationid || null,
     registration_code: row?.registrationcode || row?.registrationdesc || null,
-    raw: row
+    raw: row,
   }));
 };
 
 const normalizeFeeStatus = (rawStatus, totalDemand, paidAmount, dueAmount) => {
-  const statusText = String(rawStatus || '').trim().toLowerCase();
+  const statusText = String(rawStatus || '')
+    .trim()
+    .toLowerCase();
 
   if (dueAmount <= 0 && paidAmount > 0) return 'Paid';
   if (paidAmount > 0 && dueAmount > 0) return 'Partially Paid';
@@ -1750,8 +2029,10 @@ const normalizeFeeStatus = (rawStatus, totalDemand, paidAmount, dueAmount) => {
   if (totalDemand > 0 && paidAmount <= 0 && dueAmount <= 0) return 'Unpaid';
 
   if (statusText.includes('partial')) return 'Partially Paid';
-  if (statusText.includes('pending') || statusText.includes('due') || statusText.includes('unpaid')) return 'Unpaid';
-  if (statusText.includes('paid') || statusText.includes('clear') || statusText.includes('settled')) return 'Paid';
+  if (statusText.includes('pending') || statusText.includes('due') || statusText.includes('unpaid'))
+    return 'Unpaid';
+  if (statusText.includes('paid') || statusText.includes('clear') || statusText.includes('settled'))
+    return 'Paid';
 
   if (dueAmount > 0) return 'Unpaid';
   if (paidAmount > 0) return 'Paid';
@@ -1777,29 +2058,56 @@ const normalizeFeeRows = (payload = {}, semesters = []) => {
     response?.studentfeelist,
     response?.demandlist,
     response?.semesterfees,
-    Array.isArray(response) ? response : null
+    Array.isArray(response) ? response : null,
   ];
 
-  const explicitRows = candidates
-    .filter((arr) => Array.isArray(arr) && arr.length)
-    .flat();
+  const explicitRows = candidates.filter((arr) => Array.isArray(arr) && arr.length).flat();
   const rows = explicitRows.length ? explicitRows : extractCandidateFeeRows(response);
 
   const semesterCodeById = new Map(
-    (semesters || []).map((sem) => [String(sem?.registration_id || ''), sem?.registration_code || null])
+    (semesters || []).map((sem) => [
+      String(sem?.registration_id || ''),
+      sem?.registration_code || null,
+    ])
   );
 
   const normalizedRows = rows.map((row, idx) => {
     const totalDemandRaw =
-      pickFirst(row, ['feeamount', 'totaldemand', 'demandamount', 'demand', 'totalfee', 'feesamount', 'netdemand']) ||
-      pickByKeyContains(row, ['fee amount', 'total demand', 'demand', 'total fee']);
+      pickFirst(row, [
+        'feeamount',
+        'totaldemand',
+        'demandamount',
+        'demand',
+        'totalfee',
+        'feesamount',
+        'netdemand',
+      ]) || pickByKeyContains(row, ['fee amount', 'total demand', 'demand', 'total fee']);
     const dueAmountRaw =
       pickFirst(row, ['dueamount', 'pendingamount', 'dues', 'outstanding', 'balanceamount']) ||
       pickByKeyContains(row, ['due amount', 'pending', 'outstanding', 'balance']) ||
       null;
     const paidAmountRaw =
-      pickFirst(row, ['paidamount', 'amountpaid', 'paid', 'totalpaid', 'paidfeeamount', 'receivedamount', 'receiveamount', 'depositamount', 'transactionamount', 'paidtotal']) ||
-      pickByKeyContains(row, ['paid amount', 'amount paid', 'paid', 'payment amount', 'received amount', 'deposit amount', 'transaction amount']);
+      pickFirst(row, [
+        'paidamount',
+        'amountpaid',
+        'paid',
+        'totalpaid',
+        'paidfeeamount',
+        'receivedamount',
+        'receiveamount',
+        'depositamount',
+        'transactionamount',
+        'paidtotal',
+      ]) ||
+      pickByKeyContains(row, [
+        'paid amount',
+        'amount paid',
+        'paid',
+        'payment amount',
+        'received amount',
+        'deposit amount',
+        'transaction amount',
+      ]);
 
     const totalDemand = Number.isFinite(parseOptionalAmount(totalDemandRaw))
       ? parseOptionalAmount(totalDemandRaw)
@@ -1814,14 +2122,22 @@ const normalizeFeeRows = (payload = {}, semesters = []) => {
     const resolvedDueAmount = Number.isFinite(dueAmount)
       ? dueAmount
       : Math.max(0, totalDemand - paidAmount);
-    const registrationId = pickFirst(row, ['registrationid', 'registration_id']) || semesters[idx]?.registration_id || null;
+    const registrationId =
+      pickFirst(row, ['registrationid', 'registration_id']) ||
+      semesters[idx]?.registration_id ||
+      null;
     const registrationCodeRaw =
-      pickFirst(row, ['registrationcode', 'registration_code', 'registrationdesc', 'semester', 'semestercode']) ||
+      pickFirst(row, [
+        'registrationcode',
+        'registration_code',
+        'registrationdesc',
+        'semester',
+        'semestercode',
+      ]) ||
       pickByKeyContains(row, ['registration code', 'registration', 'semester', 'term']) ||
       null;
     const semesterLabel =
-      pickFirst(row, ['registrationdesc', 'semestername', 'semestertitle', 'termname']) ||
-      null;
+      pickFirst(row, ['registrationdesc', 'semestername', 'semestertitle', 'termname']) || null;
     const registrationCode =
       registrationCodeRaw ||
       semesterCodeById.get(String(registrationId || '')) ||
@@ -1836,22 +2152,53 @@ const normalizeFeeRows = (payload = {}, semesters = []) => {
       total_demand: totalDemand,
       paid_amount: paidAmount,
       due_amount: resolvedDueAmount,
-      fine_amount: numberOr(pickFirst(row, ['fineamount', 'fine', 'latefee', 'latefeeamount']) || pickByKeyContains(row, ['fine', 'late fee', 'penalty']), 0),
+      fine_amount: numberOr(
+        pickFirst(row, ['fineamount', 'fine', 'latefee', 'latefeeamount']) ||
+          pickByKeyContains(row, ['fine', 'late fee', 'penalty']),
+        0
+      ),
       status: normalizeFeeStatus(rawStatus, totalDemand, paidAmount, resolvedDueAmount),
-      payment_date: pickFirst(row, ['paymentdate', 'lastpaymentdate', 'transactiondate', 'updatedon']) || null,
-      raw: row
+      payment_date:
+        pickFirst(row, ['paymentdate', 'lastpaymentdate', 'transactiondate', 'updatedon']) || null,
+      raw: row,
     };
   });
 
   const filteredRows = normalizedRows.filter((row) => {
-    return Number(row.total_demand || 0) > 0 || Number(row.paid_amount || 0) > 0 || Number(row.due_amount || 0) > 0;
+    return (
+      Number(row.total_demand || 0) > 0 ||
+      Number(row.paid_amount || 0) > 0 ||
+      Number(row.due_amount || 0) > 0
+    );
   });
 
   if (filteredRows.length) return filteredRows;
 
-  const scalarTotalRaw = pickFirst(response, ['totaldemand', 'demandamount', 'totalfee']) || pickByKeyContains(response, ['total demand', 'demand', 'total fee', 'fee amount']);
-  const scalarPaidRaw = pickFirst(response, ['paidamount', 'amountpaid', 'totalpaid', 'receivedamount', 'receiveamount', 'depositamount', 'transactionamount', 'paidtotal']) || pickByKeyContains(response, ['paid amount', 'amount paid', 'paid', 'received amount', 'deposit amount', 'transaction amount']);
-  const scalarDueRaw = pickFirst(response, ['dueamount', 'pendingamount', 'outstanding']) || pickByKeyContains(response, ['due amount', 'pending', 'outstanding', 'balance']);
+  const scalarTotalRaw =
+    pickFirst(response, ['totaldemand', 'demandamount', 'totalfee']) ||
+    pickByKeyContains(response, ['total demand', 'demand', 'total fee', 'fee amount']);
+  const scalarPaidRaw =
+    pickFirst(response, [
+      'paidamount',
+      'amountpaid',
+      'totalpaid',
+      'receivedamount',
+      'receiveamount',
+      'depositamount',
+      'transactionamount',
+      'paidtotal',
+    ]) ||
+    pickByKeyContains(response, [
+      'paid amount',
+      'amount paid',
+      'paid',
+      'received amount',
+      'deposit amount',
+      'transaction amount',
+    ]);
+  const scalarDueRaw =
+    pickFirst(response, ['dueamount', 'pendingamount', 'outstanding']) ||
+    pickByKeyContains(response, ['due amount', 'pending', 'outstanding', 'balance']);
 
   const scalarTotal = Number.isFinite(parseOptionalAmount(scalarTotalRaw))
     ? parseOptionalAmount(scalarTotalRaw)
@@ -1871,11 +2218,29 @@ const normalizeFeeRows = (payload = {}, semesters = []) => {
     total_demand: scalarTotal,
     paid_amount: scalarPaid,
     due_amount: scalarDue,
-    fine_amount: numberOr(pickFirst(response, ['fineamount', 'fine', 'latefee']) || pickByKeyContains(response, ['fine', 'late fee', 'penalty']), 0)
+    fine_amount: numberOr(
+      pickFirst(response, ['fineamount', 'fine', 'latefee']) ||
+        pickByKeyContains(response, ['fine', 'late fee', 'penalty']),
+      0
+    ),
   };
 
-  if (scalarSummary.total_demand || scalarSummary.paid_amount || scalarSummary.due_amount || scalarSummary.fine_amount) {
-    return [{ registration_id: null, registration_code: 'Overall', ...scalarSummary, status: null, payment_date: null, raw: response }];
+  if (
+    scalarSummary.total_demand ||
+    scalarSummary.paid_amount ||
+    scalarSummary.due_amount ||
+    scalarSummary.fine_amount
+  ) {
+    return [
+      {
+        registration_id: null,
+        registration_code: 'Overall',
+        ...scalarSummary,
+        status: null,
+        payment_date: null,
+        raw: response,
+      },
+    ];
   }
 
   return [];
@@ -1885,15 +2250,23 @@ const consolidateFeeRows = (rows = []) => {
   const list = Array.isArray(rows) ? rows : [];
   if (!list.length) return [];
 
-  const semesterRows = list.filter((row) => row?.registration_id || row?.registration_code || row?.semester_label);
+  const semesterRows = list.filter(
+    (row) => row?.registration_id || row?.registration_code || row?.semester_label
+  );
   const source = semesterRows.length ? semesterRows : list;
   const grouped = new Map();
 
   for (const row of source) {
     const key = [
-      String(row?.registration_id || '').trim().toLowerCase(),
-      String(row?.registration_code || '').trim().toLowerCase(),
-      String(row?.semester_label || '').trim().toLowerCase()
+      String(row?.registration_id || '')
+        .trim()
+        .toLowerCase(),
+      String(row?.registration_code || '')
+        .trim()
+        .toLowerCase(),
+      String(row?.semester_label || '')
+        .trim()
+        .toLowerCase(),
     ].join('|');
 
     const current = grouped.get(key) || {
@@ -1906,17 +2279,22 @@ const consolidateFeeRows = (rows = []) => {
       fine_amount: 0,
       status: row?.status || null,
       payment_date: row?.payment_date || null,
-      raw: row?.raw || null
+      raw: row?.raw || null,
     };
 
-    current.total_demand = Math.max(Number(current.total_demand || 0), Number(row?.total_demand || 0));
+    current.total_demand = Math.max(
+      Number(current.total_demand || 0),
+      Number(row?.total_demand || 0)
+    );
     current.paid_amount = Math.max(Number(current.paid_amount || 0), Number(row?.paid_amount || 0));
     current.due_amount = Math.max(Number(current.due_amount || 0), Number(row?.due_amount || 0));
     current.fine_amount = Math.max(Number(current.fine_amount || 0), Number(row?.fine_amount || 0));
 
     if (!current.payment_date && row?.payment_date) current.payment_date = row.payment_date;
-    if (!current.registration_id && row?.registration_id) current.registration_id = row.registration_id;
-    if (!current.registration_code && row?.registration_code) current.registration_code = row.registration_code;
+    if (!current.registration_id && row?.registration_id)
+      current.registration_id = row.registration_id;
+    if (!current.registration_code && row?.registration_code)
+      current.registration_code = row.registration_code;
     if (!current.semester_label && row?.semester_label) current.semester_label = row.semester_label;
     if (!current.status && row?.status) current.status = row.status;
 
@@ -1944,10 +2322,15 @@ const consolidateFeeRows = (rows = []) => {
         ...row,
         paid_amount: paid,
         due_amount: due,
-        status: normalizeFeeStatus(row?.status, total, paid, due)
+        status: normalizeFeeStatus(row?.status, total, paid, due),
       };
     })
-    .filter((row) => Number(row.total_demand || 0) > 0 || Number(row.paid_amount || 0) > 0 || Number(row.due_amount || 0) > 0);
+    .filter(
+      (row) =>
+        Number(row.total_demand || 0) > 0 ||
+        Number(row.paid_amount || 0) > 0 ||
+        Number(row.due_amount || 0) > 0
+    );
 };
 
 const buildFeePayloadCandidatesForEndpoint = (endpoint, authContext, semesters = []) => {
@@ -1958,7 +2341,7 @@ const buildFeePayloadCandidatesForEndpoint = (endpoint, authContext, semesters =
       memberid: authContext.memberid,
       userid: authContext.userid,
       enrollmentno: authContext.enrollmentno,
-      clientid: authContext.clientid
+      clientid: authContext.clientid,
     },
     {
       instituteid: authContext.instituteid,
@@ -1968,8 +2351,8 @@ const buildFeePayloadCandidatesForEndpoint = (endpoint, authContext, semesters =
       enrollmentno: authContext.enrollmentno,
       clientid: authContext.clientid,
       registrationid: semesters[0]?.registration_id,
-      registrationcode: semesters[0]?.registration_code
-    }
+      registrationcode: semesters[0]?.registration_code,
+    },
   ];
 
   for (const sem of semesters) {
@@ -1981,7 +2364,7 @@ const buildFeePayloadCandidatesForEndpoint = (endpoint, authContext, semesters =
       enrollmentno: authContext.enrollmentno,
       clientid: authContext.clientid,
       registrationid: sem?.registration_id,
-      registrationcode: sem?.registration_code
+      registrationcode: sem?.registration_code,
     });
   }
 
@@ -1990,15 +2373,27 @@ const buildFeePayloadCandidatesForEndpoint = (endpoint, authContext, semesters =
     return [
       { instituteid: authContext.instituteid },
       { instituteid: authContext.instituteid, studentid: authContext.memberid },
-      { instituteid: authContext.instituteid, studentid: authContext.memberid, clientid: authContext.clientid }
+      {
+        instituteid: authContext.instituteid,
+        studentid: authContext.memberid,
+        clientid: authContext.clientid,
+      },
     ];
   }
 
   if (endpoint === '/StudentPortalAPI/collectionpendingpayments/getpendingpaymentsdata') {
     return [
       { instituteid: authContext.instituteid, studentid: authContext.memberid },
-      { instituteid: authContext.instituteid, studentid: authContext.memberid, memberid: authContext.memberid },
-      { instituteid: authContext.instituteid, studentid: authContext.memberid, clientid: authContext.clientid }
+      {
+        instituteid: authContext.instituteid,
+        studentid: authContext.memberid,
+        memberid: authContext.memberid,
+      },
+      {
+        instituteid: authContext.instituteid,
+        studentid: authContext.memberid,
+        clientid: authContext.clientid,
+      },
     ];
   }
 
@@ -2015,7 +2410,7 @@ const shouldUsePlainFeePayload = (endpoint) =>
     '/StudentPortalAPI/studentfeemgmt/getstudent-feedetails',
     '/StudentPortalAPI/studentfeemgmt/getstudentfee-details',
     '/StudentPortalAPI/studentfeemgmt/getstudentfeepaymentdetail',
-    '/StudentPortalAPI/studentfeemgmt/getsemesterwisefeedetails'
+    '/StudentPortalAPI/studentfeemgmt/getsemesterwisefeedetails',
   ].includes(endpoint);
 
 /**
@@ -2061,7 +2456,7 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
     overall: 'not-started',
     reason: '',
     generatedAt: new Date().toISOString(),
-    steps: {}
+    steps: {},
   };
 
   const dataset = {
@@ -2075,26 +2470,27 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
     gradeCards: {},
     exams: [],
     fees: [],
-    profile: authContext?.name || authContext?.enrollmentno
-      ? {
-          studentname: authContext.name || null,
-          enrollmentno: authContext.enrollmentno || authContext.userid || null,
-          instituteemail: authContext.userid?.includes('@') ? authContext.userid : null,
-          studentid: authContext.memberid || null,
-          memberid: authContext.memberid || null,
-          userid: authContext.userid || null,
-          instituteid: authContext.instituteid || null,
-          clientid: authContext.clientid || null,
-          program: null,
-          semester: null,
-          sectioncode: null,
-          batch: null,
-          source: 'login-auth-context'
-        }
-      : null,
+    profile:
+      authContext?.name || authContext?.enrollmentno
+        ? {
+            studentname: authContext.name || null,
+            enrollmentno: authContext.enrollmentno || authContext.userid || null,
+            instituteemail: authContext.userid?.includes('@') ? authContext.userid : null,
+            studentid: authContext.memberid || null,
+            memberid: authContext.memberid || null,
+            userid: authContext.userid || null,
+            instituteid: authContext.instituteid || null,
+            clientid: authContext.clientid || null,
+            program: null,
+            semester: null,
+            sectioncode: null,
+            batch: null,
+            source: 'login-auth-context',
+          }
+        : null,
     subjects: {},
     attendanceHeaders: [],
-    diagnostics
+    diagnostics,
   };
 
   const setStep = (key, info) => {
@@ -2104,7 +2500,7 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
       httpStatus: info.httpStatus,
       responseStatus: info.responseStatus,
       message: info.message || '',
-      at: new Date().toISOString()
+      at: new Date().toISOString(),
     };
   };
 
@@ -2118,69 +2514,143 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
 
   try {
     // ── PHASE 1: Fire all independent initial requests in parallel ──
-    const [profileRes, gradeStudentInfoRes, gradeRegRes, attendanceMetaRes, semEventRes, feeSummaryRes] =
-      await Promise.all([
-        safe(postPortal(relaySession, authContext,
+    const [
+      profileRes,
+      gradeStudentInfoRes,
+      gradeRegRes,
+      attendanceMetaRes,
+      semEventRes,
+      feeSummaryRes,
+    ] = await Promise.all([
+      safe(
+        postPortal(
+          relaySession,
+          authContext,
           '/StudentPortalAPI/studentpersinfo/getstudent-personalinformation',
           { clinetid: authContext.clientid || 'SOAU', instituteid: authContext.instituteid },
-          { encrypted: false })),
-        safe(postPortal(relaySession, authContext,
-          '/StudentPortalAPI/studentgradecard/getstudentinfo',
-          { instituteid: authContext.instituteid })),
-        safe(postPortal(relaySession, authContext,
+          { encrypted: false }
+        )
+      ),
+      safe(
+        postPortal(relaySession, authContext, '/StudentPortalAPI/studentgradecard/getstudentinfo', {
+          instituteid: authContext.instituteid,
+        })
+      ),
+      safe(
+        postPortal(
+          relaySession,
+          authContext,
           '/StudentPortalAPI/studentgradecard/getregistrationList',
-          { instituteid: authContext.instituteid })),
-        safe(postPortal(relaySession, authContext,
+          { instituteid: authContext.instituteid }
+        )
+      ),
+      safe(
+        postPortal(
+          relaySession,
+          authContext,
           '/StudentPortalAPI/StudentClassAttendance/getstudentInforegistrationforattendence',
-          { clientid: authContext.clientid, instituteid: authContext.instituteid, membertype: authContext.membertype || 'S' },
-          { encrypted: false })),
-        safe(postPortal(relaySession, authContext,
+          {
+            clientid: authContext.clientid,
+            instituteid: authContext.instituteid,
+            membertype: authContext.membertype || 'S',
+          },
+          { encrypted: false }
+        )
+      ),
+      safe(
+        postPortal(
+          relaySession,
+          authContext,
           '/StudentPortalAPI/studentcommonsontroller/getsemestercode-withstudentexamevents',
-          { clientid: authContext.clientid, instituteid: authContext.instituteid, memberid: authContext.memberid })),
-        safe(postPortal(relaySession, authContext,
+          {
+            clientid: authContext.clientid,
+            instituteid: authContext.instituteid,
+            memberid: authContext.memberid,
+          }
+        )
+      ),
+      safe(
+        postPortal(
+          relaySession,
+          authContext,
           '/StudentPortalAPI/studentfeeledger/loadfeesummary',
           { instituteid: authContext.instituteid },
-          { encrypted: false }))
-      ]);
+          { encrypted: false }
+        )
+      ),
+    ]);
 
     // ── Process profile ──
     if (profileRes?.ok && statusSuccess(profileRes.data)) {
-      setStep('profile', { status: 'ok', endpoint: '/StudentPortalAPI/studentpersinfo/getstudent-personalinformation', httpStatus: profileRes.status, responseStatus: profileRes.data?.status?.responseStatus || '' });
+      setStep('profile', {
+        status: 'ok',
+        endpoint: '/StudentPortalAPI/studentpersinfo/getstudent-personalinformation',
+        httpStatus: profileRes.status,
+        responseStatus: profileRes.data?.status?.responseStatus || '',
+      });
       const responseRoot = profileRes.data?.response || {};
-      const studentInfo = responseRoot?.studentpersonalinformation || responseRoot?.studentinfo || extractBestProfileSource(profileRes.data);
+      const studentInfo =
+        responseRoot?.studentpersonalinformation ||
+        responseRoot?.studentinfo ||
+        extractBestProfileSource(profileRes.data);
       if (studentInfo || responseRoot) {
         const mergedProfile = {
           ...stripEmptyProfileValues(mapProfile(studentInfo || {})),
-          ...stripEmptyProfileValues(mapProfile(responseRoot || {}))
+          ...stripEmptyProfileValues(mapProfile(responseRoot || {})),
         };
         dataset.profile = { ...(dataset.profile || {}), ...mergedProfile };
         dataset.realData = true;
       }
     } else {
-      setStep('profile', { status: 'failed', endpoint: '/StudentPortalAPI/studentpersinfo/getstudent-personalinformation', httpStatus: profileRes?.status, responseStatus: profileRes?.data?.status?.responseStatus || '', message: extractStatusMessage(profileRes?.data) });
+      setStep('profile', {
+        status: 'failed',
+        endpoint: '/StudentPortalAPI/studentpersinfo/getstudent-personalinformation',
+        httpStatus: profileRes?.status,
+        responseStatus: profileRes?.data?.status?.responseStatus || '',
+        message: extractStatusMessage(profileRes?.data),
+      });
     }
 
     // ── Process grades metadata & semesters ──
-    const gradeStudentInfo = gradeStudentInfoRes?.ok && statusSuccess(gradeStudentInfoRes.data) ? gradeStudentInfoRes.data?.response?.studentinfo : null;
-    const gradeRegistrations = gradeRegRes?.ok && statusSuccess(gradeRegRes.data) ? normalizeSemesters(gradeRegRes.data?.response?.registrations || []) : [];
+    const gradeStudentInfo =
+      gradeStudentInfoRes?.ok && statusSuccess(gradeStudentInfoRes.data)
+        ? gradeStudentInfoRes.data?.response?.studentinfo
+        : null;
+    const gradeRegistrations =
+      gradeRegRes?.ok && statusSuccess(gradeRegRes.data)
+        ? normalizeSemesters(gradeRegRes.data?.response?.registrations || [])
+        : [];
     const registration = gradeRegRes?.data ? firstRegistration(gradeRegRes.data) : null;
 
     if (gradeStudentInfo && registration?.registrationid) {
       dataset.profile = {
         ...(dataset.profile || {}),
-        ...stripEmptyProfileValues(mapProfile(gradeStudentInfo))
+        ...stripEmptyProfileValues(mapProfile(gradeStudentInfo)),
       };
-      dataset.semesters = sortSemestersDesc(gradeRegistrations.length ? gradeRegistrations : normalizeSemesters([registration]));
+      dataset.semesters = sortSemestersDesc(
+        gradeRegistrations.length ? gradeRegistrations : normalizeSemesters([registration])
+      );
     }
 
     // ── Process attendance meta & merge semesters ──
-    const attendanceSemRows = attendanceMetaRes?.ok && statusSuccess(attendanceMetaRes.data) ? attendanceMetaRes.data?.response?.semlist || [] : [];
-    const attendanceHeaderRows = attendanceMetaRes?.ok && statusSuccess(attendanceMetaRes.data) ? attendanceMetaRes.data?.response?.headerlist || [] : [];
+    const attendanceSemRows =
+      attendanceMetaRes?.ok && statusSuccess(attendanceMetaRes.data)
+        ? attendanceMetaRes.data?.response?.semlist || []
+        : [];
+    const attendanceHeaderRows =
+      attendanceMetaRes?.ok && statusSuccess(attendanceMetaRes.data)
+        ? attendanceMetaRes.data?.response?.headerlist || []
+        : [];
     const normalizedAttendanceSems = normalizeSemesters(attendanceSemRows);
     if (normalizedAttendanceSems.length) {
       const merged = [...normalizedAttendanceSems];
       dataset.semesters.forEach((sem) => {
-        if (!merged.find((existing) => String(existing.registration_id) === String(sem.registration_id))) merged.push(sem);
+        if (
+          !merged.find(
+            (existing) => String(existing.registration_id) === String(sem.registration_id)
+          )
+        )
+          merged.push(sem);
       });
       dataset.semesters = sortSemestersDesc(merged);
     }
@@ -2189,51 +2659,104 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
       dataset.profile = {
         ...(dataset.profile || {}),
         ...stripEmptyProfileValues(
-          mapAttendanceHeaderToProfile(attendanceHeaderRows[0], dataset.semesters[0]?.registration_code || null)
-        )
+          mapAttendanceHeaderToProfile(
+            attendanceHeaderRows[0],
+            dataset.semesters[0]?.registration_code || null
+          )
+        ),
       };
       // Enrich semester rows with stynumber from the attendance header if missing
-      const headerStynumber = attendanceHeaderRows[0]?.stynumber || attendanceHeaderRows[0]?.sty_number;
+      const headerStynumber =
+        attendanceHeaderRows[0]?.stynumber || attendanceHeaderRows[0]?.sty_number;
       if (headerStynumber) {
         dataset.profile.stynumber = dataset.profile.stynumber || headerStynumber;
         dataset.semesters = dataset.semesters.map((sem, idx) => ({
           ...sem,
-          stynumber: sem.stynumber || (idx === 0 ? headerStynumber : null)
+          stynumber: sem.stynumber || (idx === 0 ? headerStynumber : null),
         }));
       }
     }
-    setStep('attendanceMeta', { status: attendanceMetaRes?.ok && statusSuccess(attendanceMetaRes.data) ? 'ok' : 'failed', endpoint: '/StudentPortalAPI/StudentClassAttendance/getstudentInforegistrationforattendence', httpStatus: attendanceMetaRes?.status, responseStatus: attendanceMetaRes?.data?.status?.responseStatus || '' });
+    setStep('attendanceMeta', {
+      status: attendanceMetaRes?.ok && statusSuccess(attendanceMetaRes.data) ? 'ok' : 'failed',
+      endpoint: '/StudentPortalAPI/StudentClassAttendance/getstudentInforegistrationforattendence',
+      httpStatus: attendanceMetaRes?.status,
+      responseStatus: attendanceMetaRes?.data?.status?.responseStatus || '',
+    });
 
     // ── Process fee summary (fast path — only loadfeesummary) ──
     if (feeSummaryRes?.ok && statusSuccess(feeSummaryRes.data)) {
-      setStep('fees', { status: 'ok', endpoint: '/StudentPortalAPI/studentfeeledger/loadfeesummary', httpStatus: feeSummaryRes.status, responseStatus: feeSummaryRes.data?.status?.responseStatus || '' });
+      setStep('fees', {
+        status: 'ok',
+        endpoint: '/StudentPortalAPI/studentfeeledger/loadfeesummary',
+        httpStatus: feeSummaryRes.status,
+        responseStatus: feeSummaryRes.data?.status?.responseStatus || '',
+      });
       const feeRows = normalizeFeeRows(feeSummaryRes.data, dataset.semesters);
       if (feeRows.length) {
         dataset.fees = consolidateFeeRows(feeRows);
         dataset.realData = true;
       }
     } else {
-      setStep('fees', { status: 'failed', endpoint: '/StudentPortalAPI/studentfeeledger/loadfeesummary', httpStatus: feeSummaryRes?.status, responseStatus: feeSummaryRes?.data?.status?.responseStatus || '', message: extractStatusMessage(feeSummaryRes?.data) });
+      setStep('fees', {
+        status: 'failed',
+        endpoint: '/StudentPortalAPI/studentfeeledger/loadfeesummary',
+        httpStatus: feeSummaryRes?.status,
+        responseStatus: feeSummaryRes?.data?.status?.responseStatus || '',
+        message: extractStatusMessage(feeSummaryRes?.data),
+      });
     }
 
     // ── Process exam semesters ──
-    const examSemesters = semEventRes?.ok && statusSuccess(semEventRes.data) ? normalizeSemesters(semEventRes.data?.response?.semesterCodeinfo?.semestercode || []) : [];
-    const semestersToProcess = examSemesters.length ? examSemesters : (semEventRes?.data ? normalizeSemesters([firstRegistration(semEventRes.data)]) : []);
+    const examSemesters =
+      semEventRes?.ok && statusSuccess(semEventRes.data)
+        ? normalizeSemesters(semEventRes.data?.response?.semesterCodeinfo?.semestercode || [])
+        : [];
+    const semestersToProcess = examSemesters.length
+      ? examSemesters
+      : semEventRes?.data
+        ? normalizeSemesters([firstRegistration(semEventRes.data)])
+        : [];
     if (includeExamHydration) {
-      setStep('examSemesters', { status: semEventRes?.ok && statusSuccess(semEventRes.data) ? 'ok' : 'failed', endpoint: '/StudentPortalAPI/studentcommonsontroller/getsemestercode-withstudentexamevents', httpStatus: semEventRes?.status, responseStatus: semEventRes?.data?.status?.responseStatus || '' });
+      setStep('examSemesters', {
+        status: semEventRes?.ok && statusSuccess(semEventRes.data) ? 'ok' : 'failed',
+        endpoint: '/StudentPortalAPI/studentcommonsontroller/getsemestercode-withstudentexamevents',
+        httpStatus: semEventRes?.status,
+        responseStatus: semEventRes?.data?.status?.responseStatus || '',
+      });
     } else {
-      setStep('examSemesters', { status: 'skipped', endpoint: '/StudentPortalAPI/studentcommonsontroller/getsemestercode-withstudentexamevents', httpStatus: semEventRes?.status, responseStatus: semEventRes?.data?.status?.responseStatus || '', message: 'Deferred to on-demand exams loading' });
+      setStep('examSemesters', {
+        status: 'skipped',
+        endpoint: '/StudentPortalAPI/studentcommonsontroller/getsemestercode-withstudentexamevents',
+        httpStatus: semEventRes?.status,
+        responseStatus: semEventRes?.data?.status?.responseStatus || '',
+        message: 'Deferred to on-demand exams loading',
+      });
     }
 
     // ── PHASE 2: Parallel per-semester work + exam events ──
-    const latestHeader = Array.isArray(attendanceHeaderRows) && attendanceHeaderRows.length ? attendanceHeaderRows[0] : null;
+    const latestHeader =
+      Array.isArray(attendanceHeaderRows) && attendanceHeaderRows.length
+        ? attendanceHeaderRows[0]
+        : null;
 
-    const gradeCardPromises = (gradeStudentInfo && dataset.semesters.length) ? dataset.semesters.map((sem) =>
-      safe(postPortal(relaySession, authContext,
-        '/StudentPortalAPI/studentgradecard/showstudentgradecard',
-        { instituteid: authContext.instituteid, registrationid: sem.registration_id, branchid: gradeStudentInfo.branchid, programid: gradeStudentInfo.programid }
-      ).then((res) => ({ sem, res })))
-    ) : [];
+    const gradeCardPromises =
+      gradeStudentInfo && dataset.semesters.length
+        ? dataset.semesters.map((sem) =>
+            safe(
+              postPortal(
+                relaySession,
+                authContext,
+                '/StudentPortalAPI/studentgradecard/showstudentgradecard',
+                {
+                  instituteid: authContext.instituteid,
+                  registrationid: sem.registration_id,
+                  branchid: gradeStudentInfo.branchid,
+                  programid: gradeStudentInfo.programid,
+                }
+              ).then((res) => ({ sem, res }))
+            )
+          )
+        : [];
 
     const maxAttendanceSemesters = Math.max(1, Number(env.portalBootstrapAttendanceSemesters || 1));
     const attendanceHydrationSemesters = Array.isArray(dataset.semesters)
@@ -2242,28 +2765,56 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
 
     // Attendance hydration NO LONGER gated on latestHeader?.stynumber.
     // resolveStynumber provides resilient fallback resolution.
-    const attendancePromises = attendanceHydrationSemesters.length ? attendanceHydrationSemesters.map((sem) => {
-      const stynumber = resolveStynumber(sem, dataset);
-      if (!sem?.registration_id || !sem?.registration_code) return null;
-      // stynumber may be null — attempt the call anyway; the portal will
-      // return empty rows rather than error, and we lose nothing.
-      return safe(Promise.all([
-        postPortal(relaySession, authContext,
-          '/StudentPortalAPI/StudentClassAttendance/getstudentattendancedetail',
-          { clientid: authContext.clientid, instituteid: authContext.instituteid, registrationcode: sem.registration_code, registrationid: sem.registration_id, stynumber: stynumber || '' }),
-        postPortal(relaySession, authContext,
-          '/StudentPortalAPI/reqsubfaculty/getfaculties',
-          { instituteid: authContext.instituteid, studentid: authContext.memberid, registrationid: sem.registration_id })
-      ]).then(([attRes, subRes]) => ({ sem, attRes, subRes })));
-    }).filter(Boolean) : [];
+    const attendancePromises = attendanceHydrationSemesters.length
+      ? attendanceHydrationSemesters
+          .map((sem) => {
+            const stynumber = resolveStynumber(sem, dataset);
+            if (!sem?.registration_id || !sem?.registration_code) return null;
+            // stynumber may be null — attempt the call anyway; the portal will
+            // return empty rows rather than error, and we lose nothing.
+            return safe(
+              Promise.all([
+                postPortal(
+                  relaySession,
+                  authContext,
+                  '/StudentPortalAPI/StudentClassAttendance/getstudentattendancedetail',
+                  {
+                    clientid: authContext.clientid,
+                    instituteid: authContext.instituteid,
+                    registrationcode: sem.registration_code,
+                    registrationid: sem.registration_id,
+                    stynumber: stynumber || '',
+                  }
+                ),
+                postPortal(
+                  relaySession,
+                  authContext,
+                  '/StudentPortalAPI/reqsubfaculty/getfaculties',
+                  {
+                    instituteid: authContext.instituteid,
+                    studentid: authContext.memberid,
+                    registrationid: sem.registration_id,
+                  }
+                ),
+              ]).then(([attRes, subRes]) => ({ sem, attRes, subRes }))
+            );
+          })
+          .filter(Boolean)
+      : [];
 
     const examEventPromises = includeExamHydration
-      ? semestersToProcess.filter((s) => s?.registration_id).map((semReg) =>
-        safe(postPortal(relaySession, authContext,
-          '/StudentPortalAPI/studentcommonsontroller/getstudentexamevents',
-          { instituteid: authContext.instituteid, registationid: semReg.registration_id }
-        ).then((res) => ({ semReg, res })))
-      )
+      ? semestersToProcess
+          .filter((s) => s?.registration_id)
+          .map((semReg) =>
+            safe(
+              postPortal(
+                relaySession,
+                authContext,
+                '/StudentPortalAPI/studentcommonsontroller/getstudentexamevents',
+                { instituteid: authContext.instituteid, registationid: semReg.registration_id }
+              ).then((res) => ({ semReg, res }))
+            )
+          )
       : [];
 
     // ── SGPA/CGPA: Use the new portalGrades service (EXCLUSIVE source of truth) ──
@@ -2276,32 +2827,60 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
 
     const sgpaPromise = portalClient
       ? safe(fetchOfficialGradeSummaries(portalClient, dataset.semesters))
-      : safe((async () => {
-          // Legacy fallback: direct postPortal calls
-          const semesterCheckRes = await postPortal(relaySession, authContext,
-            '/StudentPortalAPI/studentsgpacgpa/checkIfstudentmasterexist',
-            { instituteid: authContext.instituteid, studentid: authContext.memberid, name: authContext.name, enrollmentno: authContext.enrollmentno });
-          const styleNumber = semesterCheckRes?.data?.response?.studentlov?.currentsemester || semesterCheckRes?.data?.response?.currentsemester;
-          if (!styleNumber || !(semesterCheckRes.ok && statusSuccess(semesterCheckRes.data))) return [];
-          const sgpaRes = await postPortal(relaySession, authContext,
-            '/StudentPortalAPI/studentsgpacgpa/getallsemesterdata',
-            { instituteid: authContext.instituteid, studentid: authContext.memberid, stynumber: styleNumber });
-          if (!(sgpaRes?.ok && statusSuccess(sgpaRes.data))) return [];
-          const sgpaRows = sgpaRes.data?.response?.semesterdata || sgpaRes.data?.response?.sgpacgpalist || sgpaRes.data?.response?.semesterList || [];
-          return normalizeSgpaCgpaRows(Array.isArray(sgpaRows) ? sgpaRows : [], dataset.semesters);
-        })());
+      : safe(
+          (async () => {
+            // Legacy fallback: direct postPortal calls
+            const semesterCheckRes = await postPortal(
+              relaySession,
+              authContext,
+              '/StudentPortalAPI/studentsgpacgpa/checkIfstudentmasterexist',
+              {
+                instituteid: authContext.instituteid,
+                studentid: authContext.memberid,
+                name: authContext.name,
+                enrollmentno: authContext.enrollmentno,
+              }
+            );
+            const styleNumber =
+              semesterCheckRes?.data?.response?.studentlov?.currentsemester ||
+              semesterCheckRes?.data?.response?.currentsemester;
+            if (!styleNumber || !(semesterCheckRes.ok && statusSuccess(semesterCheckRes.data)))
+              return [];
+            const sgpaRes = await postPortal(
+              relaySession,
+              authContext,
+              '/StudentPortalAPI/studentsgpacgpa/getallsemesterdata',
+              {
+                instituteid: authContext.instituteid,
+                studentid: authContext.memberid,
+                stynumber: styleNumber,
+              }
+            );
+            if (!(sgpaRes?.ok && statusSuccess(sgpaRes.data))) return [];
+            const sgpaRows =
+              sgpaRes.data?.response?.semesterdata ||
+              sgpaRes.data?.response?.sgpacgpalist ||
+              sgpaRes.data?.response?.semesterList ||
+              [];
+            return normalizeSgpaCgpaRows(
+              Array.isArray(sgpaRows) ? sgpaRows : [],
+              dataset.semesters
+            );
+          })()
+        );
 
-    const [gradeCardResults, attendanceResults, examEventResults, officialGradeSummaries] = await Promise.all([
-      Promise.all(gradeCardPromises),
-      Promise.all(attendancePromises),
-      Promise.all(examEventPromises),
-      sgpaPromise
-    ]);
+    const [gradeCardResults, attendanceResults, examEventResults, officialGradeSummaries] =
+      await Promise.all([
+        Promise.all(gradeCardPromises),
+        Promise.all(attendancePromises),
+        Promise.all(examEventPromises),
+        sgpaPromise,
+      ]);
 
     // ── Process grade cards (subjects only — NOT for SGPA/CGPA) ──
     for (const result of gradeCardResults) {
       if (!result?.res?.ok || !statusSuccess(result.res.data)) continue;
-      const sem = result.sem;
+      const { sem } = result;
       const gradeRows = result.res.data?.response?.gradecard || [];
       const normalizedCardRows = normalizeGradeCardRows(gradeRows);
       if (normalizedCardRows.length) {
@@ -2312,7 +2891,9 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
         dataset.subjects[sem.registration_id] = {
           ...(dataset.subjects[sem.registration_id] || { registered: [], faculties: [] }),
           registered: subjects,
-          faculties: (dataset.subjects[sem.registration_id]?.faculties || []).length ? dataset.subjects[sem.registration_id].faculties : subjects.map(() => 'Faculty')
+          faculties: (dataset.subjects[sem.registration_id]?.faculties || []).length
+            ? dataset.subjects[sem.registration_id].faculties
+            : subjects.map(() => 'Faculty'),
         };
       }
     }
@@ -2324,13 +2905,14 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
       dataset.realData = true;
     }
 
-
     // ── Process attendance & subjects per semester ──
     for (const result of attendanceResults) {
       if (!result) continue;
-      const sem = result.sem;
+      const { sem } = result;
       if (result.attRes?.ok && statusSuccess(result.attRes.data)) {
-        const attendanceRows = normalizeAttendanceRows(result.attRes.data?.response?.studentattendancelist || []);
+        const attendanceRows = normalizeAttendanceRows(
+          result.attRes.data?.response?.studentattendancelist || []
+        );
         dataset.attendanceData[sem.registration_id] = { studentattendancelist: attendanceRows };
         dataset.realData = dataset.realData || attendanceRows.length > 0;
       }
@@ -2345,19 +2927,29 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
       const schedulePromises = [];
       for (const result of examEventResults) {
         if (!result?.res) continue;
-        const semReg = result.semReg;
+        const { semReg } = result;
         const examEvents = normalizeExamEvents(result.res.data).map((row) => ({
-          ...row, registration_id: semReg.registration_id, registration_code: semReg.registration_code
+          ...row,
+          registration_id: semReg.registration_id,
+          registration_code: semReg.registration_code,
         }));
         const events = result.res.data?.response?.eventcode?.examevent || [];
         if (Array.isArray(events) && events.length) {
           for (const eventRow of events) {
             if (!eventRow?.exameventid) continue;
             schedulePromises.push(
-              safe(postPortal(relaySession, authContext,
-                '/StudentPortalAPI/studentsttattview/getstudent-examschedule',
-                { instituteid: authContext.instituteid, exameventid: eventRow.exameventid, registrationid: semReg.registration_id }
-              ).then((scheduleRes) => ({ semReg, scheduleRes, examEvents })))
+              safe(
+                postPortal(
+                  relaySession,
+                  authContext,
+                  '/StudentPortalAPI/studentsttattview/getstudent-examschedule',
+                  {
+                    instituteid: authContext.instituteid,
+                    exameventid: eventRow.exameventid,
+                    registrationid: semReg.registration_id,
+                  }
+                ).then((scheduleRes) => ({ semReg, scheduleRes, examEvents }))
+              )
             );
           }
         } else {
@@ -2369,10 +2961,12 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
       const scheduledSems = new Set();
       for (const result of scheduleResults) {
         if (!result) continue;
-        const semReg = result.semReg;
+        const { semReg } = result;
         if (result.scheduleRes?.ok && statusSuccess(result.scheduleRes.data)) {
           const rows = normalizeExamRows(result.scheduleRes.data).map((row) => ({
-            ...row, registration_id: semReg.registration_id, registration_code: semReg.registration_code
+            ...row,
+            registration_id: semReg.registration_id,
+            registration_code: semReg.registration_code,
           }));
           if (rows.length) {
             allExamRows.push(...rows);
@@ -2395,7 +2989,10 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
     // The official getallsemesterdata API is the sole source of truth.
     // Grade cards only provide per-subject detail (grade, credits).
     // Only add credit/earned point metadata from grade cards if the official grades are empty.
-    if ((!Array.isArray(dataset.grades) || !dataset.grades.length) && Object.keys(dataset.gradeCards || {}).length) {
+    if (
+      (!Array.isArray(dataset.grades) || !dataset.grades.length) &&
+      Object.keys(dataset.gradeCards || {}).length
+    ) {
       const gradeCardSummaries = normalizeGradeCardSummaries(dataset.semesters, dataset.gradeCards);
       if (gradeCardSummaries.length) {
         dataset.grades = mergeGradeSummaries(gradeCardSummaries, []);
@@ -2419,7 +3016,10 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
 const ensureSession = (req, res) => {
   const session = getSessionByOwner(ownerKey(req));
   if (!session) {
-    res.status(404).json({ success: false, message: 'Portal session not found. Please login to portal SDK first.' });
+    res.status(404).json({
+      success: false,
+      message: 'Portal session not found. Please login to portal SDK first.',
+    });
     return null;
   }
   return session;
@@ -2476,13 +3076,13 @@ const refreshDatasetRealtime = async (session, req, options = {}) => {
     if (!(relaySession && authContext?.instituteid)) return;
 
     const hydratedDataset = await bootstrapDatasetFromPortal(relaySession, authContext, {
-      includeExamHydration: false
+      includeExamHydration: false,
     });
     session.dataset = {
       ...session.dataset,
       ...hydratedDataset,
       relaySessionId: relaySessionId || hydratedDataset?.relaySessionId || null,
-      lastRealtimeSyncAt: Date.now()
+      lastRealtimeSyncAt: Date.now(),
     };
     session.updatedAt = Date.now();
   })();
@@ -2504,8 +3104,11 @@ const loginSdk = async (req, res) => {
     return res.status(400).json({ success: false, message: 'User ID is required' });
   }
 
-  const authUserId = String(req.user?.userId || '').trim().toLowerCase();
-  const isLocalDemoUserId = authUserId.startsWith('demo.') && authUserId.endsWith('@jiitsphere.local');
+  const authUserId = String(req.user?.userId || '')
+    .trim()
+    .toLowerCase();
+  const isLocalDemoUserId =
+    authUserId.startsWith('demo.') && authUserId.endsWith('@jiitsphere.local');
   const isDemoUser =
     String(req.user?.role || '').toLowerCase() === 'demo' ||
     Boolean(req.user?.demo) ||
@@ -2519,8 +3122,8 @@ const loginSdk = async (req, res) => {
       relaySessionId: null,
       dataset: {
         ...buildPublicDemoDataset(String(userId).trim()),
-        lastRealtimeSyncAt: Date.now()
-      }
+        lastRealtimeSyncAt: Date.now(),
+      },
     });
 
     return res.status(200).json({
@@ -2529,8 +3132,8 @@ const loginSdk = async (req, res) => {
         sessionId: session.sessionId,
         mode: session.dataset.mode,
         realData: session.dataset.realData,
-        userId: session.userId
-      }
+        userId: session.userId,
+      },
     });
   }
 
@@ -2543,15 +3146,17 @@ const loginSdk = async (req, res) => {
   }
 
   const hydratedDataset = {
-    ...(await bootstrapDatasetFromPortal(relaySession, authContext, { includeExamHydration: false })),
-    lastRealtimeSyncAt: Date.now()
+    ...(await bootstrapDatasetFromPortal(relaySession, authContext, {
+      includeExamHydration: false,
+    })),
+    lastRealtimeSyncAt: Date.now(),
   };
 
   const session = createOrUpdateSession({
     ownerId,
     userId: String(userId).trim(),
     relaySessionId,
-    dataset: hydratedDataset
+    dataset: hydratedDataset,
   });
 
   const latestSemesterId = session?.dataset?.semesters?.[0]?.registration_id;
@@ -2565,8 +3170,8 @@ const loginSdk = async (req, res) => {
       sessionId: session.sessionId,
       mode: session.dataset.mode,
       realData: session.dataset.realData,
-      userId: session.userId
-    }
+      userId: session.userId,
+    },
   });
 };
 
@@ -2592,8 +3197,8 @@ const getSdkSession = async (req, res) => {
       userId: session.userId,
       latestSemester: session.dataset.semesters[0] || null,
       semesters: session.dataset.semesters || [],
-      diagnostics: session.dataset.diagnostics || null
-    }
+      diagnostics: session.dataset.diagnostics || null,
+    },
   });
 };
 
@@ -2601,7 +3206,7 @@ const getAttendanceMeta = async (req, res) => {
   const session = ensureSession(req, res);
   if (!session) return undefined;
 
-  const relaySessionId = session.dataset.relaySessionId;
+  const { relaySessionId } = session.dataset;
   const ownerId = ownerKey(req);
   const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
   const authContext = buildAuthContextFromRelaySession(relaySession);
@@ -2610,7 +3215,9 @@ const getAttendanceMeta = async (req, res) => {
   if (relaySession && authContext?.instituteid) {
     try {
       const forceRefresh = parseBooleanLike(req.query?.refresh, false);
-      const meta = await attendanceService.fetchAttendanceMeta(relaySession, authContext, { forceRefresh });
+      const meta = await attendanceService.fetchAttendanceMeta(relaySession, authContext, {
+        forceRefresh,
+      });
 
       // Update session dataset with fresh semesters
       if (meta.semesters.length) {
@@ -2627,9 +3234,9 @@ const getAttendanceMeta = async (req, res) => {
             generatedBy: 'attendance-service',
             realData: session.dataset.realData,
             stynumber: meta.latestStynumber,
-            message: 'Live portal data via attendance service.'
-          }
-        }
+            message: 'Live portal data via attendance service.',
+          },
+        },
       });
     } catch (_err) {
       // Fall through to cached dataset
@@ -2645,9 +3252,9 @@ const getAttendanceMeta = async (req, res) => {
       latest_header: {
         generatedBy: 'direct-portal-only',
         realData: session.dataset.realData,
-        message: 'Current official portal data is shown below.'
-      }
-    }
+        message: 'Current official portal data is shown below.',
+      },
+    },
   });
 };
 
@@ -2662,7 +3269,7 @@ const hydrateAttendanceForSemester = async (session, req, sem) => {
   // Resilient stynumber resolution — no longer hard-gates on it
   const stynumber = resolveStynumber(semesterRow, session.dataset);
 
-  const relaySessionId = session.dataset.relaySessionId;
+  const { relaySessionId } = session.dataset;
   const ownerId = ownerKey(req);
   const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
   const authContext = buildAuthContextFromRelaySession(relaySession);
@@ -2671,33 +3278,35 @@ const hydrateAttendanceForSemester = async (session, req, sem) => {
   }
 
   const [attRes, subRes] = await Promise.all([
-    postPortal(relaySession, authContext,
+    postPortal(
+      relaySession,
+      authContext,
       '/StudentPortalAPI/StudentClassAttendance/getstudentattendancedetail',
       {
         clientid: authContext.clientid,
         instituteid: authContext.instituteid,
         registrationcode: semesterRow.registration_code,
         registrationid: semesterRow.registration_id,
-        stynumber: stynumber || ''
+        stynumber: stynumber || '',
       }
     ),
-    postPortal(relaySession, authContext,
-      '/StudentPortalAPI/reqsubfaculty/getfaculties',
-      {
-        instituteid: authContext.instituteid,
-        studentid: authContext.memberid,
-        registrationid: semesterRow.registration_id
-      }
-    )
+    postPortal(relaySession, authContext, '/StudentPortalAPI/reqsubfaculty/getfaculties', {
+      instituteid: authContext.instituteid,
+      studentid: authContext.memberid,
+      registrationid: semesterRow.registration_id,
+    }),
   ]);
 
   let hydrated = null;
   if (attRes?.ok && statusSuccess(attRes.data)) {
     hydrated = {
-      studentattendancelist: normalizeAttendanceRows(attRes.data?.response?.studentattendancelist || [])
+      studentattendancelist: normalizeAttendanceRows(
+        attRes.data?.response?.studentattendancelist || []
+      ),
     };
     session.dataset.attendanceData[sem] = hydrated;
-    session.dataset.realData = session.dataset.realData || hydrated.studentattendancelist.length > 0;
+    session.dataset.realData =
+      session.dataset.realData || hydrated.studentattendancelist.length > 0;
   }
 
   if (subRes?.ok && statusSuccess(subRes.data)) {
@@ -2733,41 +3342,76 @@ const mapWithConcurrency = async (items = [], concurrency = 1, mapper) => {
 const computeDailyCountSummary = (rows = []) => {
   const list = Array.isArray(rows) ? rows : [];
   const toPresence = (value) => {
-    const compact = String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    const compact = String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
     if (!compact) return 'unknown';
-    if (compact === 'present' || compact === 'p' || compact === '1' || compact.startsWith('present') || compact.includes('attended')) {
+    if (
+      compact === 'present' ||
+      compact === 'p' ||
+      compact === '1' ||
+      compact.startsWith('present') ||
+      compact.includes('attended')
+    ) {
       return 'present';
     }
-    if (compact === 'absent' || compact === 'a' || compact === '0' || compact.startsWith('absent') || compact.includes('missed')) {
+    if (
+      compact === 'absent' ||
+      compact === 'a' ||
+      compact === '0' ||
+      compact.startsWith('absent') ||
+      compact.includes('missed')
+    ) {
       return 'absent';
     }
     return 'unknown';
   };
 
-  const normalized = list.map((entry) => toPresence(entry?.present)).filter((value) => value === 'present' || value === 'absent');
+  const normalized = list
+    .map((entry) => toPresence(entry?.present))
+    .filter((value) => value === 'present' || value === 'absent');
   const total = normalized.length;
   const attended = normalized.filter((value) => value === 'present').length;
   return { attended, total };
 };
 
 const findSubjectAttendanceRow = (attendanceRows = [], subject = '') => {
-  const target = String(subject || '').trim().toLowerCase();
+  const target = String(subject || '')
+    .trim()
+    .toLowerCase();
   if (!target) return null;
-  return attendanceRows.find((row) => (
-    String(row?.subjectcode || '').trim().toLowerCase() === target ||
-    String(row?.individualsubjectcode || '').trim().toLowerCase() === target ||
-    String(row?.subjectdesc || '').trim().toLowerCase() === target ||
-    String(row?.subjectdesc || '').trim().toLowerCase().includes(target)
-  ));
+  return attendanceRows.find(
+    (row) =>
+      String(row?.subjectcode || '')
+        .trim()
+        .toLowerCase() === target ||
+      String(row?.individualsubjectcode || '')
+        .trim()
+        .toLowerCase() === target ||
+      String(row?.subjectdesc || '')
+        .trim()
+        .toLowerCase() === target ||
+      String(row?.subjectdesc || '')
+        .trim()
+        .toLowerCase()
+        .includes(target)
+  );
 };
 
 const findSubjectDetailRow = (subjectDetails = [], subject = '') => {
-  const target = String(subject || '').trim().toLowerCase();
+  const target = String(subject || '')
+    .trim()
+    .toLowerCase();
   if (!target || !Array.isArray(subjectDetails)) return null;
 
   return subjectDetails.find((row) => {
-    const code = String(row?.subjectcode || row?.individualsubjectcode || '').trim().toLowerCase();
-    const desc = String(row?.subjectdesc || row?.subjectname || '').trim().toLowerCase();
+    const code = String(row?.subjectcode || row?.individualsubjectcode || '')
+      .trim()
+      .toLowerCase();
+    const desc = String(row?.subjectdesc || row?.subjectname || '')
+      .trim()
+      .toLowerCase();
     return (
       code === target ||
       desc === target ||
@@ -2778,12 +3422,18 @@ const findSubjectDetailRow = (subjectDetails = [], subject = '') => {
 };
 
 const findGradeSubjectRow = (gradeRows = [], subject = '') => {
-  const target = String(subject || '').trim().toLowerCase();
+  const target = String(subject || '')
+    .trim()
+    .toLowerCase();
   if (!target || !Array.isArray(gradeRows)) return null;
 
   return gradeRows.find((row) => {
-    const code = String(row?.subjectcode || '').trim().toLowerCase();
-    const desc = String(row?.subjectdesc || row?.subjectname || '').trim().toLowerCase();
+    const code = String(row?.subjectcode || '')
+      .trim()
+      .toLowerCase();
+    const desc = String(row?.subjectdesc || row?.subjectname || '')
+      .trim()
+      .toLowerCase();
     return (
       code === target ||
       desc === target ||
@@ -2797,7 +3447,9 @@ const resolveSubjectContext = (session, sem, attendanceRows = [], subject = '') 
   const attendanceRow = findSubjectAttendanceRow(attendanceRows, subject);
   const subjectDetails = session?.dataset?.subjects?.[sem]?.details || [];
   const detailRow = findSubjectDetailRow(subjectDetails, subject);
-  const gradeRows = Array.isArray(session?.dataset?.gradeCards?.[sem]) ? session.dataset.gradeCards[sem] : [];
+  const gradeRows = Array.isArray(session?.dataset?.gradeCards?.[sem])
+    ? session.dataset.gradeCards[sem]
+    : [];
   const gradeRow = findGradeSubjectRow(gradeRows, subject);
 
   const detailRaw = detailRow?.raw || {};
@@ -2828,20 +3480,58 @@ const resolveSubjectContext = (session, sem, attendanceRows = [], subject = '') 
 
   const Lsubjectcomponentid =
     attendanceRow?.Lsubjectcomponentid ||
-    pickFirst(detailRaw, ['Lsubjectcomponentid', 'lsubjectcomponentid', 'lsubjectcomponent_id', 'lecturecomponentid', 'lcomponentid']) ||
-    pickFirst(attendanceRaw, ['Lsubjectcomponentid', 'lsubjectcomponentid', 'lsubjectcomponent_id', 'lecturecomponentid', 'lcomponentid']) ||
+    pickFirst(detailRaw, [
+      'Lsubjectcomponentid',
+      'lsubjectcomponentid',
+      'lsubjectcomponent_id',
+      'lecturecomponentid',
+      'lcomponentid',
+    ]) ||
+    pickFirst(attendanceRaw, [
+      'Lsubjectcomponentid',
+      'lsubjectcomponentid',
+      'lsubjectcomponent_id',
+      'lecturecomponentid',
+      'lcomponentid',
+    ]) ||
     null;
 
   const Tsubjectcomponentid =
     attendanceRow?.Tsubjectcomponentid ||
-    pickFirst(detailRaw, ['Tsubjectcomponentid', 'tsubjectcomponentid', 'tsubjectcomponent_id', 'tutorialcomponentid', 'tcomponentid']) ||
-    pickFirst(attendanceRaw, ['Tsubjectcomponentid', 'tsubjectcomponentid', 'tsubjectcomponent_id', 'tutorialcomponentid', 'tcomponentid']) ||
+    pickFirst(detailRaw, [
+      'Tsubjectcomponentid',
+      'tsubjectcomponentid',
+      'tsubjectcomponent_id',
+      'tutorialcomponentid',
+      'tcomponentid',
+    ]) ||
+    pickFirst(attendanceRaw, [
+      'Tsubjectcomponentid',
+      'tsubjectcomponentid',
+      'tsubjectcomponent_id',
+      'tutorialcomponentid',
+      'tcomponentid',
+    ]) ||
     null;
 
   const Psubjectcomponentid =
     attendanceRow?.Psubjectcomponentid ||
-    pickFirst(detailRaw, ['Psubjectcomponentid', 'psubjectcomponentid', 'psubjectcomponent_id', 'practicalcomponentid', 'labcomponentid', 'pcomponentid']) ||
-    pickFirst(attendanceRaw, ['Psubjectcomponentid', 'psubjectcomponentid', 'psubjectcomponent_id', 'practicalcomponentid', 'labcomponentid', 'pcomponentid']) ||
+    pickFirst(detailRaw, [
+      'Psubjectcomponentid',
+      'psubjectcomponentid',
+      'psubjectcomponent_id',
+      'practicalcomponentid',
+      'labcomponentid',
+      'pcomponentid',
+    ]) ||
+    pickFirst(attendanceRaw, [
+      'Psubjectcomponentid',
+      'psubjectcomponentid',
+      'psubjectcomponent_id',
+      'practicalcomponentid',
+      'labcomponentid',
+      'pcomponentid',
+    ]) ||
     null;
 
   return {
@@ -2850,7 +3540,7 @@ const resolveSubjectContext = (session, sem, attendanceRows = [], subject = '') 
     subjectid,
     Lsubjectcomponentid,
     Tsubjectcomponentid,
-    Psubjectcomponentid
+    Psubjectcomponentid,
   };
 };
 
@@ -2861,7 +3551,7 @@ const resolveSubjectDailyPayload = async (session, req, sem, subject) => {
   if (!subjectCode) {
     return {
       studentAttdsummarylist: [],
-      message: 'Subject code is required.'
+      message: 'Subject code is required.',
     };
   }
 
@@ -2878,7 +3568,7 @@ const resolveSubjectDailyPayload = async (session, req, sem, subject) => {
   }
 
   const fetchPromise = (async () => {
-    const relaySessionId = session.dataset.relaySessionId;
+    const { relaySessionId } = session.dataset;
     const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
     const authContext = buildAuthContextFromRelaySession(relaySession);
 
@@ -2904,7 +3594,7 @@ const resolveSubjectDailyPayload = async (session, req, sem, subject) => {
       const cmpidkey = [
         subjectContext?.Lsubjectcomponentid,
         subjectContext?.Tsubjectcomponentid,
-        subjectContext?.Psubjectcomponentid
+        subjectContext?.Psubjectcomponentid,
       ]
         .filter(Boolean)
         .map((subjectcomponentid) => ({ subjectcomponentid }));
@@ -2920,8 +3610,9 @@ const resolveSubjectDailyPayload = async (session, req, sem, subject) => {
           registrationcode: semesterRow.registration_code,
           registrationid: semesterRow.registration_id,
           studentid: authContext.memberid,
-          subjectcode: subjectContext?.individualsubjectcode || subjectContext?.subjectcode || subjectCode,
-          subjectid: subjectContext?.subjectid || ''
+          subjectcode:
+            subjectContext?.individualsubjectcode || subjectContext?.subjectcode || subjectCode,
+          subjectid: subjectContext?.subjectid || '',
         }
       );
 
@@ -2929,7 +3620,9 @@ const resolveSubjectDailyPayload = async (session, req, sem, subject) => {
         const rows = dayRes.data?.response?.studentAttdsummarylist || [];
         const payload = {
           studentAttdsummarylist: normalizeSubjectDailyRows(rows),
-          message: dayRes.data?.message || (rows.length ? '' : 'No day-to-day attendance is available for this subject yet.')
+          message:
+            dayRes.data?.message ||
+            (rows.length ? '' : 'No day-to-day attendance is available for this subject yet.'),
         };
         session.dataset.subjectDailyData[key] = payload;
         return payload;
@@ -2938,7 +3631,8 @@ const resolveSubjectDailyPayload = async (session, req, sem, subject) => {
 
     const emptyPayload = {
       studentAttdsummarylist: [],
-      message: 'No day-to-day attendance was returned for this subject in the current portal session.'
+      message:
+        'No day-to-day attendance was returned for this subject in the current portal session.',
     };
     session.dataset.subjectDailyData[key] = emptyPayload;
     return emptyPayload;
@@ -2998,20 +3692,26 @@ const getAttendance = async (req, res) => {
   // Check session cache first (fast path)
   if (!forceRefresh) {
     const direct = session.dataset.attendanceData[sem];
-    if (direct && Array.isArray(direct.studentattendancelist) && direct.studentattendancelist.length) {
+    if (
+      direct &&
+      Array.isArray(direct.studentattendancelist) &&
+      direct.studentattendancelist.length
+    ) {
       return res.status(200).json({ success: true, data: direct });
     }
   }
 
   // Use clean attendance service for on-demand fetch
-  const relaySessionId = session.dataset.relaySessionId;
+  const { relaySessionId } = session.dataset;
   const ownerId = ownerKey(req);
   const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
   const authContext = buildAuthContextFromRelaySession(relaySession);
 
   if (relaySession && authContext?.instituteid) {
     try {
-      const result = await attendanceService.fetchAttendance(relaySession, authContext, sem, { forceRefresh });
+      const result = await attendanceService.fetchAttendance(relaySession, authContext, sem, {
+        forceRefresh,
+      });
       if (result.studentattendancelist.length) {
         // Update session cache
         session.dataset.attendanceData[sem] = result;
@@ -3034,8 +3734,8 @@ const getAttendance = async (req, res) => {
     success: true,
     data: session.dataset.attendanceData[sem] || {
       studentattendancelist: [],
-      message: 'No attendance rows were returned by current portal session.'
-    }
+      message: 'No attendance rows were returned by current portal session.',
+    },
   });
 };
 
@@ -3064,7 +3764,7 @@ const getAttendanceCounts = async (req, res) => {
       counts[subjectCode] = {
         attended: Math.max(0, Math.min(directAttended, directTotal)),
         total: directTotal,
-        source: 'direct'
+        source: 'direct',
       };
       continue;
     }
@@ -3074,14 +3774,19 @@ const getAttendanceCounts = async (req, res) => {
 
   await mapWithConcurrency(pendingRows, 4, async ({ subjectCode }) => {
     try {
-      const relaySessionId = session.dataset.relaySessionId;
+      const { relaySessionId } = session.dataset;
       const ownerId = ownerKey(req);
       const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
       const authContext = buildAuthContextFromRelaySession(relaySession);
 
       let payload = null;
       if (relaySession && authContext?.instituteid) {
-        payload = await attendanceService.fetchSubjectDailyAttendance(relaySession, authContext, sem, subjectCode);
+        payload = await attendanceService.fetchSubjectDailyAttendance(
+          relaySession,
+          authContext,
+          sem,
+          subjectCode
+        );
       } else {
         payload = await resolveSubjectDailyPayload(session, req, sem, subjectCode);
       }
@@ -3091,14 +3796,14 @@ const getAttendanceCounts = async (req, res) => {
         attended: summary.attended,
         total: summary.total,
         source: 'daily',
-        message: payload?.message || ''
+        message: payload?.message || '',
       };
     } catch (error) {
       counts[subjectCode] = {
         attended: 0,
         total: 0,
         source: 'daily',
-        message: error?.message || 'Unable to load day-to-day attendance for this subject.'
+        message: error?.message || 'Unable to load day-to-day attendance for this subject.',
       };
     }
     return true;
@@ -3108,8 +3813,8 @@ const getAttendanceCounts = async (req, res) => {
     success: true,
     data: {
       semester: sem,
-      counts
-    }
+      counts,
+    },
   });
 };
 
@@ -3121,7 +3826,7 @@ const getSubjectAttendance = async (req, res) => {
   const subject = req.query.subject || '';
 
   // Try clean service first
-  const relaySessionId = session.dataset.relaySessionId;
+  const { relaySessionId } = session.dataset;
   const ownerId = ownerKey(req);
   const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
   const authContext = buildAuthContextFromRelaySession(relaySession);
@@ -3129,7 +3834,10 @@ const getSubjectAttendance = async (req, res) => {
   if (relaySession && authContext?.instituteid) {
     try {
       const result = await attendanceService.fetchSubjectDailyAttendance(
-        relaySession, authContext, sem, subject
+        relaySession,
+        authContext,
+        sem,
+        subject
       );
       if (result.studentAttdsummarylist.length) {
         return res.status(200).json({ success: true, data: result });
@@ -3143,12 +3851,12 @@ const getSubjectAttendance = async (req, res) => {
   const payload = await resolveSubjectDailyPayload(session, req, sem, subject);
   return res.status(200).json({
     success: true,
-    data: payload
+    data: payload,
   });
 };
 
 const getProfileOnDemand = async (session, req) => {
-  const relaySessionId = session.dataset.relaySessionId;
+  const { relaySessionId } = session.dataset;
   const ownerId = ownerKey(req);
   const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
   const authContext = buildAuthContextFromRelaySession(relaySession);
@@ -3161,7 +3869,7 @@ const getProfileOnDemand = async (session, req) => {
     '/StudentPortalAPI/studentpersinfo/getstudent-personalinformation',
     '/StudentPortalAPI/studentpersinfo/getstudent-contactinformation',
     '/StudentPortalAPI/studentpersinfo/getstudent-academicinformation',
-    '/StudentPortalAPI/studentpersinfo/getstudent-familyinformation'
+    '/StudentPortalAPI/studentpersinfo/getstudent-familyinformation',
   ];
 
   const primaryPayload = {
@@ -3170,13 +3878,15 @@ const getProfileOnDemand = async (session, req) => {
     studentid: authContext.memberid,
     memberid: authContext.memberid,
     userid: authContext.userid,
-    enrollmentno: authContext.enrollmentno
+    enrollmentno: authContext.enrollmentno,
   };
 
   // Fire all 4 endpoints in parallel with the primary payload
   const results = await Promise.all(
     profileEndpoints.map((endpoint) =>
-      postPortal(relaySession, authContext, endpoint, primaryPayload, { encrypted: false }).catch(() => null)
+      postPortal(relaySession, authContext, endpoint, primaryPayload, { encrypted: false }).catch(
+        () => null
+      )
     )
   );
 
@@ -3194,7 +3904,7 @@ const getProfileOnDemand = async (session, req) => {
       responseRoot?.studentfamilyinformation,
       responseRoot?.studentinfo,
       extractBestProfileSource(response.data),
-      responseRoot
+      responseRoot,
     ].filter(Boolean);
 
     if (!candidates.length) continue;
@@ -3219,7 +3929,7 @@ const getProfileOnDemand = async (session, req) => {
         httpStatus: 200,
         responseStatus: 'SUCCESS',
         message: 'On-demand profile hydration succeeded',
-        at: new Date().toISOString()
+        at: new Date().toISOString(),
       };
     }
     return merged;
@@ -3229,7 +3939,7 @@ const getProfileOnDemand = async (session, req) => {
 };
 
 const getExamsOnDemand = async (session, req) => {
-  const relaySessionId = session.dataset.relaySessionId;
+  const { relaySessionId } = session.dataset;
   const ownerId = ownerKey(req);
   const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
   const authContext = buildAuthContextFromRelaySession(relaySession);
@@ -3245,7 +3955,7 @@ const getExamsOnDemand = async (session, req) => {
     {
       clientid: authContext.clientid,
       instituteid: authContext.instituteid,
-      memberid: authContext.memberid
+      memberid: authContext.memberid,
     }
   );
 
@@ -3253,16 +3963,20 @@ const getExamsOnDemand = async (session, req) => {
     return null;
   }
 
-  const examSemesters = normalizeSemesters(semEventRes.data?.response?.semesterCodeinfo?.semestercode || []);
-  const semestersToProcess = examSemesters.length ? examSemesters : normalizeSemesters([firstRegistration(semEventRes.data)]);
+  const examSemesters = normalizeSemesters(
+    semEventRes.data?.response?.semesterCodeinfo?.semestercode || []
+  );
+  const semestersToProcess = examSemesters.length
+    ? examSemesters
+    : normalizeSemesters([firstRegistration(semEventRes.data)]);
   const allExamRows = [];
   const examEventEndpoints = [
     '/StudentPortalAPI/studentcommonsontroller/getstudentexamevents',
-    '/StudentPortalAPI/studentsttattview/getstudentexamevents'
+    '/StudentPortalAPI/studentsttattview/getstudentexamevents',
   ];
   const examScheduleEndpoints = [
     '/StudentPortalAPI/studentsttattview/getstudent-examschedule',
-    '/StudentPortalAPI/studentcommonsontroller/getstudent-examschedule'
+    '/StudentPortalAPI/studentcommonsontroller/getstudent-examschedule',
   ];
 
   const buildEventPayloads = (semReg) => [
@@ -3274,18 +3988,18 @@ const getExamsOnDemand = async (session, req) => {
       registrationid: semReg.registration_id,
       studentid: authContext.memberid,
       memberid: authContext.memberid,
-      membertype: authContext.membertype || 'S'
+      membertype: authContext.membertype || 'S',
     },
     {
       instituteid: authContext.instituteid,
-      registrationid: semReg.registration_id
+      registrationid: semReg.registration_id,
     },
     {
       clientid: authContext.clientid,
       instituteid: authContext.instituteid,
       registrationcode: semReg.registration_code,
-      registrationid: semReg.registration_id
-    }
+      registrationid: semReg.registration_id,
+    },
   ];
 
   const buildSchedulePayloads = (semReg, exameventid) => [
@@ -3298,150 +4012,165 @@ const getExamsOnDemand = async (session, req) => {
       registationid: semReg.registration_id,
       studentid: authContext.memberid,
       memberid: authContext.memberid,
-      membertype: authContext.membertype || 'S'
+      membertype: authContext.membertype || 'S',
     },
     {
       instituteid: authContext.instituteid,
       exameventid,
-      registrationid: semReg.registration_id
+      registrationid: semReg.registration_id,
     },
     {
       clientid: authContext.clientid,
       instituteid: authContext.instituteid,
       exameventid,
       registrationcode: semReg.registration_code,
-      registrationid: semReg.registration_id
-    }
+      registrationid: semReg.registration_id,
+    },
   ];
 
   // Process all semesters in parallel
-  const semResults = await Promise.all(semestersToProcess.map(async (semRegistration) => {
-    if (!semRegistration?.registration_id) return [];
-    const semScheduleRows = [];
+  const semResults = await Promise.all(
+    semestersToProcess.map(async (semRegistration) => {
+      if (!semRegistration?.registration_id) return [];
+      const semScheduleRows = [];
 
-    // Fire all event endpoint+payload combos in parallel, pick best
-    const eventCombos = examEventEndpoints.flatMap((ep) =>
-      buildEventPayloads(semRegistration).map((p) => ({ endpoint: ep, payload: p }))
-    );
-    const eventResults = await Promise.all(eventCombos.map(({ endpoint, payload }) =>
-      postPortal(relaySession, authContext, endpoint, payload).catch(() => ({ ok: false }))
-    ));
-
-    let eventPayload = null;
-    let eventPayloadScore = -1;
-    for (const eventRes of eventResults) {
-      if (!(eventRes.ok && statusSuccess(eventRes.data))) continue;
-      const candidateEvents = Array.isArray(eventRes.data?.response?.eventcode?.examevent)
-        ? eventRes.data.response.eventcode.examevent.length
-        : 0;
-      const candidateDirectRows = normalizeExamRows(eventRes.data).length;
-      const candidateScore = candidateEvents * 10 + candidateDirectRows;
-      if (candidateScore > eventPayloadScore) {
-        eventPayload = eventRes.data;
-        eventPayloadScore = candidateScore;
-      }
-    }
-
-    if (!eventPayload) return [];
-
-    const examEvents = normalizeExamEvents(eventPayload).map((row) => ({
-      ...row,
-      registration_id: semRegistration.registration_id,
-      registration_code: semRegistration.registration_code
-    }));
-    const directRowsFromEventPayload = normalizeExamRows(eventPayload).map((row) => ({
-      ...row,
-      registration_id: row.registration_id || semRegistration.registration_id,
-      registration_code: row.registration_code || semRegistration.registration_code
-    }));
-    if (directRowsFromEventPayload.length) {
-      semScheduleRows.push(...directRowsFromEventPayload);
-    }
-
-    // Fire all schedule requests for all events in parallel
-    const events = eventPayload?.response?.eventcode?.examevent || [];
-    if (Array.isArray(events) && events.length) {
-      const scheduleWork = events.filter((e) => e?.exameventid).map(async (eventRow) => {
-        const scheduleCombos = examScheduleEndpoints.flatMap((ep) =>
-          buildSchedulePayloads(semRegistration, eventRow.exameventid).map((p) => ({ endpoint: ep, payload: p }))
-        );
-        const scheduleResults = await Promise.all(scheduleCombos.map(({ endpoint, payload }) =>
+      // Fire all event endpoint+payload combos in parallel, pick best
+      const eventCombos = examEventEndpoints.flatMap((ep) =>
+        buildEventPayloads(semRegistration).map((p) => ({ endpoint: ep, payload: p }))
+      );
+      const eventResults = await Promise.all(
+        eventCombos.map(({ endpoint, payload }) =>
           postPortal(relaySession, authContext, endpoint, payload).catch(() => ({ ok: false }))
-        ));
+        )
+      );
 
-        let bestData = null;
-        let bestScore = -1;
-        for (const scheduleRes of scheduleResults) {
+      let eventPayload = null;
+      let eventPayloadScore = -1;
+      for (const eventRes of eventResults) {
+        if (!(eventRes.ok && statusSuccess(eventRes.data))) continue;
+        const candidateEvents = Array.isArray(eventRes.data?.response?.eventcode?.examevent)
+          ? eventRes.data.response.eventcode.examevent.length
+          : 0;
+        const candidateDirectRows = normalizeExamRows(eventRes.data).length;
+        const candidateScore = candidateEvents * 10 + candidateDirectRows;
+        if (candidateScore > eventPayloadScore) {
+          eventPayload = eventRes.data;
+          eventPayloadScore = candidateScore;
+        }
+      }
+
+      if (!eventPayload) return [];
+
+      const examEvents = normalizeExamEvents(eventPayload).map((row) => ({
+        ...row,
+        registration_id: semRegistration.registration_id,
+        registration_code: semRegistration.registration_code,
+      }));
+      const directRowsFromEventPayload = normalizeExamRows(eventPayload).map((row) => ({
+        ...row,
+        registration_id: row.registration_id || semRegistration.registration_id,
+        registration_code: row.registration_code || semRegistration.registration_code,
+      }));
+      if (directRowsFromEventPayload.length) {
+        semScheduleRows.push(...directRowsFromEventPayload);
+      }
+
+      // Fire all schedule requests for all events in parallel
+      const events = eventPayload?.response?.eventcode?.examevent || [];
+      if (Array.isArray(events) && events.length) {
+        const scheduleWork = events
+          .filter((e) => e?.exameventid)
+          .map(async (eventRow) => {
+            const scheduleCombos = examScheduleEndpoints.flatMap((ep) =>
+              buildSchedulePayloads(semRegistration, eventRow.exameventid).map((p) => ({
+                endpoint: ep,
+                payload: p,
+              }))
+            );
+            const scheduleResults = await Promise.all(
+              scheduleCombos.map(({ endpoint, payload }) =>
+                postPortal(relaySession, authContext, endpoint, payload).catch(() => ({
+                  ok: false,
+                }))
+              )
+            );
+
+            let bestData = null;
+            let bestScore = -1;
+            for (const scheduleRes of scheduleResults) {
+              if (!(scheduleRes.ok && statusSuccess(scheduleRes.data))) continue;
+              const candidateRows = normalizeExamRows(scheduleRes.data).length;
+              if (candidateRows > bestScore) {
+                bestData = scheduleRes.data;
+                bestScore = candidateRows;
+              }
+            }
+            if (!bestData) return [];
+            return normalizeExamRows(bestData).map((row) => ({
+              ...row,
+              registration_id: row.registration_id || semRegistration.registration_id,
+              registration_code: row.registration_code || semRegistration.registration_code,
+            }));
+          });
+        const allScheduleRows = await Promise.all(scheduleWork);
+        for (const rows of allScheduleRows) {
+          if (rows.length) semScheduleRows.push(...rows);
+        }
+      }
+
+      // Fallback: if no detailed schedule, try schedule endpoints without event ID
+      const hasDetailedSchedule = semScheduleRows.some(
+        (row) =>
+          (row?.time && row.time !== '-') ||
+          (row?.slot && row.slot !== '-') ||
+          (row?.room && row.room !== '-')
+      );
+
+      if (!hasDetailedSchedule) {
+        const fallbackCombos = examScheduleEndpoints.flatMap((ep) => [
+          {
+            endpoint: ep,
+            payload: {
+              clientid: authContext.clientid,
+              instituteid: authContext.instituteid,
+              registrationcode: semRegistration.registration_code,
+              registrationid: semRegistration.registration_id,
+              registationid: semRegistration.registration_id,
+              studentid: authContext.memberid,
+              memberid: authContext.memberid,
+              membertype: authContext.membertype || 'S',
+            },
+          },
+          {
+            endpoint: ep,
+            payload: {
+              instituteid: authContext.instituteid,
+              registrationid: semRegistration.registration_id,
+            },
+          },
+        ]);
+        const fallbackResults = await Promise.all(
+          fallbackCombos.map(({ endpoint, payload }) =>
+            postPortal(relaySession, authContext, endpoint, payload).catch(() => ({ ok: false }))
+          )
+        );
+        for (const scheduleRes of fallbackResults) {
           if (!(scheduleRes.ok && statusSuccess(scheduleRes.data))) continue;
-          const candidateRows = normalizeExamRows(scheduleRes.data).length;
-          if (candidateRows > bestScore) {
-            bestData = scheduleRes.data;
-            bestScore = candidateRows;
-          }
+          const rows = normalizeExamRows(scheduleRes.data).map((row) => ({
+            ...row,
+            registration_id: row.registration_id || semRegistration.registration_id,
+            registration_code: row.registration_code || semRegistration.registration_code,
+          }));
+          if (rows.length) semScheduleRows.push(...rows);
         }
-        if (!bestData) return [];
-        return normalizeExamRows(bestData).map((row) => ({
-          ...row,
-          registration_id: row.registration_id || semRegistration.registration_id,
-          registration_code: row.registration_code || semRegistration.registration_code
-        }));
-      });
-      const allScheduleRows = await Promise.all(scheduleWork);
-      for (const rows of allScheduleRows) {
-        if (rows.length) semScheduleRows.push(...rows);
       }
-    }
 
-    // Fallback: if no detailed schedule, try schedule endpoints without event ID
-    const hasDetailedSchedule = semScheduleRows.some(
-      (row) =>
-        (row?.time && row.time !== '-') ||
-        (row?.slot && row.slot !== '-') ||
-        (row?.room && row.room !== '-')
-    );
-
-    if (!hasDetailedSchedule) {
-      const fallbackCombos = examScheduleEndpoints.flatMap((ep) => [
-        {
-          endpoint: ep,
-          payload: {
-            clientid: authContext.clientid,
-            instituteid: authContext.instituteid,
-            registrationcode: semRegistration.registration_code,
-            registrationid: semRegistration.registration_id,
-            registationid: semRegistration.registration_id,
-            studentid: authContext.memberid,
-            memberid: authContext.memberid,
-            membertype: authContext.membertype || 'S'
-          }
-        },
-        {
-          endpoint: ep,
-          payload: {
-            instituteid: authContext.instituteid,
-            registrationid: semRegistration.registration_id
-          }
-        }
-      ]);
-      const fallbackResults = await Promise.all(fallbackCombos.map(({ endpoint, payload }) =>
-        postPortal(relaySession, authContext, endpoint, payload).catch(() => ({ ok: false }))
-      ));
-      for (const scheduleRes of fallbackResults) {
-        if (!(scheduleRes.ok && statusSuccess(scheduleRes.data))) continue;
-        const rows = normalizeExamRows(scheduleRes.data).map((row) => ({
-          ...row,
-          registration_id: row.registration_id || semRegistration.registration_id,
-          registration_code: row.registration_code || semRegistration.registration_code
-        }));
-        if (rows.length) semScheduleRows.push(...rows);
+      if (!semScheduleRows.length && examEvents.length) {
+        return examEvents;
       }
-    }
-
-    if (!semScheduleRows.length && examEvents.length) {
-      return examEvents;
-    }
-    return semScheduleRows;
-  }));
+      return semScheduleRows;
+    })
+  );
 
   for (const rows of semResults) {
     allExamRows.push(...rows);
@@ -3457,7 +4186,7 @@ const getExamsOnDemand = async (session, req) => {
       String(row.date || '').toLowerCase(),
       String(row.time || '').toLowerCase(),
       String(row.slot || '').toLowerCase(),
-      String(row.room || '').toLowerCase()
+      String(row.room || '').toLowerCase(),
     ].join('|');
     if (seenRows.has(key)) continue;
     seenRows.add(key);
@@ -3476,7 +4205,7 @@ const getExamsOnDemand = async (session, req) => {
       httpStatus: 200,
       responseStatus: 'SUCCESS',
       message: `On-demand exam hydration loaded ${cleanedRows.length} rows`,
-      at: new Date().toISOString()
+      at: new Date().toISOString(),
     };
   }
 
@@ -3500,9 +4229,11 @@ const getProfile = async (req, res) => {
     profile.mobile,
     profile.fathername,
     profile.mothername,
-    profile.address
+    profile.address,
   ];
-  const usefulProfileCount = usefulProfileFields.filter((value) => value !== null && value !== undefined && String(value).trim() !== '').length;
+  const usefulProfileCount = usefulProfileFields.filter(
+    (value) => value !== null && value !== undefined && String(value).trim() !== ''
+  ).length;
 
   const photoValue = profile.studentphoto;
   const hasProfilePhoto =
@@ -3531,8 +4262,8 @@ const getProfile = async (req, res) => {
     success: true,
     data: session.dataset.profile || {
       realData: false,
-      message: 'No direct profile data available yet.'
-    }
+      message: 'No direct profile data available yet.',
+    },
   });
 };
 
@@ -3546,11 +4277,13 @@ const getProfilePhoto = async (req, res) => {
     message: 'Official portal photo proxy failed',
     debug: {
       sourcePreview: String(req?.query?.source || '').slice(0, 160),
-      ...base
-    }
+      ...base,
+    },
   });
 
-  const source = String(req?.query?.source || '').trim() || resolveProfilePhotoSourceFromSession(session?.dataset?.profile || {});
+  const source =
+    String(req?.query?.source || '').trim() ||
+    resolveProfilePhotoSourceFromSession(session?.dataset?.profile || {});
   const inlinePhoto = decodeInlinePhotoSource(source);
   if (inlinePhoto?.buffer?.length) {
     if (debug) {
@@ -3560,8 +4293,8 @@ const getProfilePhoto = async (req, res) => {
         debug: {
           code: 'INLINE_BASE64_IMAGE',
           contentType: inlinePhoto.contentType,
-          byteLength: inlinePhoto.buffer.length
-        }
+          byteLength: inlinePhoto.buffer.length,
+        },
       });
     }
 
@@ -3574,26 +4307,32 @@ const getProfilePhoto = async (req, res) => {
 
   const photoUrl = normalizePortalPhotoSource(source);
   if (!photoUrl) {
-    return res.status(400).json(
-      debug ? buildDebugPayload({ code: 'INVALID_SOURCE' }) : { success: false, message: 'Invalid profile photo source' }
-    );
+    return res
+      .status(400)
+      .json(
+        debug
+          ? buildDebugPayload({ code: 'INVALID_SOURCE' })
+          : { success: false, message: 'Invalid profile photo source' }
+      );
   }
 
   const relaySessionId = session?.dataset?.relaySessionId;
   const ownerId = ownerKey(req);
   const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
   if (!relaySession) {
-    return res.status(400).json(
-      debug
-        ? buildDebugPayload({ code: 'NO_RELAY_SESSION', normalizedUrl: photoUrl })
-        : { success: false, message: 'No active portal relay session' }
-    );
+    return res
+      .status(400)
+      .json(
+        debug
+          ? buildDebugPayload({ code: 'NO_RELAY_SESSION', normalizedUrl: photoUrl })
+          : { success: false, message: 'No active portal relay session' }
+      );
   }
 
   const headers = {
     Accept: 'image/*,*/*;q=0.8',
     Referer: 'https://webportal.jiit.ac.in:6011/studentportal/#/',
-    Origin: 'https://webportal.jiit.ac.in:6011'
+    Origin: 'https://webportal.jiit.ac.in:6011',
   };
 
   const cookieHeader = buildCookieHeader(relaySession);
@@ -3609,10 +4348,16 @@ const getProfilePhoto = async (req, res) => {
       upstreamStatus: response?.status || 0,
       upstreamStatusText: response?.statusText || '',
       errorName: error?.name || '',
-      errorMessage: error?.message || ''
+      errorMessage: error?.message || '',
     };
     console.warn('[profile-photo-proxy] upstream fetch failed', debugMeta);
-    return res.status(502).json(debug ? buildDebugPayload(debugMeta) : { success: false, message: 'Failed to fetch official portal photo' });
+    return res
+      .status(502)
+      .json(
+        debug
+          ? buildDebugPayload(debugMeta)
+          : { success: false, message: 'Failed to fetch official portal photo' }
+      );
   }
 
   const contentType = String(response.headers.get('content-type') || '').toLowerCase();
@@ -3626,12 +4371,16 @@ const getProfilePhoto = async (req, res) => {
       upstreamStatus: response.status,
       contentType,
       byteLength: buffer.length,
-      preview: textPreview
+      preview: textPreview,
     };
     console.warn('[profile-photo-proxy] upstream returned non-image payload', debugMeta);
-    return res.status(502).json(
-      debug ? buildDebugPayload(debugMeta) : { success: false, message: 'Official portal did not return a valid image' }
-    );
+    return res
+      .status(502)
+      .json(
+        debug
+          ? buildDebugPayload(debugMeta)
+          : { success: false, message: 'Official portal did not return a valid image' }
+      );
   }
 
   if (debug) {
@@ -3642,8 +4391,8 @@ const getProfilePhoto = async (req, res) => {
         normalizedUrl: photoUrl,
         upstreamStatus: response.status,
         contentType,
-        byteLength: buffer.length
-      }
+        byteLength: buffer.length,
+      },
     });
   }
 
@@ -3673,8 +4422,8 @@ const getGrades = async (req, res) => {
     data: {
       semesters: session.dataset.semesters || [],
       summaries: session.dataset.grades || [],
-      gradeCards: session.dataset.gradeCards || {}
-    }
+      gradeCards: session.dataset.gradeCards || {},
+    },
   });
 };
 
@@ -3687,8 +4436,12 @@ const getMarksSemesters = async (req, res) => {
   const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
   const authContext = buildAuthContextFromRelaySession(relaySession);
 
-  let marksSemesters = Array.isArray(session?.dataset?.marksSemesters) ? session.dataset.marksSemesters : [];
-  const fallbackSemesters = sortSemestersDesc(Array.isArray(session?.dataset?.semesters) ? session.dataset.semesters : []);
+  let marksSemesters = Array.isArray(session?.dataset?.marksSemesters)
+    ? session.dataset.marksSemesters
+    : [];
+  const fallbackSemesters = sortSemestersDesc(
+    Array.isArray(session?.dataset?.semesters) ? session.dataset.semesters : []
+  );
   const forceRefresh = parseBooleanLike(req?.query?.refresh, false);
 
   const mergedMarksSemesterOptions = () => {
@@ -3713,7 +4466,7 @@ const getMarksSemesters = async (req, res) => {
         ...row,
         registration_id: registrationId || existing?.registration_id || null,
         registration_code: registrationCode || existing?.registration_code || null,
-        stynumber: row?.stynumber || existing?.stynumber || null
+        stynumber: row?.stynumber || existing?.stynumber || null,
       };
 
       if (merged.registration_id) {
@@ -3750,7 +4503,7 @@ const getMarksSemesters = async (req, res) => {
       '/StudentPortalAPI/studentcommonsontroller/getsemestercode-exammarks',
       {
         instituteid: authContext.instituteid,
-        studentid: authContext.memberid
+        studentid: authContext.memberid,
       }
     );
 
@@ -3758,7 +4511,10 @@ const getMarksSemesters = async (req, res) => {
       return marksSemesters;
     }
 
-    const rawRows = marksSemRes.data?.response?.semestercode || marksSemRes.data?.response?.semesterCodeinfo?.semestercode || [];
+    const rawRows =
+      marksSemRes.data?.response?.semestercode ||
+      marksSemRes.data?.response?.semesterCodeinfo?.semestercode ||
+      [];
     const normalizedRows = sortSemestersDesc(normalizeSemesters(rawRows));
 
     if (!normalizedRows.length) {
@@ -3770,9 +4526,7 @@ const getMarksSemesters = async (req, res) => {
 
     const merged = [...(Array.isArray(session.dataset.semesters) ? session.dataset.semesters : [])];
     const byId = new Map(
-      merged
-        .filter((row) => row?.registration_id)
-        .map((row) => [String(row.registration_id), row])
+      merged.filter((row) => row?.registration_id).map((row) => [String(row.registration_id), row])
     );
 
     for (const sem of normalizedRows) {
@@ -3788,7 +4542,7 @@ const getMarksSemesters = async (req, res) => {
       byId.set(key, {
         ...existing,
         registration_code: existing.registration_code || sem.registration_code,
-        stynumber: existing.stynumber || sem.stynumber || null
+        stynumber: existing.stynumber || sem.stynumber || null,
       });
     }
 
@@ -3844,7 +4598,11 @@ const getSubjects = async (req, res) => {
   }
 
   await hydrateAttendanceForSemester(session, req, sem);
-  const hydratedSubjects = session.dataset.subjects[sem] || { registered: [], faculties: [], details: [] };
+  const hydratedSubjects = session.dataset.subjects[sem] || {
+    registered: [],
+    faculties: [],
+    details: [],
+  };
   const hasHydratedRows =
     (Array.isArray(hydratedSubjects?.details) && hydratedSubjects.details.length > 0) ||
     (Array.isArray(hydratedSubjects?.registered) && hydratedSubjects.registered.length > 0);
@@ -3853,7 +4611,9 @@ const getSubjects = async (req, res) => {
     return res.status(200).json({ success: true, data: hydratedSubjects });
   }
 
-  const gradeRows = Array.isArray(session.dataset.gradeCards?.[sem]) ? session.dataset.gradeCards[sem] : [];
+  const gradeRows = Array.isArray(session.dataset.gradeCards?.[sem])
+    ? session.dataset.gradeCards[sem]
+    : [];
   const fallbackDetails = gradeRows
     .map((row) => ({
       subjectid: row?.subjectid || null,
@@ -3863,7 +4623,7 @@ const getSubjects = async (req, res) => {
       component: null,
       section: null,
       faculty: 'Faculty',
-      raw: row
+      raw: row,
     }))
     .filter((row) => row.subjectdesc);
 
@@ -3872,7 +4632,7 @@ const getSubjects = async (req, res) => {
       registered: fallbackDetails.map((row) => row.subjectdesc),
       faculties: fallbackDetails.map(() => 'Faculty'),
       details: fallbackDetails,
-      source: 'gradecard-fallback'
+      source: 'gradecard-fallback',
     };
 
     session.dataset.subjects[sem] = fallback;
@@ -3881,7 +4641,7 @@ const getSubjects = async (req, res) => {
 
   return res.status(200).json({
     success: true,
-    data: direct
+    data: direct,
   });
 };
 
@@ -3898,7 +4658,7 @@ const buildFeeDebugPreview = (payload) => {
         key,
         length: value.length,
         sampleType: typeof first,
-        sampleKeys: first && typeof first === 'object' ? Object.keys(first).slice(0, 12) : []
+        sampleKeys: first && typeof first === 'object' ? Object.keys(first).slice(0, 12) : [],
       });
       if (arrayCandidates.length >= 8) break;
     }
@@ -3915,8 +4675,8 @@ const buildFeeDebugPreview = (payload) => {
       demand: pickByKeyContains(response, ['demand', 'total fee', 'fee amount']),
       paid: pickByKeyContains(response, ['paid amount', 'amount paid', 'paid']),
       due: pickByKeyContains(response, ['due amount', 'outstanding', 'balance']),
-      fine: pickByKeyContains(response, ['fine', 'late fee', 'penalty'])
-    }
+      fine: pickByKeyContains(response, ['fine', 'late fee', 'penalty']),
+    },
   };
 };
 
@@ -3931,12 +4691,16 @@ const getFees = async (req, res) => {
   if (!forceRefresh && Array.isArray(session.dataset.fees) && session.dataset.fees.length) {
     return res.status(200).json(
       debugMode
-        ? { success: true, data: session.dataset.fees || [], debug: { source: 'cached-session', attempts: [] } }
+        ? {
+            success: true,
+            data: session.dataset.fees || [],
+            debug: { source: 'cached-session', attempts: [] },
+          }
         : { success: true, data: session.dataset.fees || [] }
     );
   }
 
-  const relaySessionId = session.dataset.relaySessionId;
+  const { relaySessionId } = session.dataset;
   const ownerId = ownerKey(req);
   const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
   const authContext = buildAuthContextFromRelaySession(relaySession);
@@ -3946,7 +4710,11 @@ const getFees = async (req, res) => {
 
     // Fast path: try the known-working loadfeesummary endpoint first (parallel payloads)
     const primaryEndpoint = '/StudentPortalAPI/studentfeeledger/loadfeesummary';
-    const primaryPayloads = buildFeePayloadCandidatesForEndpoint(primaryEndpoint, authContext, semesters);
+    const primaryPayloads = buildFeePayloadCandidatesForEndpoint(
+      primaryEndpoint,
+      authContext,
+      semesters
+    );
     const primaryResults = await Promise.all(
       primaryPayloads.map((payload) =>
         postPortal(relaySession, authContext, primaryEndpoint, payload, { encrypted: false })
@@ -3955,7 +4723,7 @@ const getFees = async (req, res) => {
       )
     );
 
-    let allFeeRows = [];
+    const allFeeRows = [];
     let chosenEndpoint = null;
     for (const result of primaryResults) {
       if (!result) continue;
@@ -3966,7 +4734,7 @@ const getFees = async (req, res) => {
         httpStatus: feeRes.status,
         responseStatus: feeRes.data?.status?.responseStatus || feeRes.data?.responseStatus || null,
         ok: Boolean(feeRes.ok && statusSuccess(feeRes.data)),
-        preview: buildFeeDebugPreview(feeRes.data)
+        preview: buildFeeDebugPreview(feeRes.data),
       });
       if (!(feeRes.ok && statusSuccess(feeRes.data))) continue;
       const rows = normalizeFeeRows(feeRes.data, semesters);
@@ -3980,12 +4748,22 @@ const getFees = async (req, res) => {
     if (!allFeeRows.length) {
       const fallbackEndpoints = [
         '/StudentPortalAPI/studentfeemgmt/getstudentfeelist',
-        '/StudentPortalAPI/studentfeestatus/getfeestatus'
+        '/StudentPortalAPI/studentfeestatus/getfeestatus',
       ];
       const fallbackResults = await Promise.all(
         fallbackEndpoints.map((endpoint) => {
-          const payload = { instituteid: authContext.instituteid, studentid: authContext.memberid, memberid: authContext.memberid };
-          return postPortal(relaySession, authContext, endpoint, payload, shouldUsePlainFeePayload(endpoint) ? { encrypted: false } : undefined)
+          const payload = {
+            instituteid: authContext.instituteid,
+            studentid: authContext.memberid,
+            memberid: authContext.memberid,
+          };
+          return postPortal(
+            relaySession,
+            authContext,
+            endpoint,
+            payload,
+            shouldUsePlainFeePayload(endpoint) ? { encrypted: false } : undefined
+          )
             .then((feeRes) => ({ endpoint, payload, feeRes }))
             .catch(() => null);
         })
@@ -3997,9 +4775,10 @@ const getFees = async (req, res) => {
           endpoint,
           payloadKeys: Object.keys(payload || {}),
           httpStatus: feeRes.status,
-          responseStatus: feeRes.data?.status?.responseStatus || feeRes.data?.responseStatus || null,
+          responseStatus:
+            feeRes.data?.status?.responseStatus || feeRes.data?.responseStatus || null,
           ok: Boolean(feeRes.ok && statusSuccess(feeRes.data)),
-          preview: buildFeeDebugPreview(feeRes.data)
+          preview: buildFeeDebugPreview(feeRes.data),
         });
         if (!(feeRes.ok && statusSuccess(feeRes.data))) continue;
         const rows = normalizeFeeRows(feeRes.data, semesters);
@@ -4017,7 +4796,16 @@ const getFees = async (req, res) => {
         session.dataset.realData = true;
         return res.status(200).json(
           debugMode
-            ? { success: true, data: session.dataset.fees, debug: { source: 'on-demand-fetch', attempts: debugAttempts, chosenEndpoint, mappedRows: mergedRows.length } }
+            ? {
+                success: true,
+                data: session.dataset.fees,
+                debug: {
+                  source: 'on-demand-fetch',
+                  attempts: debugAttempts,
+                  chosenEndpoint,
+                  mappedRows: mergedRows.length,
+                },
+              }
             : { success: true, data: session.dataset.fees }
         );
       }
@@ -4026,7 +4814,15 @@ const getFees = async (req, res) => {
 
   return res.status(200).json(
     debugMode
-      ? { success: true, data: session.dataset.fees || [], debug: { source: 'on-demand-fetch', attempts: debugAttempts, message: 'No fee rows mapped.' } }
+      ? {
+          success: true,
+          data: session.dataset.fees || [],
+          debug: {
+            source: 'on-demand-fetch',
+            attempts: debugAttempts,
+            message: 'No fee rows mapped.',
+          },
+        }
       : { success: true, data: session.dataset.fees || [] }
   );
 };
@@ -4037,10 +4833,12 @@ const downloadMarks = async (req, res) => {
 
   const { registration_id, registration_code } = req.query;
   if (!registration_id || !registration_code) {
-    return res.status(400).json({ success: false, message: 'registration_id and registration_code are required' });
+    return res
+      .status(400)
+      .json({ success: false, message: 'registration_id and registration_code are required' });
   }
 
-  const relaySessionId = session.dataset.relaySessionId;
+  const { relaySessionId } = session.dataset;
   const ownerId = ownerKey(req);
   const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
   const authContext = buildAuthContextFromRelaySession(relaySession);
@@ -4070,7 +4868,7 @@ const downloadMarks = async (req, res) => {
 
   const { response, error } = await timedPortalFetch(url, {
     method: 'GET',
-    headers
+    headers,
   });
 
   if (error) {
@@ -4078,10 +4876,12 @@ const downloadMarks = async (req, res) => {
   }
 
   if (!response.ok) {
-    return res.status(response.status >= 400 && response.status < 500 ? response.status : 502).json({
-      success: false,
-      message: 'Portal returned an error'
-    });
+    return res
+      .status(response.status >= 400 && response.status < 500 ? response.status : 502)
+      .json({
+        success: false,
+        message: 'Portal returned an error',
+      });
   }
 
   const contentType = String(response.headers.get('content-type') || '').toLowerCase();
@@ -4138,7 +4938,8 @@ const mergeParsedMarksChunks = (chunks = []) => {
   for (const chunk of chunks) {
     if (!chunk || typeof chunk !== 'object') continue;
 
-    const info = chunk.studentInfo && typeof chunk.studentInfo === 'object' ? chunk.studentInfo : {};
+    const info =
+      chunk.studentInfo && typeof chunk.studentInfo === 'object' ? chunk.studentInfo : {};
     for (const [key, value] of Object.entries(info)) {
       if (value === null || value === undefined || String(value).trim() === '') continue;
       if (!merged.studentInfo[key]) merged.studentInfo[key] = value;
@@ -4156,7 +4957,9 @@ const mergeParsedMarksChunks = (chunks = []) => {
       const name = String(course?.name || '').trim();
       const key = code
         ? `C:${code.toUpperCase()}`
-        : `N:${String(name || '').toUpperCase().replace(/[^A-Z0-9]/g, '')}`;
+        : `N:${String(name || '')
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, '')}`;
       if (!key) continue;
 
       if (!byCourse.has(key)) {
@@ -4165,7 +4968,7 @@ const mergeParsedMarksChunks = (chunks = []) => {
           code,
           totalObtained: finiteNumberOrNull(course?.totalObtained),
           totalFull: finiteNumberOrNull(course?.totalFull),
-          exams: {}
+          exams: {},
         });
       }
 
@@ -4198,37 +5001,44 @@ const mergeParsedMarksChunks = (chunks = []) => {
     }
   }
 
-  merged.courses = [...byCourse.values()].map((course) => {
-    let totalFull = finiteNumberOrNull(course.totalFull);
-    let totalObtained = finiteNumberOrNull(course.totalObtained);
+  merged.courses = [...byCourse.values()]
+    .map((course) => {
+      let totalFull = finiteNumberOrNull(course.totalFull);
+      let totalObtained = finiteNumberOrNull(course.totalObtained);
 
-    if (!(totalFull > 0)) {
-      let derivedFull = 0;
-      let derivedObtained = 0;
-      for (const marks of Object.values(course.exams || {})) {
-        const total = finiteNumberOrNull(marks?.totalWeightage) ?? finiteNumberOrNull(marks?.fullMarks);
-        const obtained = finiteNumberOrNull(marks?.obtainedWeightage) ?? finiteNumberOrNull(marks?.obtainedMarks);
-        if (!(total > 0)) continue;
-        derivedFull += total;
-        derivedObtained += obtained !== null ? Math.max(0, Math.min(obtained, total)) : 0;
+      if (!(totalFull > 0)) {
+        let derivedFull = 0;
+        let derivedObtained = 0;
+        for (const marks of Object.values(course.exams || {})) {
+          const total =
+            finiteNumberOrNull(marks?.totalWeightage) ?? finiteNumberOrNull(marks?.fullMarks);
+          const obtained =
+            finiteNumberOrNull(marks?.obtainedWeightage) ??
+            finiteNumberOrNull(marks?.obtainedMarks);
+          if (!(total > 0)) continue;
+          derivedFull += total;
+          derivedObtained += obtained !== null ? Math.max(0, Math.min(obtained, total)) : 0;
+        }
+
+        if (derivedFull > 0) {
+          totalFull = derivedFull;
+          totalObtained = derivedObtained;
+        }
       }
 
-      if (derivedFull > 0) {
-        totalFull = derivedFull;
-        totalObtained = derivedObtained;
-      }
-    }
-
-    return {
-      ...course,
-      totalObtained: totalObtained !== null ? totalObtained : 0,
-      totalFull: totalFull !== null ? totalFull : 0
-    };
-  }).sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')));
+      return {
+        ...course,
+        totalObtained: totalObtained !== null ? totalObtained : 0,
+        totalFull: totalFull !== null ? totalFull : 0,
+      };
+    })
+    .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')));
 
   merged.exams = [...examsSet];
   if (!merged.exams.length) {
-    merged.exams = [...new Set(merged.courses.flatMap((course) => Object.keys(course?.exams || {})))];
+    merged.exams = [
+      ...new Set(merged.courses.flatMap((course) => Object.keys(course?.exams || {}))),
+    ];
   }
 
   return merged;
@@ -4243,29 +5053,39 @@ const getMarksData = async (req, res) => {
 
   const { registration_id, registration_code } = req.query;
   if (!registration_id || !registration_code) {
-    return res.status(400).json({ success: false, message: 'registration_id and registration_code are required' });
+    return res
+      .status(400)
+      .json({ success: false, message: 'registration_id and registration_code are required' });
   }
 
   if (String(session?.dataset?.mode || '').toLowerCase() === 'public-demo') {
     const rawRegId = String(registration_id || '').trim();
     const rawRegCode = String(registration_code || '').trim();
     const cacheKey = `${rawRegId}__${rawRegCode}`;
-    const marksCache = session.dataset?.marksParsedData && typeof session.dataset.marksParsedData === 'object'
-      ? session.dataset.marksParsedData
-      : {};
+    const marksCache =
+      session.dataset?.marksParsedData && typeof session.dataset.marksParsedData === 'object'
+        ? session.dataset.marksParsedData
+        : {};
 
     const direct = marksCache[cacheKey] || null;
-    const bySemesterId = direct || Object.entries(marksCache).find(([key]) => key.startsWith(`${rawRegId}__`))?.[1] || null;
+    const bySemesterId =
+      direct ||
+      Object.entries(marksCache).find(([key]) => key.startsWith(`${rawRegId}__`))?.[1] ||
+      null;
 
     return res.json({
       success: true,
-      data: bySemesterId || { courses: [], exams: [], error: 'No demo marks available for this semester' },
+      data: bySemesterId || {
+        courses: [],
+        exams: [],
+        error: 'No demo marks available for this semester',
+      },
       cached: true,
-      demo: true
+      demo: true,
     });
   }
 
-  const relaySessionId = session.dataset.relaySessionId;
+  const { relaySessionId } = session.dataset;
   const ownerId = ownerKey(req);
   const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
   const authContext = buildAuthContextFromRelaySession(relaySession);
@@ -4284,9 +5104,10 @@ const getMarksData = async (req, res) => {
 
   const cacheKey = `${rawRegId}__${rawRegCode}`;
   const forceRefresh = parseBooleanLike(req?.query?.refresh, false);
-  const marksCache = session.dataset?.marksParsedData && typeof session.dataset.marksParsedData === 'object'
-    ? session.dataset.marksParsedData
-    : {};
+  const marksCache =
+    session.dataset?.marksParsedData && typeof session.dataset.marksParsedData === 'object'
+      ? session.dataset.marksParsedData
+      : {};
 
   if (!forceRefresh && marksCache[cacheKey]) {
     return res.json({ success: true, data: marksCache[cacheKey], cached: true });
@@ -4324,7 +5145,7 @@ const getMarksData = async (req, res) => {
         return res.status(502).json({
           success: false,
           code: 'MARKS_PDF_UNAVAILABLE',
-          message: 'No marks PDF available for this semester'
+          message: 'No marks PDF available for this semester',
         });
       }
 
@@ -4336,7 +5157,7 @@ const getMarksData = async (req, res) => {
         return res.status(502).json({
           success: false,
           code: 'MARKS_INVALID_PDF',
-          message: 'Portal did not return a PDF'
+          message: 'Portal did not return a PDF',
         });
       }
 
@@ -4346,7 +5167,7 @@ const getMarksData = async (req, res) => {
       try {
         const [textResult, tableResult] = await Promise.all([
           parser.getText().catch(() => null),
-          parser.getTable().catch(() => null)
+          parser.getTable().catch(() => null),
         ]);
 
         const tableChunks = [];
@@ -4404,7 +5225,7 @@ const getMarksData = async (req, res) => {
 
     session.dataset.marksParsedData = {
       ...marksCache,
-      [cacheKey]: parsed
+      [cacheKey]: parsed,
     };
     session.updatedAt = Date.now();
 
@@ -4413,7 +5234,7 @@ const getMarksData = async (req, res) => {
     return res.status(502).json({
       success: false,
       code: err.type || 'PARSE_ERROR',
-      message: 'Failed to parse marks PDF'
+      message: 'Failed to parse marks PDF',
     });
   }
 };
@@ -4450,7 +5271,9 @@ function parseMarksTables(tables) {
         const text = String(cell || '').trim();
         if (text.includes(': ')) {
           const [key, ...rest] = text.split(': ');
-          result.studentInfo[key.trim().toLowerCase().replace(/\s+/g, '_')] = rest.join(': ').trim();
+          result.studentInfo[key.trim().toLowerCase().replace(/\s+/g, '_')] = rest
+            .join(': ')
+            .trim();
         }
       }
     }
@@ -4486,7 +5309,7 @@ function parseMarksTables(tables) {
   for (const marksRows of tableRows) {
     if (!Array.isArray(marksRows) || !marksRows.length) continue;
 
-    let headerIndex = marksRows.findIndex((row) =>
+    const headerIndex = marksRows.findIndex((row) =>
       /^subject\b/i.test(String((Array.isArray(row) ? row[0] : '') || '').trim())
     );
 
@@ -4508,7 +5331,10 @@ function parseMarksTables(tables) {
 
       startRow = headerIndex + 1;
       const subHeader = Array.isArray(marksRows[startRow]) ? marksRows[startRow] : [];
-      const subHeaderText = subHeader.map((cell) => String(cell || '').trim()).join(' ').toUpperCase();
+      const subHeaderText = subHeader
+        .map((cell) => String(cell || '').trim())
+        .join(' ')
+        .toUpperCase();
       if (/(OM|FM|OW|WT|OBTAINED|WEIGHTAGE|TOTAL)/.test(subHeaderText)) {
         startRow += 1;
       }
@@ -4543,7 +5369,9 @@ function parseMarksTables(tables) {
       let name = bracketCode ? nameCell.replace(/\([A-Za-z0-9_-]+\)\s*$/, '').trim() : nameCell;
 
       if (!code && nameParts.length > 1) {
-        const tail = String(nameParts[nameParts.length - 1] || '').trim().replace(/[()]/g, '');
+        const tail = String(nameParts[nameParts.length - 1] || '')
+          .trim()
+          .replace(/[()]/g, '');
         if (/^[A-Za-z0-9_-]{4,}$/.test(tail)) {
           code = tail;
           name = nameParts.slice(0, -1).join(' ').trim() || tail;
@@ -4555,7 +5383,7 @@ function parseMarksTables(tables) {
         code,
         totalObtained: 0,
         totalFull: 0,
-        exams: {}
+        exams: {},
       };
 
       // Parse marks cells (pairs: marks, weightage for each exam)
@@ -4629,7 +5457,10 @@ function parseMarksText(text) {
 
   // The PDF may contain multiple pages. Each page has exam data for one semester.
   // We parse the raw text treating each page independently.
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const lines = text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
 
   // Extract student info
   for (const line of lines) {
@@ -4650,7 +5481,10 @@ function parseMarksText(text) {
     if (/^Subject\s+Code\b/i.test(lines[i])) {
       const after = lines[i].replace(/^Subject\s+Code\s*/i, '');
       // Split exam names on 2+ spaces
-      examNames = after.split(/\s{2,}/).filter(Boolean).map(e => e.trim());
+      examNames = after
+        .split(/\s{2,}/)
+        .filter(Boolean)
+        .map((e) => e.trim());
       headerIdx = i;
       break; // Use first occurrence only
     }
@@ -4692,7 +5526,11 @@ function parseMarksText(text) {
   const codePositions = [];
 
   while ((match = subjectPattern.exec(joinedData)) !== null) {
-    codePositions.push({ code: match[1], index: match.index, endIndex: match.index + match[0].length });
+    codePositions.push({
+      code: match[1],
+      index: match.index,
+      endIndex: match.index + match[0].length,
+    });
   }
 
   for (let s = 0; s < codePositions.length; s++) {
@@ -4716,9 +5554,8 @@ function parseMarksText(text) {
     const name = nameLinesCleaned.join(' ').trim() || code;
 
     // Marks are everything after (CODE) until the next subject name starts
-    const nextNameStart = s < codePositions.length - 1
-      ? codePositions[s + 1].index
-      : joinedData.length;
+    const nextNameStart =
+      s < codePositions.length - 1 ? codePositions[s + 1].index : joinedData.length;
 
     // But we need to stop at the next subject name, not the next code
     // The marks data is right after the code, possibly on the same line
@@ -4731,7 +5568,11 @@ function parseMarksText(text) {
       const trimmed = ml.trim();
       if (!trimmed) continue;
       // If this is purely text (no digits or slashes), it's part of next subject name
-      if (/^[A-Za-z][A-Za-z\s&\-\/\.,]+$/.test(trimmed) && !trimmed.includes('/') && !/\d/.test(trimmed)) {
+      if (
+        /^[A-Za-z][A-Za-z\s&\-\/\.,]+$/.test(trimmed) &&
+        !trimmed.includes('/') &&
+        !/\d/.test(trimmed)
+      ) {
         break;
       }
       cleanedMarksLines.push(trimmed);
@@ -4766,7 +5607,8 @@ function parseMarksText(text) {
         const tk = tokens[startIdx] || '';
         // Full fraction in one token
         const fullMatch = tk.match(/^(\d+\.?\d*)\s*\/\s*(\d+\.?\d*)$/);
-        if (fullMatch) return { num: parseFloat(fullMatch[1]), den: parseFloat(fullMatch[2]), consumed: 1 };
+        if (fullMatch)
+          return { num: parseFloat(fullMatch[1]), den: parseFloat(fullMatch[2]), consumed: 1 };
 
         // Partial: "9.0/" + "20.0"
         const partialMatch = tk.match(/^(\d+\.?\d*)\s*\/\s*$/);
@@ -4791,7 +5633,7 @@ function parseMarksText(text) {
 
       const marks = {
         obtainedMarks: omfm.num,
-        fullMarks: omfm.den
+        fullMarks: omfm.den,
       };
 
       // Parse OW/WT
@@ -4831,5 +5673,5 @@ module.exports = {
   getSubjects,
   getFees,
   downloadMarks,
-  getMarksData
+  getMarksData,
 };

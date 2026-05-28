@@ -3,11 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download } from 'lucide-react';
 import { Button } from 'components/ui/button';
-import {
-  fetchPortalGrades,
-  downloadPortalMarks,
-  SessionExpiredError
-} from 'lib/api';
+import { fetchPortalGrades, downloadPortalMarks, SessionExpiredError } from 'lib/api';
 import { cn } from 'lib/utils';
 import { SHOW_TECHNICAL_DETAILS } from '../constants';
 import {
@@ -15,7 +11,7 @@ import {
   toFixedSafe,
   toDisplayNumber,
   toDisplayMarks,
-  normalizeCsvCell
+  normalizeCsvCell,
 } from '../utils';
 
 const RATIO_RE = /(-?\d+(?:\.\d+)?)\s*\/\s*(-?\d+(?:\.\d+)?)/;
@@ -47,7 +43,7 @@ const parseRatioPair = (value) => {
 
   return {
     obtained: Math.max(0, Math.min(obtained, total)),
-    total
+    total,
   };
 };
 
@@ -57,7 +53,7 @@ const extractMarksPair = (row = {}) => {
   if (directTotal !== null && directTotal > 0) {
     return {
       obtained: directObtained !== null ? Math.max(0, Math.min(directObtained, directTotal)) : 0,
-      total: directTotal
+      total: directTotal,
     };
   }
 
@@ -67,7 +63,7 @@ const extractMarksPair = (row = {}) => {
     row?.marks,
     row?.assessment,
     row?.assessmentdesc,
-    row?.assessmentname
+    row?.assessmentname,
   ];
   for (const candidate of directRatioCandidates) {
     const pair = parseRatioPair(candidate);
@@ -94,7 +90,9 @@ const extractMarksPair = (row = {}) => {
     // Explicit JIIT-specific total fields (must NOT contain 'obt' / 'obtained' / 'scored')
     if (
       total === null &&
-      /(weightagetotal|wttotal|totalweightage|maxweightage|totalmarks|maxmarks|maximummarks|outofmarks)/i.test(keyText)
+      /(weightagetotal|wttotal|totalweightage|maxweightage|totalmarks|maxmarks|maximummarks|outofmarks)/i.test(
+        keyText
+      )
     ) {
       total = numeric;
       continue;
@@ -103,7 +101,9 @@ const extractMarksPair = (row = {}) => {
     // Explicit JIIT-specific obtained fields
     if (
       obtained === null &&
-      /(weightageobtained|wtobtained|obtainedweightage|marksobtained|obtainedmarks|weightagescored)/i.test(keyText)
+      /(weightageobtained|wtobtained|obtainedweightage|marksobtained|obtainedmarks|weightagescored)/i.test(
+        keyText
+      )
     ) {
       obtained = numeric;
       continue;
@@ -122,7 +122,9 @@ const extractMarksPair = (row = {}) => {
     // General obtained
     if (
       obtained === null &&
-      /(obt|obtain|secured|earned|score|marksobt|weightageobt|wtobt|internalobt|externalobt)/i.test(keyText) &&
+      /(obt|obtain|secured|earned|score|marksobt|weightageobt|wtobt|internalobt|externalobt)/i.test(
+        keyText
+      ) &&
       !/(total|max|outof|maximum)/i.test(keyText)
     ) {
       obtained = numeric;
@@ -146,7 +148,7 @@ const extractAssessmentLabel = (row = {}, index = 0) => {
     row?.testname,
     row?.component,
     row?.eventname,
-    row?.headname
+    row?.headname,
   ]
     .map((item) => String(item || '').trim())
     .find(Boolean);
@@ -155,7 +157,11 @@ const extractAssessmentLabel = (row = {}, index = 0) => {
 
   const raw = row?.raw && typeof row.raw === 'object' ? row.raw : {};
   for (const [key, value] of Object.entries(raw)) {
-    if (!/(assessment|exam|test|component|head|paper|evaluation|mid|end|term|quiz|viva|lab|practical|sessional|internal|external)/i.test(String(key))) {
+    if (
+      !/(assessment|exam|test|component|head|paper|evaluation|mid|end|term|quiz|viva|lab|practical|sessional|internal|external)/i.test(
+        String(key)
+      )
+    ) {
       continue;
     }
 
@@ -188,7 +194,9 @@ const compactAssessmentLabel = (value, index = 0) => {
   const lower = text.toLowerCase().replace(/\s+/g, ' ');
   if (/\b(total|overall|aggregate|grand total)\b/.test(lower)) return 'Total';
 
-  const numbered = lower.match(/\b(?:ta|t|test|term|assessment|sessional|minor|quiz|internal)\s*[-:]?\s*(\d+)\b/);
+  const numbered = lower.match(
+    /\b(?:ta|t|test|term|assessment|sessional|minor|quiz|internal)\s*[-:]?\s*(\d+)\b/
+  );
   if (numbered) return `T${numbered[1]}`;
 
   const shortT = lower.match(/^t\s*[-:]?\s*(\d+)$/);
@@ -216,7 +224,9 @@ const normalizeSemesterToken = (value = '') =>
     .replace(/[^A-Z0-9]/g, '');
 
 const extractSemesterNumber = (value) => {
-  const text = String(value || '').trim().toUpperCase();
+  const text = String(value || '')
+    .trim()
+    .toUpperCase();
   if (!text) return null;
 
   const semMatch = text.match(/\bSEM(?:ESTER)?\s*[-:]?\s*(\d{1,2})\b/i);
@@ -243,7 +253,7 @@ const semesterNumberFromRow = (row = {}) => {
     'semester_number',
     'currentsemester',
     'semno',
-    'sem'
+    'sem',
   ];
 
   for (const key of directKeys) {
@@ -285,10 +295,11 @@ export default function GradesView({ token, onExpired }) {
       setGrades(summaries);
       setGradeCards(payload?.gradeCards || {});
       const sems = Array.isArray(payload?.semesters) ? payload.semesters : [];
-      const sortedSems = [...sems].sort((a, b) => (
-        semesterSortScore(b?.registration_code, b?.registration_id)
-        - semesterSortScore(a?.registration_code, a?.registration_id)
-      ));
+      const sortedSems = [...sems].sort(
+        (a, b) =>
+          semesterSortScore(b?.registration_code, b?.registration_id) -
+          semesterSortScore(a?.registration_code, a?.registration_id)
+      );
       setSemesters(sortedSems);
       if (sortedSems.length) {
         const summaryById = new Set();
@@ -314,7 +325,10 @@ export default function GradesView({ token, onExpired }) {
         });
 
         setSelectedSem((current) => {
-          if (current && sortedSems.some((sem) => String(sem?.registration_id) === String(current))) {
+          if (
+            current &&
+            sortedSems.some((sem) => String(sem?.registration_id) === String(current))
+          ) {
             return current;
           }
           return String((preferredSemester || sortedSems[0])?.registration_id || '');
@@ -449,10 +463,7 @@ export default function GradesView({ token, onExpired }) {
   }, [sortedSemesters, sortedGrades, gradeSummaryBySemester]);
 
   const selectedSemester = useMemo(() => {
-    return (
-      sortedSemesters.find((s) => String(s?.registration_id) === String(selectedSem))
-      || null
-    );
+    return sortedSemesters.find((s) => String(s?.registration_id) === String(selectedSem)) || null;
   }, [sortedSemesters, selectedSem]);
 
   const gradeCardsSemesterKey = useMemo(() => {
@@ -483,7 +494,9 @@ export default function GradesView({ token, onExpired }) {
       setSelectedSem(String(sortedSemesters[0]?.registration_id || ''));
       return;
     }
-    const stillExists = sortedSemesters.some((s) => String(s.registration_id) === String(selectedSem));
+    const stillExists = sortedSemesters.some(
+      (s) => String(s.registration_id) === String(selectedSem)
+    );
     if (!stillExists) setSelectedSem(String(sortedSemesters[0]?.registration_id || ''));
   }, [selectedSem, sortedSemesters]);
 
@@ -495,12 +508,18 @@ export default function GradesView({ token, onExpired }) {
       return {
         ...fromGrades,
         registration_id: selectedSemester?.registration_id || fromGrades.registration_id,
-        registration_code: selectedSemester?.registration_code || fromGrades.registration_code
+        registration_code: selectedSemester?.registration_code || fromGrades.registration_code,
       };
     }
 
     const fromSem = selectedSemester;
-    if (fromSem) return { registration_id: fromSem.registration_id, registration_code: fromSem.registration_code, sgpa: 0, cgpa: 0 };
+    if (fromSem)
+      return {
+        registration_id: fromSem.registration_id,
+        registration_code: fromSem.registration_code,
+        sgpa: 0,
+        cgpa: 0,
+      };
 
     const latestValidSummary = sortedGrades.find(
       (row) => Number(row?.sgpa || 0) > 0 || Number(row?.cgpa || 0) > 0
@@ -509,14 +528,17 @@ export default function GradesView({ token, onExpired }) {
   }, [selectedSem, selectedSemester, sortedGrades, gradeRowsBySemesterId]);
 
   const latestValidSummary = useMemo(() => {
-    return sortedGrades.find((row) => Number(row?.sgpa || 0) > 0 || Number(row?.cgpa || 0) > 0) || null;
+    return (
+      sortedGrades.find((row) => Number(row?.sgpa || 0) > 0 || Number(row?.cgpa || 0) > 0) || null
+    );
   }, [sortedGrades]);
 
   const visibleRows = useMemo(() => {
     return (gradeCards[gradeCardsSemesterKey] || []).map((row) => ({
       ...row,
-      registration_code: selectedSemester?.registration_code || currentSummary?.registration_code || selectedSem,
-      registration_id: gradeCardsSemesterKey || selectedSem
+      registration_code:
+        selectedSemester?.registration_code || currentSummary?.registration_code || selectedSem,
+      registration_id: gradeCardsSemesterKey || selectedSem,
     }));
   }, [gradeCards, selectedSem, gradeCardsSemesterKey, selectedSemester, currentSummary]);
 
@@ -536,7 +558,7 @@ export default function GradesView({ token, onExpired }) {
           credit: Number.isFinite(Number(row?.credit)) ? Number(row.credit) : 0,
           obtained: null,
           total: null,
-          assessments: []
+          assessments: [],
         });
       }
 
@@ -546,8 +568,8 @@ export default function GradesView({ token, onExpired }) {
         group.credit = Math.max(group.credit, creditRaw);
       }
       const marksPair = extractMarksPair(row);
-      const obtained = marksPair.obtained;
-      const total = marksPair.total;
+      const { obtained } = marksPair;
+      const { total } = marksPair;
 
       if (total !== null && total > 0) {
         const safeObtained = obtained !== null ? Math.max(0, Math.min(obtained, total)) : 0;
@@ -561,7 +583,9 @@ export default function GradesView({ token, onExpired }) {
         label: assessmentLabel,
         obtained,
         total,
-        order: Number.isFinite(Number(row?.assessmentorder)) ? Number(row.assessmentorder) : Number.MAX_SAFE_INTEGER
+        order: Number.isFinite(Number(row?.assessmentorder))
+          ? Number(row.assessmentorder)
+          : Number.MAX_SAFE_INTEGER,
       });
     }
 
@@ -570,7 +594,7 @@ export default function GradesView({ token, onExpired }) {
         ...group,
         assessments: [...group.assessments].sort(
           (a, b) => a.order - b.order || String(a.label).localeCompare(String(b.label))
-        )
+        ),
       }))
       .sort((a, b) => String(a.subjectdesc).localeCompare(String(b.subjectdesc)));
   }, [visibleRows]);
@@ -588,7 +612,9 @@ export default function GradesView({ token, onExpired }) {
   }, [groupedMarksRows]);
 
   const gradeColor = (grade) => {
-    const g = String(grade || '').trim().toUpperCase();
+    const g = String(grade || '')
+      .trim()
+      .toUpperCase();
     if (g === 'A+' || g === 'O') return 'text-emerald-400';
     if (g === 'A') return 'text-green-400';
     if (g === 'B+') return 'text-lime-400';
@@ -615,7 +641,7 @@ export default function GradesView({ token, onExpired }) {
           subjectdesc: subjectDesc,
           credit: 0,
           grade: '-',
-          gradepoint: null
+          gradepoint: null,
         });
       }
 
@@ -659,14 +685,15 @@ export default function GradesView({ token, onExpired }) {
       const obtainedLabel = formatMarksValue(marksRow?.obtained);
       const totalLabel = formatMarksValue(marksRow?.total);
       const marksText = toDisplayMarks(obtainedLabel, totalLabel);
-      const marksPercent = marksRow && Number(marksRow?.total || 0) > 0
-        ? `${((Number(marksRow?.obtained || 0) * 100) / Number(marksRow.total)).toFixed(1)}%`
-        : null;
+      const marksPercent =
+        marksRow && Number(marksRow?.total || 0) > 0
+          ? `${((Number(marksRow?.obtained || 0) * 100) / Number(marksRow.total)).toFixed(1)}%`
+          : null;
 
       return {
         ...subject,
         marksText,
-        marksPercent
+        marksPercent,
       };
     });
   }, [semesterGradeCards, marksBySubjectKey]);
@@ -678,7 +705,8 @@ export default function GradesView({ token, onExpired }) {
   }, [sortedGrades]);
 
   const overviewSemRows = useMemo(() => {
-    return [...sortedSemesters].reverse()
+    return [...sortedSemesters]
+      .reverse()
       .map((sem) => ({
         sem,
         gradeRow: gradeRowsBySemesterId[String(sem?.registration_id || '')] || {
@@ -687,8 +715,8 @@ export default function GradesView({ token, onExpired }) {
           sgpa: 0,
           cgpa: 0,
           credits: 0,
-          earnedPoints: 0
-        }
+          earnedPoints: 0,
+        },
       }))
       .filter((item) => item.gradeRow);
   }, [sortedSemesters, gradeRowsBySemesterId]);
@@ -698,7 +726,9 @@ export default function GradesView({ token, onExpired }) {
       setSelectedGraphIndex(-1);
       return;
     }
-    setSelectedGraphIndex((prev) => (prev >= 0 && prev < graphRows.length ? prev : graphRows.length - 1));
+    setSelectedGraphIndex((prev) =>
+      prev >= 0 && prev < graphRows.length ? prev : graphRows.length - 1
+    );
   }, [graphRows]);
 
   const graphSeries = useMemo(() => {
@@ -722,8 +752,12 @@ export default function GradesView({ token, onExpired }) {
     };
     const yAt = (value) => padY + ((yMax - value) * (height - padY * 2)) / range;
 
-    const sgpaPoints = graphRows.map((row, idx) => `${xAt(idx)},${yAt(Number(row.sgpa || 0))}`).join(' ');
-    const cgpaPoints = graphRows.map((row, idx) => `${xAt(idx)},${yAt(Number(row.cgpa || 0))}`).join(' ');
+    const sgpaPoints = graphRows
+      .map((row, idx) => `${xAt(idx)},${yAt(Number(row.sgpa || 0))}`)
+      .join(' ');
+    const cgpaPoints = graphRows
+      .map((row, idx) => `${xAt(idx)},${yAt(Number(row.cgpa || 0))}`)
+      .join(' ');
 
     return {
       width,
@@ -734,7 +768,7 @@ export default function GradesView({ token, onExpired }) {
       yMax,
       sgpaPoints,
       cgpaPoints,
-      xLabels: graphRows.map((row, idx) => row.registration_code || `S${idx + 1}`)
+      xLabels: graphRows.map((row, idx) => row.registration_code || `S${idx + 1}`),
     };
   }, [graphRows]);
 
@@ -743,15 +777,21 @@ export default function GradesView({ token, onExpired }) {
   const buildRowsForExport = () => {
     return (gradeCards[gradeCardsSemesterKey] || []).map((row) => {
       const pair = extractMarksPair(row);
-      const hasObtained = row?.marksobtained !== null && row?.marksobtained !== undefined && String(row?.marksobtained).trim() !== '';
-      const hasTotal = row?.totalmarks !== null && row?.totalmarks !== undefined && String(row?.totalmarks).trim() !== '';
+      const hasObtained =
+        row?.marksobtained !== null &&
+        row?.marksobtained !== undefined &&
+        String(row?.marksobtained).trim() !== '';
+      const hasTotal =
+        row?.totalmarks !== null &&
+        row?.totalmarks !== undefined &&
+        String(row?.totalmarks).trim() !== '';
 
       return {
         semester: currentSummary?.registration_code || selectedSem || 'Semester',
         ...row,
         assessment: row?.assessment || extractAssessmentLabel(row, 0),
         marksobtained: hasObtained ? row.marksobtained : pair.obtained,
-        totalmarks: hasTotal ? row.totalmarks : pair.total
+        totalmarks: hasTotal ? row.totalmarks : pair.total,
       };
     });
   };
@@ -762,7 +802,7 @@ export default function GradesView({ token, onExpired }) {
 
     const [{ jsPDF }, { default: autoTable }] = await Promise.all([
       import('jspdf'),
-      import('jspdf-autotable')
+      import('jspdf-autotable'),
     ]);
 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
@@ -772,22 +812,32 @@ export default function GradesView({ token, onExpired }) {
     doc.setFontSize(10);
     doc.text(`Generated on ${new Date().toLocaleString()}`, 40, 58);
 
-    const body = rows.map((row) => ([
+    const body = rows.map((row) => [
       row.semester || '',
       row.subjectcode || '',
       row.subjectdesc || '',
       row.marksobtained ?? '-',
       row.totalmarks ?? '-',
       row.gradepoint ?? '-',
-      row.grade || '-'
-    ]));
+      row.grade || '-',
+    ]);
 
     autoTable(doc, {
       startY: 70,
-      head: [['Semester', 'Subject Code', 'Subject', 'Marks Obtained', 'Total Marks', 'Grade Point', 'Grade']],
+      head: [
+        [
+          'Semester',
+          'Subject Code',
+          'Subject',
+          'Marks Obtained',
+          'Total Marks',
+          'Grade Point',
+          'Grade',
+        ],
+      ],
       body,
       styles: { fontSize: 9, cellPadding: 5 },
-      headStyles: { fillColor: [15, 74, 108] }
+      headStyles: { fillColor: [15, 74, 108] },
     });
 
     const semPart = String(currentSummary?.registration_code || selectedSem || 'semester');
@@ -801,7 +851,7 @@ export default function GradesView({ token, onExpired }) {
 
     const [{ jsPDF }, { default: autoTable }] = await Promise.all([
       import('jspdf'),
-      import('jspdf-autotable')
+      import('jspdf-autotable'),
     ]);
 
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
@@ -809,22 +859,26 @@ export default function GradesView({ token, onExpired }) {
     doc.setFontSize(14);
     doc.text(heading, 40, 40);
     doc.setFontSize(10);
-    doc.text(`SGPA: ${toFixedSafe(currentSummary?.sgpa, 2)}   CGPA: ${toFixedSafe(currentSummary?.cgpa, 2)}`, 40, 58);
+    doc.text(
+      `SGPA: ${toFixedSafe(currentSummary?.sgpa, 2)}   CGPA: ${toFixedSafe(currentSummary?.cgpa, 2)}`,
+      40,
+      58
+    );
     doc.text(`Generated on ${new Date().toLocaleString()}`, 40, 74);
 
-    const body = rows.map((row) => ([
+    const body = rows.map((row) => [
       row.subjectcode || '-',
       row.subjectdesc || '-',
       row.gradepoint ?? '-',
-      row.grade || '-'
-    ]));
+      row.grade || '-',
+    ]);
 
     autoTable(doc, {
       startY: 86,
       head: [['Subject Code', 'Subject', 'Grade Point', 'Grade']],
       body,
       styles: { fontSize: 10, cellPadding: 6 },
-      headStyles: { fillColor: [15, 74, 108] }
+      headStyles: { fillColor: [15, 74, 108] },
     });
 
     const semPart = String(currentSummary?.registration_code || selectedSem || 'semester');
@@ -843,22 +897,24 @@ export default function GradesView({ token, onExpired }) {
       'Marks Obtained',
       'Total Marks',
       'Grade Point',
-      'Grade'
+      'Grade',
     ];
 
     const csvLines = [
       header.join(','),
-      ...rows.map((row) => ([
-        row.semester,
-        row.subjectcode || '',
-        row.subjectdesc || '',
-        row.marksobtained ?? '',
-        row.totalmarks ?? '',
-        row.gradepoint ?? '',
-        row.grade || ''
-      ]
-        .map(normalizeCsvCell)
-        .join(',')))
+      ...rows.map((row) =>
+        [
+          row.semester,
+          row.subjectcode || '',
+          row.subjectdesc || '',
+          row.marksobtained ?? '',
+          row.totalmarks ?? '',
+          row.gradepoint ?? '',
+          row.grade || '',
+        ]
+          .map(normalizeCsvCell)
+          .join(',')
+      ),
     ];
 
     const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -877,8 +933,12 @@ export default function GradesView({ token, onExpired }) {
     if (!currentSummary) return;
     setDownloadingMarks(true);
     try {
-      const portalRegistrationId = String(selectedSemester?.registration_id || currentSummary?.registration_id || '').trim();
-      const portalRegistrationCode = String(selectedSemester?.registration_code || currentSummary?.registration_code || '').trim();
+      const portalRegistrationId = String(
+        selectedSemester?.registration_id || currentSummary?.registration_id || ''
+      ).trim();
+      const portalRegistrationCode = String(
+        selectedSemester?.registration_code || currentSummary?.registration_code || ''
+      ).trim();
 
       if (!portalRegistrationId || !portalRegistrationCode) {
         throw new Error('Selected semester is missing portal registration details');
@@ -905,7 +965,9 @@ export default function GradesView({ token, onExpired }) {
       }
 
       if (fallbackDownloaded) {
-        setMessage('Official portal PDF is unavailable right now. Downloaded generated marks PDF instead.');
+        setMessage(
+          'Official portal PDF is unavailable right now. Downloaded generated marks PDF instead.'
+        );
       } else {
         setMessage(err?.message || 'Failed to download marks PDF from portal');
       }
@@ -916,7 +978,11 @@ export default function GradesView({ token, onExpired }) {
 
   return (
     <div className="space-y-3 pb-28 sm:pb-24">
-      {!sortedSemesters.length && !sortedGrades.length ? <p className="text-sm text-muted-foreground">{message || 'No direct grades data available.'}</p> : null}
+      {!sortedSemesters.length && !sortedGrades.length ? (
+        <p className="text-sm text-muted-foreground">
+          {message || 'No direct grades data available.'}
+        </p>
+      ) : null}
 
       {sortedSemesters.length ? (
         <div className="flex rounded-xl bg-secondary/50 p-1">
@@ -925,8 +991,10 @@ export default function GradesView({ token, onExpired }) {
               key={mode}
               type="button"
               className={cn(
-                "flex-1 py-2 text-xs font-bold capitalize rounded-lg transition-all",
-                gradesMode === mode ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                'flex-1 py-2 text-xs font-bold capitalize rounded-lg transition-all',
+                gradesMode === mode
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
               onClick={() => setGradesMode(mode)}
             >
@@ -938,28 +1006,38 @@ export default function GradesView({ token, onExpired }) {
 
       {sortedSemesters.length ? (
         <div className="rounded-2xl border border-border/40 bg-card p-6 space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-xl border border-border/40 bg-secondary/20 p-4 space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">Current Status</p>
-                <div className="flex items-baseline gap-2">
-                   <p className="text-xl font-bold tracking-tight text-foreground">{currentSummary?.registration_code || 'Semester'}</p>
-                   <span className="text-xs font-medium text-muted-foreground">SGPA: {toFixedSafe(currentSummary?.sgpa, 2)}</span>
-                </div>
-              </div>
-              <div className="rounded-xl border-2 border-primary/20 p-4 flex flex-col items-center justify-center bg-primary/5">
-                <p className="text-xs font-medium text-primary/80">Cumulative CGPA</p>
-                <p className="text-4xl font-black tracking-tight text-primary">{toFixedSafe(latestValidSummary?.cgpa ?? currentSummary?.cgpa, 2)}</p>
-                {latestValidSummary?.registration_code ? (
-                  <p className="mt-1 text-[10px] font-medium text-primary/70">As of {latestValidSummary.registration_code}</p>
-                ) : null}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-border/40 bg-secondary/20 p-4 space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Current Status</p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-xl font-bold tracking-tight text-foreground">
+                  {currentSummary?.registration_code || 'Semester'}
+                </p>
+                <span className="text-xs font-medium text-muted-foreground">
+                  SGPA: {toFixedSafe(currentSummary?.sgpa, 2)}
+                </span>
               </div>
             </div>
+            <div className="rounded-xl border-2 border-primary/20 p-4 flex flex-col items-center justify-center bg-primary/5">
+              <p className="text-xs font-medium text-primary/80">Cumulative CGPA</p>
+              <p className="text-4xl font-black tracking-tight text-primary">
+                {toFixedSafe(latestValidSummary?.cgpa ?? currentSummary?.cgpa, 2)}
+              </p>
+              {latestValidSummary?.registration_code ? (
+                <p className="mt-1 text-[10px] font-medium text-primary/70">
+                  As of {latestValidSummary.registration_code}
+                </p>
+              ) : null}
+            </div>
+          </div>
 
-            {gradesMode === 'semester' ? (
-              <>
+          {gradesMode === 'semester' ? (
+            <>
               <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end border-t border-border/20 pt-6">
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-medium text-muted-foreground">Select Semester</label>
+                  <label className="block text-xs font-medium text-muted-foreground">
+                    Select Semester
+                  </label>
                   <div className="flex flex-wrap items-center gap-2">
                     <select
                       className="min-w-[200px] rounded-xl border border-border/40 bg-secondary/30 px-3 py-2 text-sm font-medium appearance-none cursor-pointer hover:border-primary/50 transition-colors"
@@ -967,7 +1045,10 @@ export default function GradesView({ token, onExpired }) {
                       onChange={(e) => setSelectedSem(e.target.value)}
                     >
                       {sortedSemesters.map((s) => (
-                        <option key={s.registration_id || s.registration_code} value={s.registration_id}>
+                        <option
+                          key={s.registration_id || s.registration_code}
+                          value={s.registration_id}
+                        >
                           {s.registration_code || s.registration_id || 'Semester'}
                         </option>
                       ))}
@@ -978,13 +1059,14 @@ export default function GradesView({ token, onExpired }) {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2 sm:justify-end">
-                   <Button
+                  <Button
                     variant="default"
                     onClick={downloadPortalMarksPdf}
                     disabled={downloadingMarks || !currentSummary}
                     className="rounded-xl font-bold h-10 px-6"
                   >
-                    <Download className="mr-2 h-4 w-4" /> {downloadingMarks ? 'Fetching...' : 'Marks PDF'}
+                    <Download className="mr-2 h-4 w-4" />{' '}
+                    {downloadingMarks ? 'Fetching...' : 'Marks PDF'}
                   </Button>
                 </div>
               </div>
@@ -1000,21 +1082,34 @@ export default function GradesView({ token, onExpired }) {
                         <h4 className="text-sm font-bold text-foreground leading-tight uppercase truncate">
                           {subject.subjectdesc}
                         </h4>
-                        <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">{subject.subjectcode}</p>
+                        <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">
+                          {subject.subjectcode}
+                        </p>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
                         <div className="text-center">
-                          <p className={cn('text-xl font-black tracking-tight', gradeColor(subject.grade))}>
+                          <p
+                            className={cn(
+                              'text-xl font-black tracking-tight',
+                              gradeColor(subject.grade)
+                            )}
+                          >
                             {subject.grade || '-'}
                           </p>
                           <p className="text-[9px] font-medium text-muted-foreground">Grade</p>
                         </div>
-                        {subject.marksText && subject.marksText !== '-' && subject.marksText !== '0/0' && (
-                          <div className="text-center">
-                            <p className="text-sm font-black tracking-tight text-sky-300">{subject.marksText}</p>
-                            <p className="text-[9px] font-medium text-muted-foreground">{subject.marksPercent || 'Marks'}</p>
-                          </div>
-                        )}
+                        {subject.marksText &&
+                          subject.marksText !== '-' &&
+                          subject.marksText !== '0/0' && (
+                            <div className="text-center">
+                              <p className="text-sm font-black tracking-tight text-sky-300">
+                                {subject.marksText}
+                              </p>
+                              <p className="text-[9px] font-medium text-muted-foreground">
+                                {subject.marksPercent || 'Marks'}
+                              </p>
+                            </div>
+                          )}
                         <div className="text-center">
                           <p className="text-xl font-black tracking-tight text-foreground">
                             {toDisplayNumber(subject.credit, 0)}
@@ -1026,80 +1121,136 @@ export default function GradesView({ token, onExpired }) {
                   ))}
                 </div>
               ) : null}
-              </>
-            ) : (
-              <div className="space-y-6">
-                {graphSeries ? (
-                  <div className="rounded-xl border border-border/40 bg-secondary/20 p-4 relative overflow-hidden">
-                    <div className="flex items-center justify-between mb-4">
-                       <h4 className="text-xs font-bold text-foreground">Performance Trend</h4>
-                       <div className="flex gap-4 text-[9px] font-bold text-muted-foreground">
-                          <span className="flex items-center gap-1.5"><div className="size-2 rounded-sm bg-emerald-500" /> SGPA</span>
-                          <span className="flex items-center gap-1.5"><div className="size-2 rounded-sm bg-primary" /> CGPA</span>
-                       </div>
+            </>
+          ) : (
+            <div className="space-y-6">
+              {graphSeries ? (
+                <div className="rounded-xl border border-border/40 bg-secondary/20 p-4 relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-xs font-bold text-foreground">Performance Trend</h4>
+                    <div className="flex gap-4 text-[9px] font-bold text-muted-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <div className="size-2 rounded-sm bg-emerald-500" /> SGPA
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <div className="size-2 rounded-sm bg-primary" /> CGPA
+                      </span>
                     </div>
-                    <div className="overflow-x-auto">
-                      <svg viewBox={`0 0 ${graphSeries.width} ${graphSeries.height}`} className="h-52 min-w-[640px] w-full">
-                        <polyline fill="none" stroke="currentColor" strokeWidth="2" strokeOpacity="0.1" points={graphSeries.sgpaPoints} className="text-emerald-500" />
-                        <polyline fill="none" stroke="currentColor" strokeWidth="3" points={graphSeries.cgpaPoints} className="text-primary" />
-                        {graphRows.map((row, idx) => {
-                          const x = graphSeries.padX + (idx * (graphSeries.width - graphSeries.padX * 2)) / Math.max(graphRows.length - 1, 1);
-                          const yC = graphSeries.padY + ((graphSeries.yMax - Number(row.cgpa || 0)) * (graphSeries.height - graphSeries.padY * 2)) / Math.max(graphSeries.yMax - graphSeries.yMin, 0.5);
-                          const active = idx === selectedGraphIndex;
-                          return (
-                            <circle key={`cgpa-${idx}`} cx={x} cy={yC} r={active ? "6" : "4"} fill="currentColor" className={cn("text-primary cursor-pointer transition-all", active ? "ring-4 ring-primary/20" : "")} onClick={() => setSelectedGraphIndex(idx)} />
-                          );
-                        })}
-                      </svg>
-                    </div>
-                    {selectedGraphRow && (
-                      <div className="mt-4 border-t border-border/20 pt-4 flex justify-between items-center">
-                         <span className="text-xs font-bold text-muted-foreground">{selectedGraphRow.registration_code}</span>
-                         <div className="flex gap-4">
-                            <span className="text-xs font-bold text-emerald-500">SGPA: {toFixedSafe(selectedGraphRow.sgpa, 2)}</span>
-                            <span className="text-xs font-bold text-primary">CGPA: {toFixedSafe(selectedGraphRow.cgpa, 2)}</span>
-                         </div>
-                      </div>
-                    )}
                   </div>
-                ) : null}
-                
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                   {overviewSemRows.map(({ sem, gradeRow }, idx) => {
-                    const ep = Number(gradeRow?.earnedPoints || 0);
-                    const cr = Number(gradeRow?.credits || 0);
-                    const hasGp = ep > 0 && cr > 0;
-                      const semLabel = String(sem?.registration_code || '').trim() || `Semester ${idx + 1}`;
-                    return (
-                      <div key={sem.registration_id} className="rounded-xl border border-border/40 p-4 hover:border-primary/30 transition-colors">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <p className="text-sm font-bold text-foreground">{semLabel}</p>
-                            {hasGp ? (
-                              <p className="text-[10px] font-medium text-muted-foreground">GP: {toFixedSafe(ep, 1)}/{toFixedSafe(cr * 10, 0)}</p>
-                            ) : null}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 mt-1">
-                          <div>
-                            <span className="text-lg font-black text-emerald-500 tracking-tight">{toFixedSafe(gradeRow.sgpa, 2)}</span>
-                            <span className="text-[9px] font-medium text-muted-foreground ml-1">SGPA</span>
-                          </div>
-                          <div>
-                            <span className="text-lg font-black text-primary tracking-tight">{toFixedSafe(gradeRow.cgpa, 2)}</span>
-                            <span className="text-[9px] font-medium text-muted-foreground ml-1">CGPA</span>
-                          </div>
+                  <div className="overflow-x-auto">
+                    <svg
+                      viewBox={`0 0 ${graphSeries.width} ${graphSeries.height}`}
+                      className="h-52 min-w-[640px] w-full"
+                    >
+                      <polyline
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeOpacity="0.1"
+                        points={graphSeries.sgpaPoints}
+                        className="text-emerald-500"
+                      />
+                      <polyline
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        points={graphSeries.cgpaPoints}
+                        className="text-primary"
+                      />
+                      {graphRows.map((row, idx) => {
+                        const x =
+                          graphSeries.padX +
+                          (idx * (graphSeries.width - graphSeries.padX * 2)) /
+                            Math.max(graphRows.length - 1, 1);
+                        const yC =
+                          graphSeries.padY +
+                          ((graphSeries.yMax - Number(row.cgpa || 0)) *
+                            (graphSeries.height - graphSeries.padY * 2)) /
+                            Math.max(graphSeries.yMax - graphSeries.yMin, 0.5);
+                        const active = idx === selectedGraphIndex;
+                        return (
+                          <circle
+                            key={`cgpa-${idx}`}
+                            cx={x}
+                            cy={yC}
+                            r={active ? '6' : '4'}
+                            fill="currentColor"
+                            className={cn(
+                              'text-primary cursor-pointer transition-all',
+                              active ? 'ring-4 ring-primary/20' : ''
+                            )}
+                            onClick={() => setSelectedGraphIndex(idx)}
+                          />
+                        );
+                      })}
+                    </svg>
+                  </div>
+                  {selectedGraphRow && (
+                    <div className="mt-4 border-t border-border/20 pt-4 flex justify-between items-center">
+                      <span className="text-xs font-bold text-muted-foreground">
+                        {selectedGraphRow.registration_code}
+                      </span>
+                      <div className="flex gap-4">
+                        <span className="text-xs font-bold text-emerald-500">
+                          SGPA: {toFixedSafe(selectedGraphRow.sgpa, 2)}
+                        </span>
+                        <span className="text-xs font-bold text-primary">
+                          CGPA: {toFixedSafe(selectedGraphRow.cgpa, 2)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {overviewSemRows.map(({ sem, gradeRow }, idx) => {
+                  const ep = Number(gradeRow?.earnedPoints || 0);
+                  const cr = Number(gradeRow?.credits || 0);
+                  const hasGp = ep > 0 && cr > 0;
+                  const semLabel =
+                    String(sem?.registration_code || '').trim() || `Semester ${idx + 1}`;
+                  return (
+                    <div
+                      key={sem.registration_id}
+                      className="rounded-xl border border-border/40 p-4 hover:border-primary/30 transition-colors"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="text-sm font-bold text-foreground">{semLabel}</p>
+                          {hasGp ? (
+                            <p className="text-[10px] font-medium text-muted-foreground">
+                              GP: {toFixedSafe(ep, 1)}/{toFixedSafe(cr * 10, 0)}
+                            </p>
+                          ) : null}
                         </div>
                       </div>
-                    );
-                   })}
-                </div>
+                      <div className="flex items-center gap-3 mt-1">
+                        <div>
+                          <span className="text-lg font-black text-emerald-500 tracking-tight">
+                            {toFixedSafe(gradeRow.sgpa, 2)}
+                          </span>
+                          <span className="text-[9px] font-medium text-muted-foreground ml-1">
+                            SGPA
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-lg font-black text-primary tracking-tight">
+                            {toFixedSafe(gradeRow.cgpa, 2)}
+                          </span>
+                          <span className="text-[9px] font-medium text-muted-foreground ml-1">
+                            CGPA
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            )}
+            </div>
+          )}
         </div>
       ) : null}
-
     </div>
   );
 }
-

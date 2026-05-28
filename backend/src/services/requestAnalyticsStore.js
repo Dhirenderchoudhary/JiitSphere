@@ -1,9 +1,14 @@
-
 const MAX_RECENT = 50;
 const MAX_DURATION_SAMPLES = 3000;
 const RETENTION_DAYS = Math.max(7, Number(process.env.ANALYTICS_RETENTION_DAYS || 30));
-const MAX_UNIQUE_SET_SIZE = Math.max(1000, Number(process.env.ANALYTICS_MAX_UNIQUE_SET_SIZE || 200000));
-const MAX_BUCKET_SET_SIZE = Math.max(500, Number(process.env.ANALYTICS_MAX_BUCKET_SET_SIZE || 20000));
+const MAX_UNIQUE_SET_SIZE = Math.max(
+  1000,
+  Number(process.env.ANALYTICS_MAX_UNIQUE_SET_SIZE || 200000)
+);
+const MAX_BUCKET_SET_SIZE = Math.max(
+  500,
+  Number(process.env.ANALYTICS_MAX_BUCKET_SET_SIZE || 20000)
+);
 const PRUNE_EVERY_N_REQUESTS = 250;
 
 const state = {
@@ -20,7 +25,7 @@ const state = {
     mobile: 0,
     tablet: 0,
     bot: 0,
-    other: 0
+    other: 0,
   },
   byBrowser: {},
   byOs: {},
@@ -31,7 +36,7 @@ const state = {
     '3xx': 0,
     '4xx': 0,
     '5xx': 0,
-    other: 0
+    other: 0,
   },
   uniqueUsers: new Set(),
   uniqueIps: new Set(),
@@ -39,7 +44,13 @@ const state = {
   dailyRequests: {},
   recent: [],
   bySection: { portal: 0, studyMaterial: 0, admin: 0, auth: 0, other: 0 },
-  sectionIps: { portal: new Set(), studyMaterial: new Set(), admin: new Set(), auth: new Set(), other: new Set() },
+  sectionIps: {
+    portal: new Set(),
+    studyMaterial: new Set(),
+    admin: new Set(),
+    auth: new Set(),
+    other: new Set(),
+  },
   dailyBySection: {},
   dailySectionIps: {},
   hourlyVisitors: {},
@@ -51,15 +62,22 @@ const state = {
     dailyUniqueIps: {},
     byPage: {},
     bySection: { portal: 0, studyMaterial: 0, admin: 0, superadmin: 0, home: 0, other: 0 },
-    sectionIps: { portal: new Set(), studyMaterial: new Set(), admin: new Set(), superadmin: new Set(), home: new Set(), other: new Set() },
+    sectionIps: {
+      portal: new Set(),
+      studyMaterial: new Set(),
+      admin: new Set(),
+      superadmin: new Set(),
+      home: new Set(),
+      other: new Set(),
+    },
     dailySectionIps: {},
     byDevice: { desktop: 0, mobile: 0, tablet: 0, bot: 0, other: 0 },
     byBrowser: {},
     byOs: {},
     byReferrer: {},
     hourlyViews: {},
-    hourlyIps: {}
-  }
+    hourlyIps: {},
+  },
 };
 
 const normalizeIp = (ip) => {
@@ -186,7 +204,17 @@ const statusFamily = (statusCode) => {
   return 'other';
 };
 
-const trackRequest = ({ method, route, statusCode, durationMs, userId, ip, userAgent, referrer, at = new Date() }) => {
+const trackRequest = ({
+  method,
+  route,
+  statusCode,
+  durationMs,
+  userId,
+  ip,
+  userAgent,
+  referrer,
+  at = new Date(),
+}) => {
   const duration = Number(durationMs) || 0;
   const device = detectDeviceType(userAgent);
   const browser = detectBrowser(userAgent);
@@ -214,7 +242,9 @@ const trackRequest = ({ method, route, statusCode, durationMs, userId, ip, userA
   }
   state.routePerf[route].count += 1;
   state.routePerf[route].totalDurationMs += duration;
-  state.routePerf[route].avgDurationMs = Number((state.routePerf[route].totalDurationMs / state.routePerf[route].count).toFixed(2));
+  state.routePerf[route].avgDurationMs = Number(
+    (state.routePerf[route].totalDurationMs / state.routePerf[route].count).toFixed(2)
+  );
   state.routePerf[route].maxDurationMs = Math.max(state.routePerf[route].maxDurationMs, duration);
 
   const family = statusFamily(statusCode);
@@ -241,11 +271,15 @@ const trackRequest = ({ method, route, statusCode, durationMs, userId, ip, userA
     addToCappedSet(state.dailyUniqueIps[day], normalizedIp, MAX_BUCKET_SET_SIZE);
   }
 
-  const section = route.includes('/portal') ? 'portal'
-    : route.includes('/material') ? 'studyMaterial'
-    : route.includes('/admin') ? 'admin'
-    : route.includes('/auth') ? 'auth'
-    : 'other';
+  const section = route.includes('/portal')
+    ? 'portal'
+    : route.includes('/material')
+      ? 'studyMaterial'
+      : route.includes('/admin')
+        ? 'admin'
+        : route.includes('/auth')
+          ? 'auth'
+          : 'other';
   state.bySection[section] = (state.bySection[section] || 0) + 1;
   if (normalizedIp) {
     if (!state.sectionIps[section]) state.sectionIps[section] = new Set();
@@ -255,7 +289,8 @@ const trackRequest = ({ method, route, statusCode, durationMs, userId, ip, userA
   state.dailyBySection[day][section] = (state.dailyBySection[day][section] || 0) + 1;
   if (!state.dailySectionIps[day]) state.dailySectionIps[day] = {};
   if (!state.dailySectionIps[day][section]) state.dailySectionIps[day][section] = new Set();
-  if (normalizedIp) addToCappedSet(state.dailySectionIps[day][section], normalizedIp, MAX_BUCKET_SET_SIZE);
+  if (normalizedIp)
+    addToCappedSet(state.dailySectionIps[day][section], normalizedIp, MAX_BUCKET_SET_SIZE);
 
   const hKey = `${day}_${hourKey(at)}`;
   if (!state.hourlyVisitors[hKey]) state.hourlyVisitors[hKey] = new Set();
@@ -270,7 +305,7 @@ const trackRequest = ({ method, route, statusCode, durationMs, userId, ip, userA
     userId: userId || null,
     ip: normalizedIp || null,
     userAgent: userAgent || null,
-    referrer: ref
+    referrer: ref,
   });
 
   if (state.recent.length > MAX_RECENT) {
@@ -319,7 +354,8 @@ const trackPageView = ({ page, ip, userAgent, referrer, at = new Date() }) => {
 
   if (!pv.dailySectionIps[day]) pv.dailySectionIps[day] = {};
   if (!pv.dailySectionIps[day][section]) pv.dailySectionIps[day][section] = new Set();
-  if (normalizedIp) addToCappedSet(pv.dailySectionIps[day][section], normalizedIp, MAX_BUCKET_SET_SIZE);
+  if (normalizedIp)
+    addToCappedSet(pv.dailySectionIps[day][section], normalizedIp, MAX_BUCKET_SET_SIZE);
 
   pv.byDevice[device] = (pv.byDevice[device] || 0) + 1;
   pv.byBrowser[browser] = (pv.byBrowser[browser] || 0) + 1;
@@ -336,10 +372,14 @@ const trackPageView = ({ page, ip, userAgent, referrer, at = new Date() }) => {
 };
 
 const getSnapshot = () => {
-  const avgDurationMs = state.totalRequests ? Number((state.totalDurationMs / state.totalRequests).toFixed(2)) : 0;
+  const avgDurationMs = state.totalRequests
+    ? Number((state.totalDurationMs / state.totalRequests).toFixed(2))
+    : 0;
   const sortedDurations = [...state.durationSamples].sort((a, b) => a - b);
   const p95DurationMs = sortedDurations.length
-    ? sortedDurations[Math.min(sortedDurations.length - 1, Math.floor(sortedDurations.length * 0.95))]
+    ? sortedDurations[
+        Math.min(sortedDurations.length - 1, Math.floor(sortedDurations.length * 0.95))
+      ]
     : 0;
 
   const sortedRoutes = Object.entries(state.byRoute)
@@ -380,7 +420,7 @@ const getSnapshot = () => {
     last7Days.push({
       date: key,
       count: state.dailyRequests[key] || 0,
-      uniqueVisitors: state.dailyUniqueIps[key]?.size || 0
+      uniqueVisitors: state.dailyUniqueIps[key]?.size || 0,
     });
   }
 
@@ -398,7 +438,7 @@ const getSnapshot = () => {
       portal: sectionDay.portal || 0,
       studyMaterial: sectionDay.studyMaterial || 0,
       portalVisitors: sectionIps.portal?.size || 0,
-      studyMaterialVisitors: sectionIps.studyMaterial?.size || 0
+      studyMaterialVisitors: sectionIps.studyMaterial?.size || 0,
     });
   }
 
@@ -409,7 +449,11 @@ const getSnapshot = () => {
     const key = hourKey(slot);
     const daySlot = dateKey(slot);
     const hKey = `${daySlot}_${key}`;
-    last24Hours.push({ hour: key, count: state.byHour[key] || 0, visitors: state.hourlyVisitors[hKey]?.size || 0 });
+    last24Hours.push({
+      hour: key,
+      count: state.byHour[key] || 0,
+      visitors: state.hourlyVisitors[hKey]?.size || 0,
+    });
   }
 
   const sectionVisitors = {};
@@ -431,7 +475,7 @@ const getSnapshot = () => {
       views: pv.dailyViews[key] || 0,
       visitors: pv.dailyUniqueIps[key]?.size || 0,
       portalVisitors: sectionIps.portal?.size || 0,
-      studyMaterialVisitors: sectionIps.studyMaterial?.size || 0
+      studyMaterialVisitors: sectionIps.studyMaterial?.size || 0,
     });
   }
 
@@ -445,7 +489,7 @@ const getSnapshot = () => {
     pvLast24Hours.push({
       hour: key,
       views: pv.hourlyViews[hKey] || 0,
-      visitors: pv.hourlyIps[hKey]?.size || 0
+      visitors: pv.hourlyIps[hKey]?.size || 0,
     });
   }
 
@@ -507,13 +551,13 @@ const getSnapshot = () => {
       topBrowsers: pvTopBrowsers,
       topOs: pvTopOs,
       topReferrers: pvTopReferrers,
-      topPages: pvTopPages
-    }
+      topPages: pvTopPages,
+    },
   };
 };
 
 module.exports = {
   trackRequest,
   trackPageView,
-  getSnapshot
+  getSnapshot,
 };

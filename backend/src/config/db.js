@@ -1,4 +1,3 @@
-
 const mongoose = require('mongoose');
 const env = require('./env');
 
@@ -10,7 +9,7 @@ const connectDb = async () => {
   await mongoose.connect(env.mongodbUri, {
     serverSelectionTimeoutMS: 10000,
     maxPoolSize: 100,
-    minPoolSize: 10
+    minPoolSize: 10,
   });
 
   if (env.logStartup) {

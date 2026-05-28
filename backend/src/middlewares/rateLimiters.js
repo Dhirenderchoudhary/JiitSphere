@@ -1,4 +1,3 @@
-
 const rateLimit = require('express-rate-limit');
 const env = require('../config/env');
 
@@ -6,7 +5,10 @@ const toHandler = (message) => (_req, res) => {
   res.status(429).json({ success: false, message });
 };
 
-const normalizeIdentifier = (value) => String(value || '').trim().toLowerCase();
+const normalizeIdentifier = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase();
 
 const clientIp = (req) => {
   const forwarded = req.headers['x-forwarded-for'];
@@ -24,7 +26,9 @@ const authKey = (req) => {
 
 const relayKey = (req) => {
   const ip = clientIp(req);
-  const identifier = normalizeIdentifier(req.user?.userId || req.user?.email || req.body?.userId || req.body?.email);
+  const identifier = normalizeIdentifier(
+    req.user?.userId || req.user?.email || req.body?.userId || req.body?.email
+  );
   return `relay:${ip}:${identifier || '-'}`;
 };
 
@@ -40,7 +44,7 @@ const authLimiter = rateLimit({
   keyGenerator: authKey,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: toHandler('Too many login attempts. Please wait and try again.')
+  handler: toHandler('Too many login attempts. Please wait and try again.'),
 });
 
 const relayLimiter = rateLimit({
@@ -49,7 +53,7 @@ const relayLimiter = rateLimit({
   keyGenerator: relayKey,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: toHandler('Too many portal requests. Please retry in a minute.')
+  handler: toHandler('Too many portal requests. Please retry in a minute.'),
 });
 
 const apiLimiter = rateLimit({
@@ -59,11 +63,11 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => req.path === '/health',
-  handler: toHandler('Too many requests. Please retry shortly.')
+  handler: toHandler('Too many requests. Please retry shortly.'),
 });
 
 module.exports = {
   authLimiter,
   relayLimiter,
-  apiLimiter
+  apiLimiter,
 };

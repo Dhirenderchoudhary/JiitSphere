@@ -2,13 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { Button } from 'components/ui/button';
-import {
-  FileX2,
-  ExternalLink,
-  Download,
-  FileText,
-  AlertTriangle,
-} from 'lucide-react';
+import { FileX2, ExternalLink, Download, FileText, AlertTriangle } from 'lucide-react';
 import { FallbackActions, ErrorCard, LoadingOverlay } from 'components/MaterialViewerComponents';
 
 /**
@@ -55,16 +49,13 @@ export default function MaterialViewerClient({
     setError(false);
     if (frameRef.current) {
       // Force reload by resetting src
-      const src = frameRef.current.src;
+      const { src } = frameRef.current;
       frameRef.current.src = '';
       requestAnimationFrame(() => {
         if (frameRef.current) frameRef.current.src = src;
       });
     }
   };
-
-
-
 
   // ══════════════════════════════════════════════════════════
   //  UNSUPPORTED — no preview, download only
@@ -78,8 +69,8 @@ export default function MaterialViewerClient({
           </div>
           <h3 className="text-lg font-bold text-foreground">Preview Not Available</h3>
           <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-            <span className="font-semibold uppercase">.{fileType || 'unknown'}</span> files cannot be previewed in the browser.
-            You can download the file or open it in a new tab.
+            <span className="font-semibold uppercase">.{fileType || 'unknown'}</span> files cannot
+            be previewed in the browser. You can download the file or open it in a new tab.
           </p>
           <FallbackActions handleRetry={handleRetry} openUrl={openUrl} downloadUrl={downloadUrl} />
         </div>
@@ -178,7 +169,11 @@ export default function MaterialViewerClient({
         title={title}
         onLoad={handleLoad}
         onError={handleError}
-        sandbox={viewerStrategy === 'office' ? 'allow-scripts allow-same-origin allow-popups allow-forms' : undefined}
+        sandbox={
+          viewerStrategy === 'office'
+            ? 'allow-scripts allow-same-origin allow-popups allow-forms'
+            : undefined
+        }
         allowFullScreen
       />
     </div>

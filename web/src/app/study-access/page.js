@@ -23,11 +23,13 @@ export default async function StudyAccessPage({ searchParams }) {
   }
 
   return (
-    <Suspense fallback={
-      <main className="flex min-h-screen items-center justify-center">
-        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent text-muted-foreground" />
-      </main>
-    }>
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center">
+          <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent text-muted-foreground" />
+        </main>
+      }
+    >
       <StudyAccessForm nextPath={nextPath} />
     </Suspense>
   );

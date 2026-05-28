@@ -1,8 +1,7 @@
-
-const Material = require('../models/Material');
 const mongoose = require('mongoose');
-const asyncHandler = require('../middlewares/asyncHandler');
 const NodeCache = require('node-cache');
+const Material = require('../models/Material');
+const asyncHandler = require('../middlewares/asyncHandler');
 
 const materialsCache = new NodeCache({ stdTTL: 30, maxKeys: 500 });
 
@@ -14,7 +13,7 @@ const MAX_BROWSE_CACHE_ENTRIES = 150;
 
 let filterOptionsCache = {
   expiresAt: 0,
-  data: null
+  data: null,
 };
 
 const browseOptionsCache = new Map();
@@ -35,7 +34,12 @@ const parseOptionalInt = (value, label, { min, max }) => {
   return parsed;
 };
 
-const parsePositiveInt = (value, label, fallback, { min = 1, max = Number.MAX_SAFE_INTEGER } = {}) => {
+const parsePositiveInt = (
+  value,
+  label,
+  fallback,
+  { min = 1, max = Number.MAX_SAFE_INTEGER } = {}
+) => {
   if (value === undefined || value === null || value === '') return fallback;
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
@@ -50,7 +54,9 @@ const setBrowseCache = (key, value) => {
   browseOptionsCache.set(key, { expiresAt: now() + BROWSE_OPTIONS_CACHE_TTL_MS, data: value });
   if (browseOptionsCache.size <= MAX_BROWSE_CACHE_ENTRIES) return;
 
-  const oldest = [...browseOptionsCache.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt)[0]?.[0];
+  const oldest = [...browseOptionsCache.entries()].sort(
+    (a, b) => a[1].expiresAt - b[1].expiresAt
+  )[0]?.[0];
   if (oldest) browseOptionsCache.delete(oldest);
 };
 
@@ -81,7 +87,7 @@ const getMaterials = asyncHandler(async (req, res) => {
     resourceType,
     search,
     page = 1,
-    limit = 20
+    limit = 20,
   } = req.query;
 
   const query = { isPublished: true };
@@ -118,7 +124,7 @@ const getMaterials = asyncHandler(async (req, res) => {
       .skip(skip)
       .limit(limitNumber)
       .lean(),
-    Material.countDocuments(query)
+    Material.countDocuments(query),
   ]);
 
   const responseData = {
@@ -128,8 +134,8 @@ const getMaterials = asyncHandler(async (req, res) => {
       page: pageNumber,
       limit: limitNumber,
       total,
-      totalPages: Math.ceil(total / limitNumber)
-    }
+      totalPages: Math.ceil(total / limitNumber),
+    },
   };
 
   materialsCache.set(cacheKey, responseData);
@@ -162,7 +168,7 @@ const getFilterOptions = asyncHandler(async (_req, res) => {
     Material.distinct('year', { isPublished: true }),
     Material.distinct('semester', { isPublished: true }),
     Material.distinct('subject', { isPublished: true }),
-    Material.distinct('resourceType', { isPublished: true })
+    Material.distinct('resourceType', { isPublished: true }),
   ]);
 
   const data = {
@@ -171,12 +177,12 @@ const getFilterOptions = asyncHandler(async (_req, res) => {
     semesters: semesters.sort((a, b) => a - b),
     subjects: uniqueNaturalSort(subjects),
     resourceTypes: uniqueNaturalSort(resourceTypes),
-    degrees: uniqueNaturalSort(degrees)
+    degrees: uniqueNaturalSort(degrees),
   };
 
   filterOptionsCache = {
     data,
-    expiresAt: now() + FILTER_OPTIONS_CACHE_TTL_MS
+    expiresAt: now() + FILTER_OPTIONS_CACHE_TTL_MS,
   };
 
   return res.json({ success: true, data });
@@ -197,7 +203,7 @@ const getBrowseOptions = asyncHandler(async (req, res) => {
     branch: query.branch || '',
     year: query.year || '',
     semester: query.semester || '',
-    subject: query.subject || ''
+    subject: query.subject || '',
   });
 
   const cached = browseOptionsCache.get(cacheKey);
@@ -217,7 +223,7 @@ const getBrowseOptions = asyncHandler(async (req, res) => {
       Material.distinct('year', query),
       Material.distinct('semester', query),
       Material.distinct('subject', query),
-      Material.distinct('resourceType', query)
+      Material.distinct('resourceType', query),
     ]);
 
     const data = {
@@ -225,7 +231,7 @@ const getBrowseOptions = asyncHandler(async (req, res) => {
       years: years.sort((a, b) => a - b),
       semesters: semesters.sort((a, b) => a - b),
       subjects: uniqueNaturalSort(subjects),
-      resourceTypes: uniqueNaturalSort(resourceTypes)
+      resourceTypes: uniqueNaturalSort(resourceTypes),
     };
 
     setBrowseCache(cacheKey, data);
@@ -245,5 +251,5 @@ module.exports = {
   getMaterials,
   getMaterialById,
   getFilterOptions,
-  getBrowseOptions
+  getBrowseOptions,
 };

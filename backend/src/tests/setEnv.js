@@ -5,6 +5,7 @@ process.env.ADMIN_ALLOWED_EMAILS = 'admin@example.com';
 process.env.USER_PASSWORD_HASH = 'test-hash'; // Will be overridden in auth.test.js ? Wait, auth.test.js requires app before overriding.
 // I will just use a fixed hash for tests!
 const crypto = require('crypto');
+
 process.env.USER_PASSWORD_HASH = crypto.createHash('sha256').update('password123').digest('hex');
 process.env.USER_ALLOWED_IDENTIFIERS = 'student1,student2';
 process.env.PORTAL_PUBLIC_DEMO_ENABLED = 'true';

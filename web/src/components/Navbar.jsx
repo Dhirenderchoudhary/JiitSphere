@@ -38,7 +38,9 @@ export default function Navbar() {
     } else {
       document.body.style.overflow = '';
     }
-    return () => { document.body.style.overflow = ''; };
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [mobileOpen]);
 
   return (
@@ -77,7 +79,7 @@ export default function Navbar() {
                 key={link.href}
                 href={link.href}
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                prefetch={true}
+                prefetch
               >
                 {link.label}
               </Link>
@@ -85,10 +87,12 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-3">
-            <TopPanelTools className={cn(
-              "transition-all duration-200 p-1.5 rounded-xl border",
-              scrolled ? "bg-muted/40 border-transparent" : "bg-card/5 border-border/20"
-            )} />
+            <TopPanelTools
+              className={cn(
+                'transition-all duration-200 p-1.5 rounded-xl border',
+                scrolled ? 'bg-muted/40 border-transparent' : 'bg-card/5 border-border/20'
+              )}
+            />
 
             {/* Mobile hamburger */}
             <button
@@ -111,7 +115,10 @@ export default function Navbar() {
           mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         )}
       >
-        <div className="absolute inset-0 bg-background/95 backdrop-blur-xl" onClick={() => setMobileOpen(false)} />
+        <div
+          className="absolute inset-0 bg-background/95 backdrop-blur-xl"
+          onClick={() => setMobileOpen(false)}
+        />
         <div
           className={cn(
             'relative flex flex-col items-center justify-center min-h-screen gap-8 px-6 transition-transform duration-300 ease-out',
@@ -124,7 +131,7 @@ export default function Navbar() {
               href={link.href}
               onClick={() => setMobileOpen(false)}
               className="text-2xl font-bold text-foreground hover:text-primary transition-colors min-h-[44px] flex items-center"
-              prefetch={true}
+              prefetch
             >
               {link.label}
             </Link>

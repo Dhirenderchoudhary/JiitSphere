@@ -8,7 +8,7 @@ const {
   createMaterial,
   updateMaterial,
   deleteMaterial,
-  deleteAllMaterials
+  deleteAllMaterials,
 } = require('../controllers/adminController');
 
 const router = express.Router();
@@ -16,8 +16,18 @@ const router = express.Router();
 router.use(authAdmin);
 
 router.get('/materials', listMaterialsAdmin);
-router.post('/materials', upload.single('file'), validateRequest(createMaterialSchema), createMaterial);
-router.put('/materials/:id', upload.single('file'), validateRequest(updateMaterialSchema), updateMaterial);
+router.post(
+  '/materials',
+  upload.single('file'),
+  validateRequest(createMaterialSchema),
+  createMaterial
+);
+router.put(
+  '/materials/:id',
+  upload.single('file'),
+  validateRequest(updateMaterialSchema),
+  updateMaterial
+);
 router.delete('/materials/:id', deleteMaterial);
 router.delete('/materials', deleteAllMaterials);
 

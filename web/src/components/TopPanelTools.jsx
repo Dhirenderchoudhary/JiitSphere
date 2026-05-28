@@ -16,7 +16,7 @@ export default function TopPanelTools({ className = '' }) {
     };
 
     checkSession();
-    
+
     // Listen for custom identity updates
     window.addEventListener('jaypee-buddy-identity-updated', checkSession);
     return () => window.removeEventListener('jaypee-buddy-identity-updated', checkSession);

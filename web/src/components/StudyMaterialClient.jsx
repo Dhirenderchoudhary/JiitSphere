@@ -5,10 +5,26 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  ChevronRight, BookOpen, Download, RotateCcw, Sparkles,
-  FileText, StickyNote, ClipboardList, PenTool, Layers,
-  GraduationCap, Calendar, GitBranch, BookMarked, ArrowRight, AlertTriangle,
-  Target, LibraryBig, Rocket, LogOut
+  ChevronRight,
+  BookOpen,
+  Download,
+  RotateCcw,
+  Sparkles,
+  FileText,
+  StickyNote,
+  ClipboardList,
+  PenTool,
+  Layers,
+  GraduationCap,
+  Calendar,
+  GitBranch,
+  BookMarked,
+  ArrowRight,
+  AlertTriangle,
+  Target,
+  LibraryBig,
+  Rocket,
+  LogOut,
 } from 'lucide-react';
 import CollegeBrand from 'components/CollegeBrand';
 import SignOutButton from 'components/SignOutButton';
@@ -28,7 +44,16 @@ const YEAR_META = {
   3: { label: '3rd Year', sub: 'Advanced topics', icon: Rocket },
   4: { label: '4th Year', sub: 'Specializations', icon: GraduationCap },
 };
-const SEM_LABELS = { 1: 'Sem 1', 2: 'Sem 2', 3: 'Sem 3', 4: 'Sem 4', 5: 'Sem 5', 6: 'Sem 6', 7: 'Sem 7', 8: 'Sem 8' };
+const SEM_LABELS = {
+  1: 'Sem 1',
+  2: 'Sem 2',
+  3: 'Sem 3',
+  4: 'Sem 4',
+  5: 'Sem 5',
+  6: 'Sem 6',
+  7: 'Sem 7',
+  8: 'Sem 8',
+};
 
 const RESOURCE_TYPES = {
   Slides: {
@@ -84,7 +109,12 @@ const RESOURCE_TYPES = {
 };
 
 const TYPE_ORDER = ['Slides', 'Lectures', 'Tutorials', 'PYQs', 'Solutions'];
-const STEP_ICONS = { year: Calendar, semester: GraduationCap, branch: GitBranch, subject: BookMarked };
+const STEP_ICONS = {
+  year: Calendar,
+  semester: GraduationCap,
+  branch: GitBranch,
+  subject: BookMarked,
+};
 
 async function triggerDownload(url, fallbackName) {
   try {
@@ -111,7 +141,11 @@ async function triggerDownload(url, fallbackName) {
 /* ── step flow ──────────────────────────────────────────────── */
 const STEPS = ['year', 'semester', 'branch', 'subject'];
 
-export default function StudyMaterialClient({ user = null, isGuest = false, initialGuestUsage = { used: 0, limit: GUEST_USAGE_LIMIT } }) {
+export default function StudyMaterialClient({
+  user = null,
+  isGuest = false,
+  initialGuestUsage = { used: 0, limit: GUEST_USAGE_LIMIT },
+}) {
   const router = useRouter();
   const [options, setOptions] = useState({});
   const [filters, setFilters] = useState({ degree: 'BTech' });
@@ -129,11 +163,12 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
   const [guestSignOutLoading, setGuestSignOutLoading] = useState(false);
   const browseRequestIdRef = useRef(0);
 
-
-  const guestUsage = isGuest ? {
-    used: Number(initialGuestUsage.used || 0),
-    limit: Number(initialGuestUsage.limit || GUEST_USAGE_LIMIT),
-  } : { used: 0, limit: GUEST_USAGE_LIMIT };
+  const guestUsage = isGuest
+    ? {
+        used: Number(initialGuestUsage.used || 0),
+        limit: Number(initialGuestUsage.limit || GUEST_USAGE_LIMIT),
+      }
+    : { used: 0, limit: GUEST_USAGE_LIMIT };
   const limitReached = isGuest && guestUsage.used >= guestUsage.limit;
   const stepOptionsLoading = optionsLoading || browseOptionsLoading;
   const currentStepIndex = STEPS.findIndex((key) => !filters[key]);
@@ -170,7 +205,13 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
     setOptionsError('');
     setBrowseOptionsLoading(true);
 
-    fetchBrowseOptions({ degree: filters.degree, year: filters.year, semester: filters.semester, branch: filters.branch, subject: filters.subject })
+    fetchBrowseOptions({
+      degree: filters.degree,
+      year: filters.year,
+      semester: filters.semester,
+      branch: filters.branch,
+      subject: filters.subject,
+    })
       .then((data) => {
         if (browseRequestIdRef.current !== requestId) return;
         setOptions((prev) => ({ ...prev, ...(data.data || {}) }));
@@ -206,7 +247,13 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
         return deduped;
       });
       setCurrentMaterialPage(page);
-      setHasMoreMaterials(Boolean(pagination.totalPages ? page < pagination.totalPages : nextItems.length === MATERIAL_PAGE_SIZE));
+      setHasMoreMaterials(
+        Boolean(
+          pagination.totalPages
+            ? page < pagination.totalPages
+            : nextItems.length === MATERIAL_PAGE_SIZE
+        )
+      );
     } catch (error) {
       setMaterials([]);
       setMaterialsError(error?.message || 'Failed to load materials.');
@@ -321,7 +368,10 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
   }, [materials]);
 
   const sortedTypes = useMemo(
-    () => [...TYPE_ORDER.filter((t) => grouped[t]), ...Object.keys(grouped).filter((t) => !TYPE_ORDER.includes(t))],
+    () => [
+      ...TYPE_ORDER.filter((t) => grouped[t]),
+      ...Object.keys(grouped).filter((t) => !TYPE_ORDER.includes(t)),
+    ],
     [grouped]
   );
 
@@ -337,14 +387,30 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
 
   /* ── option lists ─────────────────────────────────────────── */
   const optionMap = {
-    year: (options.years || []).map((v) => ({ value: v, ...(YEAR_META[v] || { label: `Year ${v}`, sub: '' }) })),
-    semester: (options.semesters || []).map((v) => ({ value: v, label: SEM_LABELS[v] || `Semester ${v}` })),
+    year: (options.years || []).map((v) => ({
+      value: v,
+      ...(YEAR_META[v] || { label: `Year ${v}`, sub: '' }),
+    })),
+    semester: (options.semesters || []).map((v) => ({
+      value: v,
+      label: SEM_LABELS[v] || `Semester ${v}`,
+    })),
     branch: (options.branches || []).map((v) => ({ value: v, label: v })),
     subject: (options.subjects || []).map((v) => ({ value: v, label: v })),
   };
 
-  const stepPrompts = { year: 'Which year are you in?', semester: 'Pick your semester', branch: 'Choose your branch', subject: 'Select a subject' };
-  const stepSubtext = { year: 'Select your current academic year', semester: 'Which semester are you studying?', branch: 'Your specialization', subject: `${(optionMap.subject || []).length} subjects available` };
+  const stepPrompts = {
+    year: 'Which year are you in?',
+    semester: 'Pick your semester',
+    branch: 'Choose your branch',
+    subject: 'Select a subject',
+  };
+  const stepSubtext = {
+    year: 'Select your current academic year',
+    semester: 'Which semester are you studying?',
+    branch: 'Your specialization',
+    subject: `${(optionMap.subject || []).length} subjects available`,
+  };
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-5 sm:px-6 lg:px-8 pb-16">
@@ -354,7 +420,15 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
         <div className="flex flex-wrap items-center gap-2">
           {user ? (
             <div className="flex items-center gap-2 rounded-full border border-border bg-card/75 dark:bg-card/75 px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur">
-              {user.image && <Image src={user.image} alt={user.name || 'User'} width={22} height={22} className="rounded-full"   />}
+              {user.image && (
+                <Image
+                  src={user.image}
+                  alt={user.name || 'User'}
+                  width={22}
+                  height={22}
+                  className="rounded-full"
+                />
+              )}
               <span className="max-w-[160px] truncate text-muted-foreground">{user.email}</span>
               <SignOutButton />
             </div>
@@ -392,22 +466,31 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
           </div>
 
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Filter by your current academic level sequentially to retrieve specific lectures, tutorials, and past year papers.
+            Filter by your current academic level sequentially to retrieve specific lectures,
+            tutorials, and past year papers.
           </p>
 
           <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-muted/40 px-3 py-2 text-sm font-medium text-muted-foreground border border-border/50 w-max">
             {STEPS.map((s, i) => {
-               const isActive = !!filters[s];
-               const isCurrent = currentStep === s;
-               return (
+              const isActive = !!filters[s];
+              const isCurrent = currentStep === s;
+              return (
                 <span key={s} className="flex items-center gap-2">
-                  <span className={isActive ? 'text-foreground font-semibold' : isCurrent ? 'text-primary font-semibold' : ''}>
+                  <span
+                    className={
+                      isActive
+                        ? 'text-foreground font-semibold'
+                        : isCurrent
+                          ? 'text-primary font-semibold'
+                          : ''
+                    }
+                  >
                     {s.charAt(0).toUpperCase() + s.slice(1)}
                   </span>
                   {i < STEPS.length - 1 && <ChevronRight className="size-[3.5] opacity-50" />}
                 </span>
-               )
-             })}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -415,13 +498,22 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
       {/* ── Breadcrumb trail ────────────────────────────────────── */}
       {STEPS.some((k) => filters[k]) && (
         <nav className="mt-4 flex flex-wrap items-center gap-1 rounded-xl border border-border bg-card/80 px-3 py-2 text-sm shadow-sm backdrop-blur">
-          <button type="button" onClick={resetAll} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
+          <button
+            type="button"
+            onClick={resetAll}
+            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
             <RotateCcw className="size-3" /> Reset
           </button>
           {STEPS.map((key) => {
             if (!filters[key]) return null;
             const StepIcon = STEP_ICONS[key];
-            const label = key === 'year' ? (YEAR_META[filters[key]]?.label || `Year ${filters[key]}`) : key === 'semester' ? (SEM_LABELS[filters[key]] || `Sem ${filters[key]}`) : filters[key];
+            const label =
+              key === 'year'
+                ? YEAR_META[filters[key]]?.label || `Year ${filters[key]}`
+                : key === 'semester'
+                  ? SEM_LABELS[filters[key]] || `Sem ${filters[key]}`
+                  : filters[key];
             return (
               <span key={key} className="flex items-center gap-1">
                 <ChevronRight className="size-3 text-muted-foreground/50" />
@@ -447,9 +539,16 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
           </div>
 
           {stepOptionsLoading ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-live="polite" aria-busy="true">
+            <div
+              className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+              aria-live="polite"
+              aria-busy="true"
+            >
               {Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="h-24 animate-pulse rounded-2xl border border-border bg-card/70" />
+                <div
+                  key={index}
+                  className="h-24 animate-pulse rounded-2xl border border-border bg-card/70"
+                />
               ))}
             </div>
           ) : null}
@@ -487,9 +586,15 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
                   className="group relative flex flex-col rounded-2xl border border-border bg-card p-6 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-4 group-hover:bg-primary/20 transition-colors">
-                    {typeof opt.icon === 'function' ? <opt.icon className="size-6" /> : <BookOpen className="size-6" />}
+                    {typeof opt.icon === 'function' ? (
+                      <opt.icon className="size-6" />
+                    ) : (
+                      <BookOpen className="size-6" />
+                    )}
                   </div>
-                  <p className="text-base font-bold group-hover:text-primary transition-colors">{opt.label}</p>
+                  <p className="text-base font-bold group-hover:text-primary transition-colors">
+                    {opt.label}
+                  </p>
                   <p className="text-xs text-muted-foreground mt-1">{opt.sub}</p>
                   <ArrowRight className="absolute bottom-6 right-6 size-4 text-muted-foreground/30 transition-all group-hover:text-primary group-hover:translate-x-0.5" />
                 </button>
@@ -527,9 +632,11 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
-                        <GitBranch className="size-5" />
+                      <GitBranch className="size-5" />
                     </div>
-                    <p className="text-sm font-bold group-hover:text-primary transition-colors">{opt.label}</p>
+                    <p className="text-sm font-bold group-hover:text-primary transition-colors">
+                      {opt.label}
+                    </p>
                   </div>
                   <ArrowRight className="size-4 text-muted-foreground/20 group-hover:text-primary transition-all group-hover:translate-x-0.5" />
                 </button>
@@ -552,7 +659,9 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
                     <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                       <BookMarked className="size-4" />
                     </div>
-                    <span className="text-sm font-bold group-hover:text-primary transition-colors">{opt.label}</span>
+                    <span className="text-sm font-bold group-hover:text-primary transition-colors">
+                      {opt.label}
+                    </span>
                   </div>
                   <ChevronRight className="size-4 shrink-0 text-muted-foreground/30 transition group-hover:text-primary" />
                 </button>
@@ -562,7 +671,9 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
 
           {!stepOptionsLoading && (optionMap[currentStep] || []).length === 0 && !optionsError && (
             <div className="rounded-2xl border border-dashed border-border bg-card/50 p-10 text-center">
-              <p className="text-sm text-muted-foreground">No options available for this selection yet. Try another filter or refresh.</p>
+              <p className="text-sm text-muted-foreground">
+                No options available for this selection yet. Try another filter or refresh.
+              </p>
             </div>
           )}
         </section>
@@ -593,14 +704,20 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
           ) : sortedTypes.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card/50 p-12 text-center">
               <FileText className="mx-auto h-10 w-10 text-muted-foreground/30" />
-              <p className="mt-3 text-sm text-muted-foreground">No materials found for <strong>{filters.subject}</strong>.</p>
+              <p className="mt-3 text-sm text-muted-foreground">
+                No materials found for <strong>{filters.subject}</strong>.
+              </p>
             </div>
           ) : (
             <>
               {/* Guest banner */}
               {isGuest && (
-                <div className={`mb-5 rounded-xl border px-4 py-3 text-sm ${limitReached ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/50 dark:text-red-300' : 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300'}`}>
-                  {limitReached ? 'Guest limit reached. Sign in for unlimited access.' : `Guest: ${guestUsage.used}/${guestUsage.limit} combined views + downloads used.`}
+                <div
+                  className={`mb-5 rounded-xl border px-4 py-3 text-sm ${limitReached ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/50 dark:text-red-300' : 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300'}`}
+                >
+                  {limitReached
+                    ? 'Guest limit reached. Sign in for unlimited access.'
+                    : `Guest: ${guestUsage.used}/${guestUsage.limit} combined views + downloads used.`}
                 </div>
               )}
 
@@ -624,7 +741,9 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
                     >
                       <Icon className="size-4" />
                       {type}
-                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${isActive ? meta.badge : 'bg-muted text-muted-foreground'}`}>
+                      <span
+                        className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${isActive ? meta.badge : 'bg-muted text-muted-foreground'}`}
+                      >
                         {grouped[type]?.length || 0}
                       </span>
                     </button>
@@ -633,88 +752,117 @@ export default function StudyMaterialClient({ user = null, isGuest = false, init
               </div>
 
               {/* Active tab content */}
-              {activeTab && grouped[activeTab] && (() => {
-                const meta = RESOURCE_TYPES[activeTab] || RESOURCE_TYPES.Slides;
-                const Icon = meta.icon;
-                const items = grouped[activeTab];
+              {activeTab &&
+                grouped[activeTab] &&
+                (() => {
+                  const meta = RESOURCE_TYPES[activeTab] || RESOURCE_TYPES.Slides;
+                  const Icon = meta.icon;
+                  const items = grouped[activeTab];
 
-                return (
-                  <div>
-                    {/* Section header with gradient accent */}
-                    <div className={`mb-4 flex items-center gap-3 rounded-xl ${meta.bg} border ${meta.border} px-4 py-3`}>
-                      <div className={`flex size-9 items-center justify-center rounded-lg bg-gradient-to-br ${meta.gradient} text-white shadow-sm`}>
-                        <Icon className="size-[4.5]" />
-                      </div>
-                      <div>
-                        <p className={`text-sm font-black ${meta.text}`}>{activeTab}</p>
-                        <p className="text-xs text-muted-foreground">{meta.description}</p>
-                      </div>
-                      <Badge className={`ml-auto ${meta.badge} border-0`}>{items.length} {items.length === 1 ? 'file' : 'files'}</Badge>
-                    </div>
-
-                    {/* File grid */}
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                      {items.map((item, i) => (
+                  return (
+                    <div>
+                      {/* Section header with gradient accent */}
+                      <div
+                        className={`mb-4 flex items-center gap-3 rounded-xl ${meta.bg} border ${meta.border} px-4 py-3`}
+                      >
                         <div
-                          key={item._id}
-                          className="group rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md"
+                          className={`flex size-9 items-center justify-center rounded-lg bg-gradient-to-br ${meta.gradient} text-white shadow-sm`}
                         >
-                          <div className="mb-3">
-                            <h4 className="line-clamp-2 text-sm font-bold leading-snug">{item.title}</h4>
-                            <Badge variant="outline" className="mt-1.5 text-[10px] px-1.5 py-0 font-medium">{item.fileType?.toUpperCase()}</Badge>
-                          </div>
-                          <div className="flex gap-2">
-                            <Link href={`/material/${item._id}`} className="flex-1">
-                              <Button type="button" className="w-full" size="sm" variant="secondary">
-                                <BookOpen className="mr-1.5 size-[3.5]" /> View
-                              </Button>
-                            </Link>
-                            {limitReached ? (
-                              <Button type="button" size="sm" disabled className="flex-1">
-                                <Download className="mr-1.5 size-[3.5]" /> Limit
-                              </Button>
-                            ) : (
-                              <Button
-                                type="button"
-                                size="sm"
-                                className="flex-1"
-                                onClick={() => {
-                                  const filename = `${item.title || item.subject}.${item.fileType}`;
-                                  toast.info(`Downloading...`, { description: filename });
-                                  triggerDownload(materialAccessUrl(item._id, 'download'), filename)
-                                    .then(() => {
-                                      // Guest usage tracking is now handled by server-side state
-                                    })
-                                    .catch((error) => {
-                                      toast.error(error?.message || 'Download failed', {
-                                        description: 'Sign in with your college account for unlimited access.',
-                                      });
-                                    });
-                                }}
-                              >
-                                <Download className="mr-1.5 size-[3.5]" /> Download
-                              </Button>
-                            )}
-                          </div>
+                          <Icon className="size-[4.5]" />
                         </div>
-                      ))}
-                    </div>
-
-                    {hasMoreMaterials && (
-                      <div className="mt-5 flex justify-center">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => loadMaterials(filters, { page: currentMaterialPage + 1, append: true })}
-                          disabled={loadingMore}
-                        >
-                          {loadingMore ? 'Loading more…' : 'Load more materials'}
-                        </Button>
+                        <div>
+                          <p className={`text-sm font-black ${meta.text}`}>{activeTab}</p>
+                          <p className="text-xs text-muted-foreground">{meta.description}</p>
+                        </div>
+                        <Badge className={`ml-auto ${meta.badge} border-0`}>
+                          {items.length} {items.length === 1 ? 'file' : 'files'}
+                        </Badge>
                       </div>
-                    )}
-                  </div>
-                );
-              })()}
+
+                      {/* File grid */}
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {items.map((item, i) => (
+                          <div
+                            key={item._id}
+                            className="group rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md"
+                          >
+                            <div className="mb-3">
+                              <h4 className="line-clamp-2 text-sm font-bold leading-snug">
+                                {item.title}
+                              </h4>
+                              <Badge
+                                variant="outline"
+                                className="mt-1.5 text-[10px] px-1.5 py-0 font-medium"
+                              >
+                                {item.fileType?.toUpperCase()}
+                              </Badge>
+                            </div>
+                            <div className="flex gap-2">
+                              <Link href={`/material/${item._id}`} className="flex-1">
+                                <Button
+                                  type="button"
+                                  className="w-full"
+                                  size="sm"
+                                  variant="secondary"
+                                >
+                                  <BookOpen className="mr-1.5 size-[3.5]" /> View
+                                </Button>
+                              </Link>
+                              {limitReached ? (
+                                <Button type="button" size="sm" disabled className="flex-1">
+                                  <Download className="mr-1.5 size-[3.5]" /> Limit
+                                </Button>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  className="flex-1"
+                                  onClick={() => {
+                                    const filename = `${item.title || item.subject}.${item.fileType}`;
+                                    toast.info(`Downloading...`, { description: filename });
+                                    triggerDownload(
+                                      materialAccessUrl(item._id, 'download'),
+                                      filename
+                                    )
+                                      .then(() => {
+                                        // Guest usage tracking is now handled by server-side state
+                                      })
+                                      .catch((error) => {
+                                        toast.error(error?.message || 'Download failed', {
+                                          description:
+                                            'Sign in with your college account for unlimited access.',
+                                        });
+                                      });
+                                  }}
+                                >
+                                  <Download className="mr-1.5 size-[3.5]" /> Download
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {hasMoreMaterials && (
+                        <div className="mt-5 flex justify-center">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() =>
+                              loadMaterials(filters, {
+                                page: currentMaterialPage + 1,
+                                append: true,
+                              })
+                            }
+                            disabled={loadingMore}
+                          >
+                            {loadingMore ? 'Loading more…' : 'Load more materials'}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
             </>
           )}
         </section>

@@ -8,7 +8,9 @@ const limiter = rateLimit({ name: 'google-callback', windowMs: 60 * 1000, max: 3
 const JIIT_DOMAIN = '@mail.jiit.ac.in';
 
 const getSiteBase = () =>
-  String(process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/+$/, '');
+  String(
+    process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  ).replace(/\/+$/, '');
 
 export async function GET(request) {
   const limited = limiter(request);

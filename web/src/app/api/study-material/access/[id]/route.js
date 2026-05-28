@@ -16,7 +16,7 @@ const BACKEND_BASE =
  */
 export async function GET(request, { params }) {
   try {
-    const id = params.id;
+    const { id } = params;
 
     const response = await fetch(
       `${BACKEND_BASE.replace(/\/+$/, '')}/materials/${encodeURIComponent(id)}`,
@@ -24,28 +24,28 @@ export async function GET(request, { params }) {
     );
 
     if (!response.ok) {
-      return new NextResponse(
-        'Material not found or has been removed.',
-        { status: 404, headers: { 'Content-Type': 'text/plain' } }
-      );
+      return new NextResponse('Material not found or has been removed.', {
+        status: 404,
+        headers: { 'Content-Type': 'text/plain' },
+      });
     }
 
     const payload = await response.json().catch(() => null);
     const material = payload?.data;
 
     if (!material?.fileUrl) {
-      return new NextResponse(
-        'Source file URL is not available.',
-        { status: 404, headers: { 'Content-Type': 'text/plain' } }
-      );
+      return new NextResponse('Source file URL is not available.', {
+        status: 404,
+        headers: { 'Content-Type': 'text/plain' },
+      });
     }
 
     return NextResponse.redirect(material.fileUrl);
   } catch (error) {
     console.error('Study material access error:', error);
-    return new NextResponse(
-      'Internal server error while accessing material.',
-      { status: 500, headers: { 'Content-Type': 'text/plain' } }
-    );
+    return new NextResponse('Internal server error while accessing material.', {
+      status: 500,
+      headers: { 'Content-Type': 'text/plain' },
+    });
   }
 }

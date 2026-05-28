@@ -4,7 +4,13 @@ import { render, screen } from '@testing-library/react';
 import MaterialList from '@/components/MaterialList';
 
 const mockMaterials = [
-  { _id: '1', title: 'Physics Notes', subject: 'Physics', resourceType: 'notes', isPublished: true }
+  {
+    _id: '1',
+    title: 'Physics Notes',
+    subject: 'Physics',
+    resourceType: 'notes',
+    isPublished: true,
+  },
 ];
 
 describe('MaterialCard / MaterialList', () => {

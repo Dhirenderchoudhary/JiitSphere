@@ -1,14 +1,17 @@
-
 const env = require('../config/env');
 const {
   createRelaySession,
   ensureOwnedSession,
   updateCookiesFromResponse,
   buildCookieHeader,
-  destroyRelaySession
+  destroyRelaySession,
 } = require('../services/portalRelayService');
 const CustomPortalClient = require('../services/customPortalClient');
-const { encryptPortalPayload, encryptPortalPayloadVariants, generatePortalLocalName } = require('../utils/portalCrypto');
+const {
+  encryptPortalPayload,
+  encryptPortalPayloadVariants,
+  generatePortalLocalName,
+} = require('../utils/portalCrypto');
 
 const portalClient = new CustomPortalClient(env.portalRelayBaseUrl);
 
@@ -27,7 +30,10 @@ const parseBody = async (response) => {
   const trimmed = String(text || '').trim();
   if (!trimmed) return '';
 
-  if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+  if (
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  ) {
     try {
       return JSON.parse(trimmed);
     } catch (_error) {
@@ -42,7 +48,7 @@ const portalHeaders = {
   Accept: 'application/json, text/plain, */*',
   Origin: 'https://webportal.jiit.ac.in:6011',
   Referer: 'https://webportal.jiit.ac.in:6011/studentportal/#/',
-  'X-Requested-With': 'XMLHttpRequest'
+  'X-Requested-With': 'XMLHttpRequest',
 };
 
 const RELAY_ATTEMPT_TIMEOUT_MS = Number(env.portalRequestTimeoutMs || 12000);
@@ -59,7 +65,9 @@ const isSafePortalPath = (value) => {
 const startRelaySession = (req, res) => {
   const ownerId = req.user.userId || req.user.email || 'unknown';
   const sessionId = createRelaySession(ownerId);
-  return res.status(200).json({ success: true, data: { sessionId, baseUrl: env.portalRelayBaseUrl } });
+  return res
+    .status(200)
+    .json({ success: true, data: { sessionId, baseUrl: env.portalRelayBaseUrl } });
 };
 
 const fetchRelayCaptcha = async (req, res, next) => {
@@ -81,7 +89,7 @@ const fetchRelayCaptcha = async (req, res, next) => {
 
     const response = await fetch(url, {
       method: 'GET',
-      headers: outboundHeaders
+      headers: outboundHeaders,
     });
 
     updateCookiesFromResponse(session, response);
@@ -100,8 +108,8 @@ const fetchRelayCaptcha = async (req, res, next) => {
         relayStatus: response.status,
         relayOk: response.ok,
         targetUrl: url,
-        response: data
-      }
+        response: data,
+      },
     });
   } catch (error) {
     return next(error);
@@ -123,7 +131,9 @@ const relayRequest = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Invalid relay path' });
     }
 
-    const safeMethod = String(method || 'GET').trim().toUpperCase();
+    const safeMethod = String(method || 'GET')
+      .trim()
+      .toUpperCase();
     if (!SAFE_RELAY_METHODS.has(safeMethod)) {
       return res.status(400).json({ success: false, message: 'Unsupported relay method' });
     }
@@ -131,7 +141,9 @@ const relayRequest = async (req, res, next) => {
     const url = portalClient.toAbsoluteUrl(relayPath);
     const outboundHeaders = { ...portalHeaders };
 
-    const requestedContentType = String(headers?.['Content-Type'] || headers?.['content-type'] || '').trim();
+    const requestedContentType = String(
+      headers?.['Content-Type'] || headers?.['content-type'] || ''
+    ).trim();
     if (requestedContentType && SAFE_RELAY_CONTENT_TYPES.has(requestedContentType)) {
       outboundHeaders['Content-Type'] = requestedContentType;
     }
@@ -144,7 +156,7 @@ const relayRequest = async (req, res, next) => {
     const response = await fetch(url, {
       method: safeMethod,
       headers: outboundHeaders,
-      body: body ? JSON.stringify(body) : undefined
+      body: body ? JSON.stringify(body) : undefined,
     });
 
     updateCookiesFromResponse(session, response);
@@ -156,8 +168,8 @@ const relayRequest = async (req, res, next) => {
         relayStatus: response.status,
         relayOk: response.ok,
         targetUrl: url,
-        response: data
-      }
+        response: data,
+      },
     });
   } catch (error) {
     return next(error);
@@ -169,7 +181,7 @@ const executeRelayAttempt = async (session, candidate) => {
   const headers = {
     ...portalHeaders,
     'Content-Type': candidate.contentType || 'application/json',
-    LocalName: generatePortalLocalName()
+    LocalName: generatePortalLocalName(),
   };
 
   const cookieHeader = buildCookieHeader(session);
@@ -189,12 +201,13 @@ const executeRelayAttempt = async (session, candidate) => {
           : candidate.body
             ? JSON.stringify(candidate.body)
             : undefined,
-      signal: controller.signal
+      signal: controller.signal,
     });
   } catch (error) {
     clearTimeout(timeoutHandle);
     const code = error?.cause?.code || error?.code || error?.name || 'PORTAL_FETCH_ERROR';
-    const isAbort = String(error?.name || '').toLowerCase() === 'aborterror' || String(code) === 'ABORT_ERR';
+    const isAbort =
+      String(error?.name || '').toLowerCase() === 'aborterror' || String(code) === 'ABORT_ERR';
     const message = isAbort
       ? `Portal request timed out after ${RELAY_ATTEMPT_TIMEOUT_MS}ms`
       : error?.cause?.message || error?.message || 'Portal request failed';
@@ -207,14 +220,14 @@ const executeRelayAttempt = async (session, candidate) => {
       response: {
         status: {
           responseStatus: 'FAILED',
-          errors: [message]
+          errors: [message],
         },
         meta: {
           networkError: true,
           code: String(code),
-          path: candidate.path
-        }
-      }
+          path: candidate.path,
+        },
+      },
     };
   } finally {
     clearTimeout(timeoutHandle);
@@ -228,13 +241,15 @@ const executeRelayAttempt = async (session, candidate) => {
     contentType: headers['Content-Type'],
     status: response.status,
     ok: response.ok,
-    response: data
+    response: data,
   };
 };
 
 const responseLooksSuccessful = (payload) => {
   if (!payload || typeof payload !== 'object') return false;
-  const responseStatus = String(payload?.status?.responseStatus || payload?.responseStatus || '').toLowerCase();
+  const responseStatus = String(
+    payload?.status?.responseStatus || payload?.responseStatus || ''
+  ).toLowerCase();
   const statusLiteral = String(payload?.status || '').toLowerCase();
   return responseStatus === 'success' || responseStatus === 'ok' || statusLiteral === 'success';
 };
@@ -254,7 +269,9 @@ const extractFailureMessage = (payload) => {
 
 const extractResponseStatus = (payload) => {
   if (!payload || typeof payload !== 'object') return '';
-  return String(payload?.status?.responseStatus || payload?.responseStatus || payload?.status || '').trim();
+  return String(
+    payload?.status?.responseStatus || payload?.responseStatus || payload?.status || ''
+  ).trim();
 };
 
 const sanitizeAttempt = (attempt = {}) => ({
@@ -266,7 +283,7 @@ const sanitizeAttempt = (attempt = {}) => ({
   phase: attempt.phase,
   timeZoneVariant: attempt.timeZoneVariant,
   responseStatus: extractResponseStatus(attempt.response),
-  message: extractFailureMessage(attempt.response)
+  message: extractFailureMessage(attempt.response),
 });
 
 const applyAuthContextToSession = (session, payload) => {
@@ -277,7 +294,7 @@ const applyAuthContextToSession = (session, payload) => {
   session.authContext = {
     regdata: regdata || {},
     tokenDate: new Date().toString(),
-    verifiedAt: Date.now()
+    verifiedAt: Date.now(),
   };
   return true;
 };
@@ -290,12 +307,12 @@ const runEncryptedLoginFlow = async ({
   password,
   captchaPayload,
   strategy,
-  maxCombos = 6
+  maxCombos = 6,
 }) => {
   const preloginPayload = JSON.stringify({
     username: portalUsername,
     usertype: normalizedUserType,
-    captcha: captchaPayload
+    captcha: captchaPayload,
   });
 
   const variants = encryptPortalPayloadVariants(preloginPayload);
@@ -324,7 +341,7 @@ const runEncryptedLoginFlow = async ({
       path: '/StudentPortalAPI/token/pretoken-check',
       method: 'POST',
       contentType,
-      rawBody: variant.encrypted
+      rawBody: variant.encrypted,
     });
     pretokenAttempt.strategy = strategy;
     pretokenAttempt.phase = 'pretoken-check';
@@ -338,7 +355,7 @@ const runEncryptedLoginFlow = async ({
     }
 
     const tokenPayloadObject = {
-      ...pretokenResponse
+      ...pretokenResponse,
     };
 
     delete tokenPayloadObject.rejectedData;
@@ -358,14 +375,16 @@ const runEncryptedLoginFlow = async ({
       path: '/StudentPortalAPI/token/generatewebtoken',
       method: 'POST',
       contentType,
-      rawBody: encryptedGenerateToken
+      rawBody: encryptedGenerateToken,
     });
     tokenAttempt.strategy = strategy;
     tokenAttempt.phase = 'generatewebtoken';
     tokenAttempt.timeZoneVariant = variant.timeZone;
     attempts.push(tokenAttempt);
 
-    const authenticated = responseLooksSuccessful(tokenAttempt.response) && applyAuthContextToSession(session, tokenAttempt.response);
+    const authenticated =
+      responseLooksSuccessful(tokenAttempt.response) &&
+      applyAuthContextToSession(session, tokenAttempt.response);
     if (authenticated) {
       return true;
     }
@@ -377,7 +396,14 @@ const runEncryptedLoginFlow = async ({
 const tryRelayLogin = async (req, res, next) => {
   try {
     const ownerId = req.user.userId || req.user.email || 'unknown';
-    const { sessionId, userId, password, captcha, usertype = 'S', encryptedPayload } = req.body || {};
+    const {
+      sessionId,
+      userId,
+      password,
+      captcha,
+      usertype = 'S',
+      encryptedPayload,
+    } = req.body || {};
 
     const normalizedUserId = String(userId || '').trim();
     const normalizedPassword = String(password || '').trim();
@@ -392,7 +418,9 @@ const tryRelayLogin = async (req, res, next) => {
 
     const attempts = [];
     let authenticated = false;
-    const normalizedUserType = String(usertype || 'S').trim().toUpperCase();
+    const normalizedUserType = String(usertype || 'S')
+      .trim()
+      .toUpperCase();
     const normalizedCaptcha = String(captcha || '')
       .trim()
       .replace(/[^a-z0-9]/gi, '')
@@ -403,7 +431,9 @@ const tryRelayLogin = async (req, res, next) => {
     const seenIdentities = new Set();
     const pushIdentity = (username, identityType, label) => {
       const normalizedUsername = String(username || '').trim();
-      const normalizedType = String(identityType || '').trim().toUpperCase();
+      const normalizedType = String(identityType || '')
+        .trim()
+        .toUpperCase();
       if (!normalizedUsername || !normalizedType) return;
 
       const key = `${normalizedType}:${normalizedUsername.toLowerCase()}`;
@@ -443,7 +473,7 @@ const tryRelayLogin = async (req, res, next) => {
         path: '/StudentPortalAPI/token/pretoken-check',
         method: 'POST',
         contentType: 'text/plain;charset=UTF-8',
-        rawBody: String(encryptedPayload)
+        rawBody: String(encryptedPayload),
       });
     }
 
@@ -465,7 +495,7 @@ const tryRelayLogin = async (req, res, next) => {
           password: normalizedPassword,
           captchaPayload: DEFAULT_PORTAL_CAPTCHA,
           strategy: `encrypted-default-captcha:${identity.label}`,
-          maxCombos: normalizedCaptcha ? 4 : 3
+          maxCombos: normalizedCaptcha ? 4 : 3,
         });
 
         if (!authenticated && normalizedCaptcha) {
@@ -482,7 +512,7 @@ const tryRelayLogin = async (req, res, next) => {
             password: normalizedPassword,
             captchaPayload: captchaEnvelope,
             strategy: `encrypted-user-captcha:${identity.label}`,
-            maxCombos: 6
+            maxCombos: 6,
           });
         }
 
@@ -491,7 +521,7 @@ const tryRelayLogin = async (req, res, next) => {
             userId: identity.username,
             password: normalizedPassword,
             captcha: normalizedCaptcha,
-            usertype: identity.usertype
+            usertype: identity.usertype,
           });
           identityCandidates.forEach((candidate) => {
             candidates.push({ ...candidate, strategyLabel: identity.label });
@@ -499,7 +529,12 @@ const tryRelayLogin = async (req, res, next) => {
         }
       }
 
-      if (!authenticated && !normalizedCaptcha && deferredIdentities.length && attempts.length < maxAttemptBudget) {
+      if (
+        !authenticated &&
+        !normalizedCaptcha &&
+        deferredIdentities.length &&
+        attempts.length < maxAttemptBudget
+      ) {
         for (const identity of deferredIdentities) {
           if (authenticated || attempts.length >= maxAttemptBudget) break;
 
@@ -511,7 +546,7 @@ const tryRelayLogin = async (req, res, next) => {
             password: normalizedPassword,
             captchaPayload: DEFAULT_PORTAL_CAPTCHA,
             strategy: `encrypted-default-captcha-deep:${identity.label}`,
-            maxCombos: 4
+            maxCombos: 4,
           });
 
           if (!authenticated) {
@@ -519,7 +554,7 @@ const tryRelayLogin = async (req, res, next) => {
               userId: identity.username,
               password: normalizedPassword,
               captcha: normalizedCaptcha,
-              usertype: identity.usertype
+              usertype: identity.usertype,
             });
             identityCandidates.forEach((candidate) => {
               candidates.push({ ...candidate, strategyLabel: `${identity.label}-deep` });
@@ -530,26 +565,44 @@ const tryRelayLogin = async (req, res, next) => {
     }
 
     if (!authenticated) {
-      const fastFallbackLimit = normalizedCaptcha ? candidates.length : Math.min(candidates.length, 4);
+      const fastFallbackLimit = normalizedCaptcha
+        ? candidates.length
+        : Math.min(candidates.length, 4);
       const fastFallbackCandidates = candidates.slice(0, fastFallbackLimit);
       for (const candidate of fastFallbackCandidates) {
         if (attempts.length >= maxAttemptBudget) break;
         const attempt = await executeRelayAttempt(session, candidate);
-        attempt.strategy = candidate.strategyLabel ? `legacy-fallback:${candidate.strategyLabel}` : 'legacy-fallback';
+        attempt.strategy = candidate.strategyLabel
+          ? `legacy-fallback:${candidate.strategyLabel}`
+          : 'legacy-fallback';
         attempts.push(attempt);
-        if (!authenticated && responseLooksSuccessful(attempt.response) && applyAuthContextToSession(session, attempt.response)) {
+        if (
+          !authenticated &&
+          responseLooksSuccessful(attempt.response) &&
+          applyAuthContextToSession(session, attempt.response)
+        ) {
           authenticated = true;
         }
       }
 
-      if (!authenticated && !normalizedCaptcha && fastFallbackLimit < candidates.length && attempts.length < maxAttemptBudget) {
+      if (
+        !authenticated &&
+        !normalizedCaptcha &&
+        fastFallbackLimit < candidates.length &&
+        attempts.length < maxAttemptBudget
+      ) {
         const deepFallbackCandidates = candidates.slice(fastFallbackLimit);
         for (const candidate of deepFallbackCandidates) {
           if (authenticated || attempts.length >= maxAttemptBudget) break;
           const attempt = await executeRelayAttempt(session, candidate);
-          attempt.strategy = candidate.strategyLabel ? `legacy-fallback-deep:${candidate.strategyLabel}` : 'legacy-fallback-deep';
+          attempt.strategy = candidate.strategyLabel
+            ? `legacy-fallback-deep:${candidate.strategyLabel}`
+            : 'legacy-fallback-deep';
           attempts.push(attempt);
-          if (responseLooksSuccessful(attempt.response) && applyAuthContextToSession(session, attempt.response)) {
+          if (
+            responseLooksSuccessful(attempt.response) &&
+            applyAuthContextToSession(session, attempt.response)
+          ) {
             authenticated = true;
           }
         }
@@ -558,10 +611,11 @@ const tryRelayLogin = async (req, res, next) => {
 
     const sanitizedAttempts = attempts.map((attempt) => sanitizeAttempt(attempt));
 
-    const attemptMessages = sanitizedAttempts
-      .map((attempt) => attempt.message)
-      .filter(Boolean);
-    const failureMessage = attemptMessages.find((msg) => /invalid|captcha|password|credential/i.test(msg)) || attemptMessages[0] || '';
+    const attemptMessages = sanitizedAttempts.map((attempt) => attempt.message).filter(Boolean);
+    const failureMessage =
+      attemptMessages.find((msg) => /invalid|captcha|password|credential/i.test(msg)) ||
+      attemptMessages[0] ||
+      '';
 
     return res.status(200).json({
       success: true,
@@ -569,8 +623,10 @@ const tryRelayLogin = async (req, res, next) => {
         attempts: sanitizedAttempts,
         authenticated,
         recommendation: authenticated ? 'proceed' : 'captcha-required',
-        failureMessage: authenticated ? '' : failureMessage || 'Official portal credentials verification failed'
-      }
+        failureMessage: authenticated
+          ? ''
+          : failureMessage || 'Official portal credentials verification failed',
+      },
     });
   } catch (error) {
     return next(error);
@@ -590,5 +646,5 @@ module.exports = {
   fetchRelayCaptcha,
   relayRequest,
   tryRelayLogin,
-  closeRelaySession
+  closeRelaySession,
 };

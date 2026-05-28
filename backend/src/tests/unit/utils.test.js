@@ -6,10 +6,10 @@ describe('asyncHandler wrapper', () => {
     const res = {};
     const next = jest.fn();
     const fn = jest.fn().mockResolvedValue('success');
-    
+
     const wrapped = asyncHandler(fn);
     await wrapped(req, res, next);
-    
+
     expect(fn).toHaveBeenCalledWith(req, res, next);
     expect(next).not.toHaveBeenCalled();
   });
@@ -20,10 +20,10 @@ describe('asyncHandler wrapper', () => {
     const next = jest.fn();
     const error = new Error('test error');
     const fn = jest.fn().mockRejectedValue(error);
-    
+
     const wrapped = asyncHandler(fn);
     await wrapped(req, res, next);
-    
+
     expect(fn).toHaveBeenCalledWith(req, res, next);
     expect(next).toHaveBeenCalledWith(error);
   });

@@ -1,11 +1,9 @@
-
-
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
 const semesters = [
   { registration_id: 'REG-ODD-2025', registration_code: 'ODD 2025-26', stynumber: 5 },
   { registration_id: 'REG-EVE-2024', registration_code: 'EVE 2024-25', stynumber: 4 },
-  { registration_id: 'REG-ODD-2024', registration_code: 'ODD 2024-25', stynumber: 3 }
+  { registration_id: 'REG-ODD-2024', registration_code: 'ODD 2024-25', stynumber: 3 },
 ];
 
 const attendanceData = {
@@ -18,7 +16,7 @@ const attendanceData = {
         attendedclasses: 49,
         totalclasses: 55,
         canmissclasses: 6,
-        needattendclasses: 0
+        needattendclasses: 0,
       },
       {
         subjectcode: '23B11CS303',
@@ -27,7 +25,7 @@ const attendanceData = {
         attendedclasses: 46,
         totalclasses: 55,
         canmissclasses: 3,
-        needattendclasses: 0
+        needattendclasses: 0,
       },
       {
         subjectcode: '23B11CS305',
@@ -36,7 +34,7 @@ const attendanceData = {
         attendedclasses: 42,
         totalclasses: 53,
         canmissclasses: 1,
-        needattendclasses: 0
+        needattendclasses: 0,
       },
       {
         subjectcode: '23B11MA301',
@@ -45,7 +43,7 @@ const attendanceData = {
         attendedclasses: 40,
         totalclasses: 55,
         canmissclasses: 0,
-        needattendclasses: 2
+        needattendclasses: 2,
       },
       {
         subjectcode: '23B11HS201',
@@ -54,9 +52,9 @@ const attendanceData = {
         attendedclasses: 34,
         totalclasses: 37,
         canmissclasses: 4,
-        needattendclasses: 0
-      }
-    ]
+        needattendclasses: 0,
+      },
+    ],
   },
   'REG-EVE-2024': {
     studentattendancelist: [
@@ -67,7 +65,7 @@ const attendanceData = {
         attendedclasses: 44,
         totalclasses: 51,
         canmissclasses: 4,
-        needattendclasses: 0
+        needattendclasses: 0,
       },
       {
         subjectcode: '22B11CS206',
@@ -76,7 +74,7 @@ const attendanceData = {
         attendedclasses: 41,
         totalclasses: 50,
         canmissclasses: 2,
-        needattendclasses: 0
+        needattendclasses: 0,
       },
       {
         subjectcode: '22B11CS208',
@@ -85,10 +83,10 @@ const attendanceData = {
         attendedclasses: 45,
         totalclasses: 51,
         canmissclasses: 5,
-        needattendclasses: 0
-      }
-    ]
-  }
+        needattendclasses: 0,
+      },
+    ],
+  },
 };
 
 const subjectDailyData = {
@@ -98,9 +96,9 @@ const subjectDailyData = {
       { datetime: '2026-01-12', present: 'Present', topic: 'AVL Rotations' },
       { datetime: '2026-01-16', present: 'Absent', topic: 'Red Black Trees' },
       { datetime: '2026-01-19', present: 'Present', topic: 'Hashing' },
-      { datetime: '2026-01-22', present: 'Present', topic: 'Amortized Analysis' }
+      { datetime: '2026-01-22', present: 'Present', topic: 'Amortized Analysis' },
     ],
-    message: ''
+    message: '',
   },
   'REG-ODD-2025:23B11CS303': {
     studentAttdsummarylist: [
@@ -108,9 +106,9 @@ const subjectDailyData = {
       { datetime: '2026-01-13', present: 'Present', topic: 'Deadlocks' },
       { datetime: '2026-01-17', present: 'Present', topic: 'Memory Management' },
       { datetime: '2026-01-21', present: 'Absent', topic: 'Paging' },
-      { datetime: '2026-01-24', present: 'Present', topic: 'File Systems' }
+      { datetime: '2026-01-24', present: 'Present', topic: 'File Systems' },
     ],
-    message: ''
+    message: '',
   },
   'REG-ODD-2025:23B11CS305': {
     studentAttdsummarylist: [
@@ -118,9 +116,9 @@ const subjectDailyData = {
       { datetime: '2026-01-12', present: 'Present', topic: 'Transactions' },
       { datetime: '2026-01-15', present: 'Absent', topic: 'Concurrency Control' },
       { datetime: '2026-01-20', present: 'Present', topic: 'Indexing' },
-      { datetime: '2026-01-23', present: 'Present', topic: 'Query Optimization' }
+      { datetime: '2026-01-23', present: 'Present', topic: 'Query Optimization' },
     ],
-    message: ''
+    message: '',
   },
   'REG-ODD-2025:23B11MA301': {
     studentAttdsummarylist: [
@@ -128,9 +126,9 @@ const subjectDailyData = {
       { datetime: '2026-01-11', present: 'Absent', topic: 'Expectation and Variance' },
       { datetime: '2026-01-14', present: 'Present', topic: 'Distributions' },
       { datetime: '2026-01-18', present: 'Present', topic: 'Sampling Theory' },
-      { datetime: '2026-01-25', present: 'Present', topic: 'Hypothesis Testing' }
+      { datetime: '2026-01-25', present: 'Present', topic: 'Hypothesis Testing' },
     ],
-    message: ''
+    message: '',
   },
   'REG-ODD-2025:23B11HS201': {
     studentAttdsummarylist: [
@@ -138,10 +136,10 @@ const subjectDailyData = {
       { datetime: '2026-01-10', present: 'Present', topic: 'Technical Writing' },
       { datetime: '2026-01-14', present: 'Present', topic: 'Group Discussion' },
       { datetime: '2026-01-18', present: 'Present', topic: 'Interview Communication' },
-      { datetime: '2026-01-22', present: 'Present', topic: 'Email Etiquette' }
+      { datetime: '2026-01-22', present: 'Present', topic: 'Email Etiquette' },
     ],
-    message: ''
-  }
+    message: '',
+  },
 };
 
 const gradeCards = {
@@ -156,7 +154,7 @@ const gradeCards = {
       marksobtained: 86,
       totalmarks: 100,
       assessment: 'Total',
-      assessmentorder: 999
+      assessmentorder: 999,
     },
     {
       subjectid: 'S303',
@@ -168,7 +166,7 @@ const gradeCards = {
       marksobtained: 83,
       totalmarks: 100,
       assessment: 'Total',
-      assessmentorder: 999
+      assessmentorder: 999,
     },
     {
       subjectid: 'S305',
@@ -180,7 +178,7 @@ const gradeCards = {
       marksobtained: 78,
       totalmarks: 100,
       assessment: 'Total',
-      assessmentorder: 999
+      assessmentorder: 999,
     },
     {
       subjectid: 'SMA301',
@@ -192,7 +190,7 @@ const gradeCards = {
       marksobtained: 74,
       totalmarks: 100,
       assessment: 'Total',
-      assessmentorder: 999
+      assessmentorder: 999,
     },
     {
       subjectid: 'SHS201',
@@ -204,8 +202,8 @@ const gradeCards = {
       marksobtained: 91,
       totalmarks: 100,
       assessment: 'Total',
-      assessmentorder: 999
-    }
+      assessmentorder: 999,
+    },
   ],
   'REG-EVE-2024': [
     {
@@ -218,7 +216,7 @@ const gradeCards = {
       marksobtained: 84,
       totalmarks: 100,
       assessment: 'Total',
-      assessmentorder: 999
+      assessmentorder: 999,
     },
     {
       subjectid: 'S206',
@@ -230,7 +228,7 @@ const gradeCards = {
       marksobtained: 79,
       totalmarks: 100,
       assessment: 'Total',
-      assessmentorder: 999
+      assessmentorder: 999,
     },
     {
       subjectid: 'S208',
@@ -242,8 +240,8 @@ const gradeCards = {
       marksobtained: 82,
       totalmarks: 100,
       assessment: 'Total',
-      assessmentorder: 999
-    }
+      assessmentorder: 999,
+    },
   ],
   'REG-ODD-2024': [
     {
@@ -256,7 +254,7 @@ const gradeCards = {
       marksobtained: 77,
       totalmarks: 100,
       assessment: 'Total',
-      assessmentorder: 999
+      assessmentorder: 999,
     },
     {
       subjectid: 'S105',
@@ -268,9 +266,9 @@ const gradeCards = {
       marksobtained: 71,
       totalmarks: 100,
       assessment: 'Total',
-      assessmentorder: 999
-    }
-  ]
+      assessmentorder: 999,
+    },
+  ],
 };
 
 const grades = [
@@ -280,7 +278,7 @@ const grades = [
     sgpa: 8.92,
     cgpa: 8.61,
     credits: 17,
-    earnedPoints: 151.64
+    earnedPoints: 151.64,
   },
   {
     registration_id: 'REG-EVE-2024',
@@ -288,7 +286,7 @@ const grades = [
     sgpa: 8.44,
     cgpa: 8.47,
     credits: 11,
-    earnedPoints: 92.84
+    earnedPoints: 92.84,
   },
   {
     registration_id: 'REG-ODD-2024',
@@ -296,8 +294,8 @@ const grades = [
     sgpa: 8.02,
     cgpa: 8.05,
     credits: 8,
-    earnedPoints: 64.16
-  }
+    earnedPoints: 64.16,
+  },
 ];
 
 const subjects = {
@@ -307,15 +305,9 @@ const subjects = {
       'Operating Systems',
       'Database Management Systems',
       'Probability and Statistics',
-      'Professional Communication'
+      'Professional Communication',
     ],
-    faculties: [
-      'Dr. N. Sharma',
-      'Prof. A. Mehta',
-      'Dr. R. Soni',
-      'Prof. V. Gupta',
-      'Ms. K. Arora'
-    ],
+    faculties: ['Dr. N. Sharma', 'Prof. A. Mehta', 'Dr. R. Soni', 'Prof. V. Gupta', 'Ms. K. Arora'],
     details: [
       {
         subjectid: 'S301',
@@ -324,7 +316,7 @@ const subjects = {
         credits: 4,
         component: 'Theory',
         section: 'A1',
-        faculty: 'Dr. N. Sharma'
+        faculty: 'Dr. N. Sharma',
       },
       {
         subjectid: 'S303',
@@ -333,7 +325,7 @@ const subjects = {
         credits: 4,
         component: 'Theory',
         section: 'A1',
-        faculty: 'Prof. A. Mehta'
+        faculty: 'Prof. A. Mehta',
       },
       {
         subjectid: 'S305',
@@ -342,7 +334,7 @@ const subjects = {
         credits: 4,
         component: 'Theory + Lab',
         section: 'A1',
-        faculty: 'Dr. R. Soni'
+        faculty: 'Dr. R. Soni',
       },
       {
         subjectid: 'SMA301',
@@ -351,7 +343,7 @@ const subjects = {
         credits: 3,
         component: 'Theory',
         section: 'A1',
-        faculty: 'Prof. V. Gupta'
+        faculty: 'Prof. V. Gupta',
       },
       {
         subjectid: 'SHS201',
@@ -360,10 +352,10 @@ const subjects = {
         credits: 2,
         component: 'Practical',
         section: 'A1',
-        faculty: 'Ms. K. Arora'
-      }
-    ]
-  }
+        faculty: 'Ms. K. Arora',
+      },
+    ],
+  },
 };
 
 const exams = [
@@ -376,7 +368,7 @@ const exams = [
     time: '09:00 AM - 12:00 PM',
     room: 'LT-8',
     seat_number: 'A-127',
-    exameventid: 'EV-2026-01'
+    exameventid: 'EV-2026-01',
   },
   {
     registration_id: 'REG-ODD-2025',
@@ -387,7 +379,7 @@ const exams = [
     time: '02:00 PM - 05:00 PM',
     room: 'AB-304',
     seat_number: 'B-042',
-    exameventid: 'EV-2026-01'
+    exameventid: 'EV-2026-01',
   },
   {
     registration_id: 'REG-ODD-2025',
@@ -398,8 +390,8 @@ const exams = [
     time: '09:00 AM - 12:00 PM',
     room: 'AB-112',
     seat_number: 'C-019',
-    exameventid: 'EV-2026-01'
-  }
+    exameventid: 'EV-2026-01',
+  },
 ];
 
 const fees = [
@@ -411,7 +403,7 @@ const fees = [
     paid_amount: 112500,
     due_amount: 0,
     fine_amount: 0,
-    payment_date: '15/01/2026'
+    payment_date: '15/01/2026',
   },
   {
     registration_id: 'REG-EVE-2024',
@@ -421,7 +413,7 @@ const fees = [
     paid_amount: 109000,
     due_amount: 0,
     fine_amount: 0,
-    payment_date: '03/08/2025'
+    payment_date: '03/08/2025',
   },
   {
     registration_id: 'REG-ODD-2024',
@@ -431,8 +423,8 @@ const fees = [
     paid_amount: 105500,
     due_amount: 0,
     fine_amount: 0,
-    payment_date: '10/01/2025'
-  }
+    payment_date: '10/01/2025',
+  },
 ];
 
 const marksParsedData = {
@@ -440,7 +432,7 @@ const marksParsedData = {
     studentInfo: {
       name: 'Dhirender Choudhary',
       enrollment_no: '9923102082',
-      registration_code: 'ODD 2025-26'
+      registration_code: 'ODD 2025-26',
     },
     exams: ['T1', 'T2', 'T3'],
     courses: [
@@ -452,8 +444,8 @@ const marksParsedData = {
         exams: {
           T1: { obtainedWeightage: 16, totalWeightage: 20 },
           T2: { obtainedWeightage: 32, totalWeightage: 40 },
-          T3: { obtainedWeightage: 38, totalWeightage: 40 }
-        }
+          T3: { obtainedWeightage: 38, totalWeightage: 40 },
+        },
       },
       {
         name: 'OPERATING SYSTEMS',
@@ -463,8 +455,8 @@ const marksParsedData = {
         exams: {
           T1: { obtainedWeightage: 15, totalWeightage: 20 },
           T2: { obtainedWeightage: 33, totalWeightage: 40 },
-          T3: { obtainedWeightage: 35, totalWeightage: 40 }
-        }
+          T3: { obtainedWeightage: 35, totalWeightage: 40 },
+        },
       },
       {
         name: 'DATABASE MANAGEMENT SYSTEMS',
@@ -474,16 +466,16 @@ const marksParsedData = {
         exams: {
           T1: { obtainedWeightage: 14, totalWeightage: 20 },
           T2: { obtainedWeightage: 30, totalWeightage: 40 },
-          T3: { obtainedWeightage: 34, totalWeightage: 40 }
-        }
-      }
-    ]
+          T3: { obtainedWeightage: 34, totalWeightage: 40 },
+        },
+      },
+    ],
   },
   'REG-EVE-2024__EVE 2024-25': {
     studentInfo: {
       name: 'Dhirender Choudhary',
       enrollment_no: '9923102082',
-      registration_code: 'EVE 2024-25'
+      registration_code: 'EVE 2024-25',
     },
     exams: ['T1', 'T2', 'T3'],
     courses: [
@@ -495,8 +487,8 @@ const marksParsedData = {
         exams: {
           T1: { obtainedWeightage: 16, totalWeightage: 20 },
           T2: { obtainedWeightage: 31, totalWeightage: 40 },
-          T3: { obtainedWeightage: 37, totalWeightage: 40 }
-        }
+          T3: { obtainedWeightage: 37, totalWeightage: 40 },
+        },
       },
       {
         name: 'DESIGN AND ANALYSIS OF ALGORITHMS',
@@ -506,16 +498,16 @@ const marksParsedData = {
         exams: {
           T1: { obtainedWeightage: 14, totalWeightage: 20 },
           T2: { obtainedWeightage: 30, totalWeightage: 40 },
-          T3: { obtainedWeightage: 35, totalWeightage: 40 }
-        }
-      }
-    ]
+          T3: { obtainedWeightage: 35, totalWeightage: 40 },
+        },
+      },
+    ],
   },
   'REG-ODD-2024__ODD 2024-25': {
     studentInfo: {
       name: 'Dhirender Choudhary',
       enrollment_no: '9923102082',
-      registration_code: 'ODD 2024-25'
+      registration_code: 'ODD 2024-25',
     },
     exams: ['T1', 'T2', 'T3'],
     courses: [
@@ -527,11 +519,11 @@ const marksParsedData = {
         exams: {
           T1: { obtainedWeightage: 13, totalWeightage: 20 },
           T2: { obtainedWeightage: 30, totalWeightage: 40 },
-          T3: { obtainedWeightage: 34, totalWeightage: 40 }
-        }
-      }
-    ]
-  }
+          T3: { obtainedWeightage: 34, totalWeightage: 40 },
+        },
+      },
+    ],
+  },
 };
 
 const profile = {
@@ -563,7 +555,7 @@ const profile = {
   city: 'Noida',
   state: 'Uttar Pradesh',
   pincode: '201309',
-  source: 'public-demo'
+  source: 'public-demo',
 };
 
 const buildPublicDemoDataset = (userId = 'dhirender.choudhary@jiitsphere.local') => {
@@ -579,7 +571,7 @@ const buildPublicDemoDataset = (userId = 'dhirender.choudhary@jiitsphere.local')
     exams,
     profile: {
       ...profile,
-      userId
+      userId,
     },
     subjects,
     fees,
@@ -594,13 +586,13 @@ const buildPublicDemoDataset = (userId = 'dhirender.choudhary@jiitsphere.local')
           endpoint: 'local-demo-seed',
           responseStatus: 'SUCCESS',
           message: 'Loaded local demo data without external portal credentials',
-          at: new Date().toISOString()
-        }
-      }
-    }
+          at: new Date().toISOString(),
+        },
+      },
+    },
   });
 };
 
 module.exports = {
-  buildPublicDemoDataset
+  buildPublicDemoDataset,
 };

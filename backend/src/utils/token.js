@@ -1,4 +1,3 @@
-
 const crypto = require('crypto');
 
 const base64url = (value) => Buffer.from(value).toString('base64url');
@@ -48,5 +47,5 @@ const verify = (token, secret) => {
 
 module.exports = {
   sign,
-  verify
+  verify,
 };

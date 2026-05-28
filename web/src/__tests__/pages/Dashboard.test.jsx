@@ -1,16 +1,16 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import PortalShell from '@/app/portal/components/PortalShell';
 import { useSession } from 'next-auth/react';
+import PortalShell from '@/app/portal/components/PortalShell';
 
 jest.mock('next-auth/react', () => ({
   useSession: jest.fn(),
-  signOut: jest.fn()
+  signOut: jest.fn(),
 }));
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn() }),
-  usePathname: () => '/portal'
+  usePathname: () => '/portal',
 }));
 
 describe('Dashboard (PortalShell)', () => {
@@ -24,7 +24,7 @@ describe('Dashboard (PortalShell)', () => {
   it('renders student profile and empty state', () => {
     useSession.mockReturnValue({
       data: { user: { name: 'Student', enrollment_number: '991234' } },
-      status: 'authenticated'
+      status: 'authenticated',
     });
     render(<PortalShell />);
     expect(screen.getByText('Student')).toBeInTheDocument();

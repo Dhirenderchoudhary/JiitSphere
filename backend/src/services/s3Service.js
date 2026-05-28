@@ -1,4 +1,3 @@
-
 const { PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const fsSync = require('fs');
 const fs = require('fs/promises');
@@ -20,7 +19,7 @@ const createS3Key = (payload, originalFilename) => {
     `sem-${payload.semester}`,
     sanitizeKeyPart(payload.subject),
     sanitizeKeyPart(payload.resourceType),
-    `${uniquePrefix}-${safeFilename}`
+    `${uniquePrefix}-${safeFilename}`,
   ].join('/');
 };
 
@@ -65,13 +64,21 @@ const writeFileToLocalStorage = async ({ filePath, payload, originalFilename }) 
   return relativeKey;
 };
 
-const uploadBufferToS3 = async ({ buffer, mimeType, payload, originalFilename, sourceRelativePath }) => {
+const uploadBufferToS3 = async ({
+  buffer,
+  mimeType,
+  payload,
+  originalFilename,
+  sourceRelativePath,
+}) => {
   if (env.storageProvider === 'local') {
-    const localKey = sourceRelativePath || (await writeBufferToLocalStorage({ buffer, payload, originalFilename }));
+    const localKey =
+      sourceRelativePath ||
+      (await writeBufferToLocalStorage({ buffer, payload, originalFilename }));
 
     return {
       s3Key: localKey,
-      fileUrl: buildPublicUrl(localKey)
+      fileUrl: buildPublicUrl(localKey),
     };
   }
 
@@ -81,27 +88,35 @@ const uploadBufferToS3 = async ({ buffer, mimeType, payload, originalFilename, s
     Bucket: env.awsS3Bucket,
     Key: s3Key,
     Body: buffer,
-    ContentType: mimeType
+    ContentType: mimeType,
   });
 
   await s3Client.send(command);
 
   return {
     s3Key,
-    fileUrl: buildPublicUrl(s3Key)
+    fileUrl: buildPublicUrl(s3Key),
   };
 };
 
-const uploadFileToS3 = async ({ filePath, mimeType, payload, originalFilename, sourceRelativePath }) => {
+const uploadFileToS3 = async ({
+  filePath,
+  mimeType,
+  payload,
+  originalFilename,
+  sourceRelativePath,
+}) => {
   if (!filePath) {
     throw new Error('filePath is required for file upload');
   }
 
   if (env.storageProvider === 'local') {
-    const localKey = sourceRelativePath || (await writeFileToLocalStorage({ filePath, payload, originalFilename }));
+    const localKey =
+      sourceRelativePath ||
+      (await writeFileToLocalStorage({ filePath, payload, originalFilename }));
     return {
       s3Key: localKey,
-      fileUrl: buildPublicUrl(localKey)
+      fileUrl: buildPublicUrl(localKey),
     };
   }
 
@@ -110,14 +125,14 @@ const uploadFileToS3 = async ({ filePath, mimeType, payload, originalFilename, s
     Bucket: env.awsS3Bucket,
     Key: s3Key,
     Body: fsSync.createReadStream(filePath),
-    ContentType: mimeType
+    ContentType: mimeType,
   });
 
   await s3Client.send(command);
 
   return {
     s3Key,
-    fileUrl: buildPublicUrl(s3Key)
+    fileUrl: buildPublicUrl(s3Key),
   };
 };
 
@@ -133,7 +148,7 @@ const deleteFromS3 = async (s3Key) => {
 
   const command = new DeleteObjectCommand({
     Bucket: env.awsS3Bucket,
-    Key: s3Key
+    Key: s3Key,
   });
 
   await s3Client.send(command);
@@ -144,5 +159,5 @@ module.exports = {
   uploadFileToS3,
   deleteFromS3,
   safeDeleteLocalFile,
-  buildPublicUrl
+  buildPublicUrl,
 };

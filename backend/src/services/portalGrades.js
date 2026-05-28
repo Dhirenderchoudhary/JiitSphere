@@ -1,4 +1,3 @@
-
 /**
  * portalGrades.js — SGPA/CGPA + grade card fetching & validation.
  *
@@ -67,13 +66,11 @@ const fetchOfficialSgpaCgpa = async (client) => {
       instituteid: client.auth.instituteid,
       studentid: client.auth.memberid,
       name: client.auth.name,
-      enrollmentno: client.auth.enrollmentno
+      enrollmentno: client.auth.enrollmentno,
     }
   );
 
-  const stynumber =
-    masterCheck?.studentlov?.currentsemester ||
-    masterCheck?.currentsemester;
+  const stynumber = masterCheck?.studentlov?.currentsemester || masterCheck?.currentsemester;
 
   if (!stynumber) {
     throw new PortalError(
@@ -83,14 +80,11 @@ const fetchOfficialSgpaCgpa = async (client) => {
   }
 
   // Step 2: Get all semester SGPA/CGPA data
-  const sgpaData = await client.post(
-    '/StudentPortalAPI/studentsgpacgpa/getallsemesterdata',
-    {
-      instituteid: client.auth.instituteid,
-      studentid: client.auth.memberid,
-      stynumber
-    }
-  );
+  const sgpaData = await client.post('/StudentPortalAPI/studentsgpacgpa/getallsemesterdata', {
+    instituteid: client.auth.instituteid,
+    studentid: client.auth.memberid,
+    stynumber,
+  });
 
   // The response shape is: { semesterList: [...], semesterdata: [...] } or similar
   const semesterList =
@@ -114,20 +108,28 @@ const fetchOfficialSgpaCgpa = async (client) => {
  */
 const fetchGradeCards = async (client) => {
   // Step 1: Get student info (needed for programid, branchid)
-  const studentInfo = await client.post(
-    '/StudentPortalAPI/studentgradecard/getstudentinfo',
-    { instituteid: client.auth.instituteid }
-  ).catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; });
+  const studentInfo = await client
+    .post('/StudentPortalAPI/studentgradecard/getstudentinfo', {
+      instituteid: client.auth.instituteid,
+    })
+    .catch((e) => {
+      console.error('PORTAL API ERROR:', e.message);
+      return { error: true };
+    });
 
   if (!studentInfo?.programid) {
     return { semesters: [], gradeCards: {} };
   }
 
   // Step 2: Get semester registration list
-  const regList = await client.post(
-    '/StudentPortalAPI/studentgradecard/getregistrationList',
-    { instituteid: client.auth.instituteid }
-  ).catch(e => { console.error("PORTAL API ERROR:", e.message); return { error: true }; });
+  const regList = await client
+    .post('/StudentPortalAPI/studentgradecard/getregistrationList', {
+      instituteid: client.auth.instituteid,
+    })
+    .catch((e) => {
+      console.error('PORTAL API ERROR:', e.message);
+      return { error: true };
+    });
 
   const registrations = regList?.registrations || [];
   if (!registrations.length) {
@@ -137,7 +139,7 @@ const fetchGradeCards = async (client) => {
   const semesters = registrations
     .map((r) => ({
       registration_id: r.registrationid || r.registration_id,
-      registration_code: r.registrationcode || r.registration_code || r.registrationdesc
+      registration_code: r.registrationcode || r.registration_code || r.registrationdesc,
     }))
     .filter((s) => s.registration_id && s.registration_code);
 
@@ -150,7 +152,7 @@ const fetchGradeCards = async (client) => {
           instituteid: client.auth.instituteid,
           registrationid: sem.registration_id,
           branchid: studentInfo.branchid,
-          programid: studentInfo.programid
+          programid: studentInfo.programid,
         })
         .then((res) => ({ sem, gradecard: res?.gradecard || [] }))
         .catch(() => ({ sem, gradecard: [] }))
@@ -173,17 +175,12 @@ const normalizeGradeCardSubjects = (rows) => {
   if (!Array.isArray(rows)) return [];
   return rows
     .map((row) => ({
-      subjectcode:
-        row.subjectcode || row.individualsubjectcode || row.stsubjectcode || '',
-      subjectdesc:
-        row.subjectdesc || row.subjectname || row.subjectdescription || 'Subject',
+      subjectcode: row.subjectcode || row.individualsubjectcode || row.stsubjectcode || '',
+      subjectdesc: row.subjectdesc || row.subjectname || row.subjectdescription || 'Subject',
       grade: row.grade || row.lettergrade || row.stgrade || '-',
-      credits: numberOr(
-        row.earnedcredit || row.coursecreditpoint || row.credit || row.credits,
-        0
-      ),
+      credits: numberOr(row.earnedcredit || row.coursecreditpoint || row.credit || row.credits, 0),
       gradepoint: numberOr(row.gradepoint || row.grpoint || row.stgradepoint, NaN),
-      cgpapoints: numberOr(row.cgpapoints, 0)
+      cgpapoints: numberOr(row.cgpapoints, 0),
     }))
     .filter((r) => r.subjectdesc && r.subjectdesc !== 'Subject');
 };
@@ -203,7 +200,7 @@ const fetchGrades = async (client) => {
   // Fetch SGPA/CGPA and grade cards in parallel
   const [officialSemesters, gradeCardData] = await Promise.all([
     fetchOfficialSgpaCgpa(client),
-    fetchGradeCards(client)
+    fetchGradeCards(client),
   ]);
 
   // Build the normalized response
@@ -271,8 +268,8 @@ const fetchGrades = async (client) => {
         code: s.subjectcode,
         grade: s.grade,
         credits: s.credits,
-        gradePoint: s.gradepoint
-      }))
+        gradePoint: s.gradepoint,
+      })),
     };
   });
 
@@ -308,7 +305,7 @@ const fetchOfficialGradeSummaries = async (client, knownSemesters = []) => {
           'semester_number',
           'currentsemester',
           'semno',
-          'sem'
+          'sem',
         ]),
         0
       );
@@ -324,14 +321,12 @@ const fetchOfficialGradeSummaries = async (client, knownSemesters = []) => {
         'semester',
         'semestername',
         'session',
-        'term'
+        'term',
       ]);
 
       if (!regId && knownSemesters.length) {
         // Match by stynumber
-        const match = knownSemesters.find(
-          (ks) => numberOr(ks.stynumber, -1) === stynumber
-        );
+        const match = knownSemesters.find((ks) => numberOr(ks.stynumber, -1) === stynumber);
         if (match) {
           regId = match.registration_id;
           regCode = match.registration_code;
@@ -360,7 +355,7 @@ const fetchOfficialGradeSummaries = async (client, knownSemesters = []) => {
           'semesterstygpa',
           'semgpa',
           'semsgpa',
-          'gradepointaverage'
+          'gradepointaverage',
         ]),
         0
       );
@@ -379,7 +374,7 @@ const fetchOfficialGradeSummaries = async (client, knownSemesters = []) => {
           'stycgpa',
           'cumulativegradepointaverage',
           'cummulativegradepointaverage',
-          'overallgradepointaverage'
+          'overallgradepointaverage',
         ]),
         0
       );
@@ -391,7 +386,7 @@ const fetchOfficialGradeSummaries = async (client, knownSemesters = []) => {
           'credits',
           'credit',
           'earnedcredit',
-          'coursecreditpoint'
+          'coursecreditpoint',
         ]),
         0
       );
@@ -402,7 +397,7 @@ const fetchOfficialGradeSummaries = async (client, knownSemesters = []) => {
           'earnedpoints',
           'totalgradepoints',
           'gradepoints',
-          'creditpoints'
+          'creditpoints',
         ]),
         0
       );
@@ -414,7 +409,7 @@ const fetchOfficialGradeSummaries = async (client, knownSemesters = []) => {
         sgpa,
         cgpa,
         credits,
-        earnedPoints
+        earnedPoints,
       };
     });
   } catch (err) {
@@ -430,5 +425,5 @@ module.exports = {
   fetchOfficialGradeSummaries,
   normalizeGradeCardSubjects,
   semesterSortScore,
-  sortSemestersChronological
+  sortSemestersChronological,
 };

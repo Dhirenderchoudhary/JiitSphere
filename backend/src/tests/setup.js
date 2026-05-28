@@ -12,14 +12,14 @@ beforeAll(async () => {
 
   mongoServer = await MongoMemoryServer.create();
   const uri = mongoServer.getUri();
-  
+
   // Set env var so our app uses the memory db
   process.env.MONGODB_URI = uri;
-  
+
   if (mongoose.connection.readyState === 0) {
     await mongoose.connect(uri, {
       maxPoolSize: 10,
-      minPoolSize: 1
+      minPoolSize: 1,
     });
   }
 });
@@ -36,7 +36,7 @@ afterAll(async () => {
 afterEach(async () => {
   // Clear all data after every individual test
   if (mongoose.connection.readyState !== 0) {
-    const collections = mongoose.connection.collections;
+    const { collections } = mongoose.connection;
     for (const key in collections) {
       await collections[key].deleteMany({});
     }

@@ -18,7 +18,9 @@ export default function CollegeBrand() {
         />
       </div>
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">JIIT</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          JIIT
+        </p>
         <h1 className="text-lg font-black leading-none">Study Material </h1>
       </div>
     </Link>

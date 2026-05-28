@@ -1,7 +1,7 @@
 const request = require('supertest');
 const express = require('express');
-const errorHandler = require('../../middlewares/errorHandler');
 const { ZodError } = require('zod');
+const errorHandler = require('../../middlewares/errorHandler');
 
 const app = express();
 
@@ -16,7 +16,7 @@ app.get('/mongoose-val', () => {
   const err = new Error('ValidationError');
   err.name = 'ValidationError';
   err.errors = {
-    testField: { path: 'testField', message: 'Mongoose validation failed' }
+    testField: { path: 'testField', message: 'Mongoose validation failed' },
   };
   throw err;
 });

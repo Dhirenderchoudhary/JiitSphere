@@ -1,4 +1,3 @@
-
 /* eslint-disable no-console */
 const fs = require('fs/promises');
 const path = require('path');
@@ -18,13 +17,19 @@ const REPORT_PATH = process.argv.includes('--report')
   : path.resolve('import-report.json');
 
 if (!ROOT_FOLDER) {
-  console.error('Usage: bun run import:folder -- <materials_folder> [--dry-run] [--metadata-only] [--report ./import-report.json]');
+  console.error(
+    'Usage: bun run import:folder -- <materials_folder> [--dry-run] [--metadata-only] [--report ./import-report.json]'
+  );
   process.exit(1);
 }
 
 const getExistingS3Key = (relativePath) => {
-  const normalized = String(relativePath || '').split(path.sep).join('/');
-  const prefix = String(env.s3ExistingPrefix || '').trim().replace(/^\/+|\/+$/g, '');
+  const normalized = String(relativePath || '')
+    .split(path.sep)
+    .join('/');
+  const prefix = String(env.s3ExistingPrefix || '')
+    .trim()
+    .replace(/^\/+|\/+$/g, '');
   return prefix ? `${prefix}/${normalized}` : normalized;
 };
 
@@ -64,7 +69,7 @@ const importMaterials = async () => {
     imported: 0,
     skipped: 0,
     unsupported: 0,
-    unresolvedMetadata: []
+    unresolvedMetadata: [],
   };
 
   for (const filePath of files) {
@@ -85,7 +90,7 @@ const importMaterials = async () => {
       report.unresolvedMetadata.push({
         relativePath,
         reason: 'Could not infer year/semester automatically',
-        inferred: metadata
+        inferred: metadata,
       });
       continue;
     }
@@ -98,7 +103,7 @@ const importMaterials = async () => {
         year: metadata.year,
         semester: metadata.semester,
         subject: metadata.subject,
-        resourceType: metadata.resourceType
+        resourceType: metadata.resourceType,
       }).lean();
 
       if (existing) {
@@ -114,7 +119,7 @@ const importMaterials = async () => {
         const existingS3Key = getExistingS3Key(relativePath);
         uploadResult = {
           s3Key: existingS3Key,
-          fileUrl: buildPublicUrl(existingS3Key)
+          fileUrl: buildPublicUrl(existingS3Key),
         };
       } else {
         const buffer = env.storageProvider === 'local' ? null : await fs.readFile(filePath);
@@ -123,7 +128,7 @@ const importMaterials = async () => {
           mimeType: 'application/octet-stream',
           payload: metadata,
           originalFilename: metadata.filename,
-          sourceRelativePath: relativePath
+          sourceRelativePath: relativePath,
         });
       }
 
@@ -139,7 +144,7 @@ const importMaterials = async () => {
         fileSizeBytes: fileStats.size,
         fileUrl: uploadResult.fileUrl,
         s3Key: uploadResult.s3Key,
-        uploadedBy: env.importUploadedBy
+        uploadedBy: env.importUploadedBy,
       });
     }
 

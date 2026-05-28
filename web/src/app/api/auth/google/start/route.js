@@ -5,13 +5,21 @@ import { sign } from 'lib/token';
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 
 const getSiteBase = () =>
-  String(process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/+$/, '');
+  String(
+    process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  ).replace(/\/+$/, '');
 
 const sanitizeNext = (raw) => {
   const fallback = '/study-material';
   if (!raw || typeof raw !== 'string') return fallback;
   const trimmed = raw.trim();
-  if (!trimmed.startsWith('/') || trimmed.startsWith('//') || trimmed.startsWith('/api') || trimmed.startsWith('/_next')) return fallback;
+  if (
+    !trimmed.startsWith('/') ||
+    trimmed.startsWith('//') ||
+    trimmed.startsWith('/api') ||
+    trimmed.startsWith('/_next')
+  )
+    return fallback;
   return trimmed.slice(0, 500);
 };
 

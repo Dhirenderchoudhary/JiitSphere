@@ -1,6 +1,6 @@
 const request = require('supertest');
-const app = require('../../app');
 const crypto = require('crypto');
+const app = require('../../app');
 
 // Generate the hash for our 'test-hash' to match 'password123'
 // In authController: crypto.createHash('sha256').update(password).digest('hex')
@@ -13,7 +13,7 @@ describe('Auth Integration Tests', () => {
       const res = await request(app)
         .post('/api/v1/auth/login')
         .send({ userId: 'student1', password: testPassword });
-      
+
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.token).toBeDefined();
@@ -23,7 +23,7 @@ describe('Auth Integration Tests', () => {
       const res = await request(app)
         .post('/api/v1/auth/login')
         .send({ userId: 'student1', password: 'wrongpassword' });
-      
+
       expect(res.status).toBe(401);
     });
 
@@ -31,17 +31,15 @@ describe('Auth Integration Tests', () => {
       const res = await request(app)
         .post('/api/v1/auth/login')
         .send({ userId: 'hacker', password: testPassword });
-      
+
       expect(res.status).toBe(403);
     });
   });
 
   describe('POST /api/v1/auth/demo-login', () => {
     it('should return a demo token', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/demo-login')
-        .send({});
-      
+      const res = await request(app).post('/api/v1/auth/demo-login').send({});
+
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.user.demo).toBe(true);
@@ -59,13 +57,11 @@ describe('Auth Integration Tests', () => {
       const loginRes = await request(app)
         .post('/api/v1/auth/login')
         .send({ userId: 'student1', password: testPassword });
-      
-      const token = loginRes.body.data.token;
 
-      const res = await request(app)
-        .get('/api/v1/auth/me')
-        .set('Authorization', `Bearer ${token}`);
-      
+      const { token } = loginRes.body.data;
+
+      const res = await request(app).get('/api/v1/auth/me').set('Authorization', `Bearer ${token}`);
+
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.user.userId).toBe('student1');

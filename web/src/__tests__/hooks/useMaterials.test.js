@@ -10,12 +10,12 @@ const useMaterials = (filters) => {
   useEffect(() => {
     setLoading(true);
     fetch('/api/v1/materials')
-      .then(res => res.json())
-      .then(res => {
+      .then((res) => res.json())
+      .then((res) => {
         setData(res.data);
         setLoading(false);
       })
-      .catch(err => {
+      .catch((err) => {
         setError(err);
         setLoading(false);
       });
@@ -27,13 +27,13 @@ const useMaterials = (filters) => {
 describe('useMaterials hook', () => {
   it('handles loading state and fetches data from MSW', async () => {
     const { result } = renderHook(() => useMaterials({ subject: 'Physics' }));
-    
+
     expect(result.current.loading).toBe(true);
-    
+
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
-    
+
     expect(result.current.data).toHaveLength(3); // from MSW handler
     expect(result.current.data[0].title).toBe('Physics Notes');
   });

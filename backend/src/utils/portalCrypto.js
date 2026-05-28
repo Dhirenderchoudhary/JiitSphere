@@ -1,4 +1,3 @@
-
 const crypto = require('crypto');
 
 const PORTAL_AES_IV = 'dcek9wb8frty1pnm';
@@ -13,7 +12,7 @@ const datePartsForTimeZone = (date, timeZone) => {
       dayOfMonth: toTwoDigits(date.getDate()),
       dayOfWeek: String(date.getDay()),
       month: toTwoDigits(date.getMonth() + 1),
-      yearShort: String(date.getFullYear()).slice(2)
+      yearShort: String(date.getFullYear()).slice(2),
     };
   }
 
@@ -22,7 +21,7 @@ const datePartsForTimeZone = (date, timeZone) => {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-    weekday: 'short'
+    weekday: 'short',
   });
 
   const parts = formatter.formatToParts(date);
@@ -34,7 +33,7 @@ const datePartsForTimeZone = (date, timeZone) => {
     dayOfMonth: partValue('day'),
     dayOfWeek: weekdayMap[weekdayLabel] || String(date.getDay()),
     month: partValue('month'),
-    yearShort: String(partValue('year')).slice(2)
+    yearShort: String(partValue('year')).slice(2),
   };
 };
 
@@ -47,7 +46,11 @@ const buildPortalAesKey = (date = new Date(), timeZone) => {
 
 const encryptPortalPayload = (plainText, date = new Date(), timeZone) => {
   const key = buildPortalAesKey(date, timeZone);
-  const cipher = crypto.createCipheriv('aes-128-cbc', Buffer.from(key, 'utf8'), Buffer.from(PORTAL_AES_IV, 'utf8'));
+  const cipher = crypto.createCipheriv(
+    'aes-128-cbc',
+    Buffer.from(key, 'utf8'),
+    Buffer.from(PORTAL_AES_IV, 'utf8')
+  );
   const encrypted = Buffer.concat([cipher.update(String(plainText), 'utf8'), cipher.final()]);
   return encrypted.toString('base64');
 };
@@ -90,5 +93,5 @@ module.exports = {
   buildPortalAesKey,
   encryptPortalPayload,
   encryptPortalPayloadVariants,
-  generatePortalLocalName
+  generatePortalLocalName,
 };

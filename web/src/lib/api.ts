@@ -1,7 +1,10 @@
 const BACKEND_PROXY_BASE_URL = '/api/backend';
 const PORTAL_PROXY_BASE_URL = '/api/portal-auth';
-const PORTAL_REALTIME_DEFAULT = String(process.env.NEXT_PUBLIC_PORTAL_REALTIME || 'false').toLowerCase() === 'true';
-const PORTAL_MARKS_DOWNLOAD_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_PORTAL_MARKS_DOWNLOAD_TIMEOUT_MS || 25000);
+const PORTAL_REALTIME_DEFAULT =
+  String(process.env.NEXT_PUBLIC_PORTAL_REALTIME || 'false').toLowerCase() === 'true';
+const PORTAL_MARKS_DOWNLOAD_TIMEOUT_MS = Number(
+  process.env.NEXT_PUBLIC_PORTAL_MARKS_DOWNLOAD_TIMEOUT_MS || 25000
+);
 const DEFAULT_API_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS || 20000);
 const DEFAULT_API_RETRIES = Math.max(0, Number(process.env.NEXT_PUBLIC_API_RETRIES || 1));
 
@@ -20,7 +23,10 @@ const isRetryableFetchError = (error: unknown): boolean => {
   return /failed to fetch|networkerror|network request failed/i.test(String(err.message || ''));
 };
 
-const fetchWithTimeout = async (url: string, options: FetchWithTimeoutOptions = {}): Promise<Response> => {
+const fetchWithTimeout = async (
+  url: string,
+  options: FetchWithTimeoutOptions = {}
+): Promise<Response> => {
   const {
     timeoutMs = DEFAULT_API_TIMEOUT_MS,
     retries = DEFAULT_API_RETRIES,
@@ -30,12 +36,15 @@ const fetchWithTimeout = async (url: string, options: FetchWithTimeoutOptions = 
   let attempt = 0;
   while (true) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), Math.max(3000, Number(timeoutMs) || DEFAULT_API_TIMEOUT_MS));
+    const timer = setTimeout(
+      () => controller.abort(),
+      Math.max(3000, Number(timeoutMs) || DEFAULT_API_TIMEOUT_MS)
+    );
 
     try {
       return await fetch(url, {
         ...requestOptions,
-        signal: controller.signal
+        signal: controller.signal,
       });
     } catch (error) {
       if (attempt >= retries || !isRetryableFetchError(error)) {
@@ -52,6 +61,7 @@ const fetchWithTimeout = async (url: string, options: FetchWithTimeoutOptions = 
 /** Thrown when the backend returns 401. Callers should redirect to login. */
 export class SessionExpiredError extends Error {
   readonly statusCode = 401;
+
   constructor() {
     super('TOKEN_EXPIRED');
     this.name = 'SessionExpiredError';
@@ -59,7 +69,9 @@ export class SessionExpiredError extends Error {
 }
 
 const cleanParams = (params: QueryParams = {}): string => {
-  const entries = Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '');
+  const entries = Object.entries(params).filter(
+    ([, value]) => value !== undefined && value !== null && value !== ''
+  );
   return new URLSearchParams(entries as Array<[string, string]>).toString();
 };
 
@@ -68,7 +80,10 @@ const parseJson = async <T = JsonObject>(response: Response): Promise<T> => {
 
   if (!contentType.includes('application/json')) {
     const text = await response.text();
-    const preview = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    const preview = String(text || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 120);
     throw new Error(
       `Expected JSON from API but got ${contentType || 'unknown'} (HTTP ${response.status}). ${preview ? `Response starts: ${preview}` : ''}`
     );
@@ -83,7 +98,7 @@ const parseJson = async <T = JsonObject>(response: Response): Promise<T> => {
 
 const authHeader = (token: string): Record<string, string> => ({
   Authorization: `Bearer ${token}`,
-  'Content-Type': 'application/json'
+  'Content-Type': 'application/json',
 });
 
 const portalUrl = (path: string, params: QueryParams = {}): string => {
@@ -99,12 +114,16 @@ const backendUrl = (path: string, params: QueryParams = {}): string => {
 export const materialAccessUrl = (id: string, action: 'view' | 'download' = 'view'): string =>
   `/api/study-material/access/${encodeURIComponent(id)}?action=${encodeURIComponent(action)}`;
 
-const portalFetch = async (path: string, options: FetchWithTimeoutOptions = {}, params: QueryParams = {}): Promise<Response> =>
+const portalFetch = async (
+  path: string,
+  options: FetchWithTimeoutOptions = {},
+  params: QueryParams = {}
+): Promise<Response> =>
   fetchWithTimeout(portalUrl(path, params), {
     next: { revalidate: 300 },
     ...options,
     timeoutMs: options.timeoutMs || DEFAULT_API_TIMEOUT_MS,
-    retries: options.retries ?? DEFAULT_API_RETRIES
+    retries: options.retries ?? DEFAULT_API_RETRIES,
   });
 
 const portalJsonRequest = async <T = JsonObject>(
@@ -115,24 +134,24 @@ const portalJsonRequest = async <T = JsonObject>(
   const isGet = !options.method || options.method.toUpperCase() === 'GET';
   const queryUrl = portalUrl(path, params);
   const cacheKey = `PORTAL_JSON:${options.method || 'GET'}:${queryUrl}:${options.headers ? JSON.stringify(options.headers) : ''}`;
-  
+
   if (isGet && inFlightRequests.has(cacheKey)) {
-      return inFlightRequests.get(cacheKey) as Promise<T>;
+    return inFlightRequests.get(cacheKey) as Promise<T>;
   }
 
   const promise = (async () => {
-      try {
-        const response = await portalFetch(path, options, params);
-        const data = await parseJson<T & { message?: string }>(response);
-        if (!response.ok) throw new Error(data.message || 'Portal request failed');
-        return data;
-      } finally {
-        if (isGet) inFlightRequests.delete(cacheKey);
-      }
+    try {
+      const response = await portalFetch(path, options, params);
+      const data = await parseJson<T & { message?: string }>(response);
+      if (!response.ok) throw new Error(data.message || 'Portal request failed');
+      return data;
+    } finally {
+      if (isGet) inFlightRequests.delete(cacheKey);
+    }
   })();
 
   if (isGet) {
-      inFlightRequests.set(cacheKey, promise);
+    inFlightRequests.set(cacheKey, promise);
   }
   return promise;
 };
@@ -145,57 +164,68 @@ const backendJsonRequest = async <T = JsonObject>(
   const isGet = !options.method || options.method.toUpperCase() === 'GET';
   const queryUrl = backendUrl(path, params);
   const cacheKey = `BACKEND_JSON:${options.method || 'GET'}:${queryUrl}:${options.headers ? JSON.stringify(options.headers) : ''}`;
-  
+
   if (isGet && inFlightRequests.has(cacheKey)) {
-      return inFlightRequests.get(cacheKey) as Promise<T>;
+    return inFlightRequests.get(cacheKey) as Promise<T>;
   }
 
   const promise = (async () => {
-      try {
-        const response = await fetchWithTimeout(queryUrl, {
-          next: { revalidate: 300 },
-          ...options,
-          timeoutMs: options.timeoutMs || DEFAULT_API_TIMEOUT_MS,
-          retries: options.retries ?? DEFAULT_API_RETRIES
-        });
-        const data = await parseJson<T & { message?: string }>(response);
-        if (!response.ok) throw new Error(data.message || 'Backend request failed');
-        return data;
-      } finally {
-        if (isGet) inFlightRequests.delete(cacheKey);
-      }
+    try {
+      const response = await fetchWithTimeout(queryUrl, {
+        next: { revalidate: 300 },
+        ...options,
+        timeoutMs: options.timeoutMs || DEFAULT_API_TIMEOUT_MS,
+        retries: options.retries ?? DEFAULT_API_RETRIES,
+      });
+      const data = await parseJson<T & { message?: string }>(response);
+      if (!response.ok) throw new Error(data.message || 'Backend request failed');
+      return data;
+    } finally {
+      if (isGet) inFlightRequests.delete(cacheKey);
+    }
   })();
 
   if (isGet) {
-      inFlightRequests.set(cacheKey, promise);
+    inFlightRequests.set(cacheKey, promise);
   }
   return promise;
 };
 
-const withRealtime = (params: QueryParams = {}, refresh = PORTAL_REALTIME_DEFAULT): QueryParams => ({
+const withRealtime = (
+  params: QueryParams = {},
+  refresh = PORTAL_REALTIME_DEFAULT
+): QueryParams => ({
   ...(params || {}),
-  ...(refresh ? { refresh: 1 } : {})
+  ...(refresh ? { refresh: 1 } : {}),
 });
 
 // Cache for in-flight GET requests to deduplicate concurrent calls
 const inFlightRequests = new Map<string, Promise<any>>();
 
-const sdkGet = async <T = JsonObject>(token: string, path: string, params: QueryParams = {}): Promise<T> => {
+const sdkGet = async <T = JsonObject>(
+  token: string,
+  path: string,
+  params: QueryParams = {}
+): Promise<T> => {
   const queryUrl = portalUrl(path, params);
   const cacheKey = `SDK_GET:${queryUrl}:${token}`;
-  
+
   if (inFlightRequests.has(cacheKey)) {
     return inFlightRequests.get(cacheKey) as Promise<T>;
   }
 
   const promise = (async () => {
     try {
-      const response = await portalFetch(path, {
-        headers: { Authorization: `Bearer ${token}` },
-        next: { revalidate: 300 },
-        timeoutMs: DEFAULT_API_TIMEOUT_MS,
-        retries: DEFAULT_API_RETRIES
-      }, params);
+      const response = await portalFetch(
+        path,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          next: { revalidate: 300 },
+          timeoutMs: DEFAULT_API_TIMEOUT_MS,
+          retries: DEFAULT_API_RETRIES,
+        },
+        params
+      );
       if (response.status === 401) throw new SessionExpiredError();
       const data = await parseJson<T & { message?: string }>(response);
       if (!response.ok) throw new Error(data.message || 'SDK request failed');
@@ -229,7 +259,7 @@ export const loginUser = async (payload: JsonObject) => {
   return portalJsonRequest('/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
 };
 
@@ -237,21 +267,21 @@ export const loginPortalDemo = async () => {
   return portalJsonRequest('/auth/demo-login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({})
+    body: JSON.stringify({}),
   });
 };
 
 export const fetchPortalStatus = async (token: string) => {
   const profile = await portalJsonRequest<{ data?: { user?: unknown } }>('/auth/me', {
     headers: {
-      Authorization: `Bearer ${token}`
-    }
+      Authorization: `Bearer ${token}`,
+    },
   });
 
   const status = await portalJsonRequest<JsonObject>('/portal/status', {
     headers: {
-      Authorization: `Bearer ${token}`
-    }
+      Authorization: `Bearer ${token}`,
+    },
   });
   return { ...status, user: profile?.data?.user || null };
 };
@@ -259,16 +289,16 @@ export const fetchPortalStatus = async (token: string) => {
 export const fetchMe = async (token: string) => {
   return portalJsonRequest('/auth/me', {
     headers: {
-      Authorization: `Bearer ${token}`
-    }
+      Authorization: `Bearer ${token}`,
+    },
   });
 };
 
 export const fetchAdminAnalytics = async (token: string) => {
   return portalJsonRequest('/auth/analytics', {
     headers: {
-      Authorization: `Bearer ${token}`
-    }
+      Authorization: `Bearer ${token}`,
+    },
   });
 };
 
@@ -282,7 +312,7 @@ export const fetchStudyAnalytics = async () => {
 export const startPortalRelaySession = async (token: string) => {
   return portalJsonRequest('/portal/relay/start', {
     method: 'POST',
-    headers: authHeader(token)
+    headers: authHeader(token),
   });
 };
 
@@ -290,7 +320,7 @@ export const fetchPortalRelayCaptcha = async (token: string, payload: JsonObject
   return portalJsonRequest('/portal/relay/captcha', {
     method: 'POST',
     headers: authHeader(token),
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
 };
 
@@ -298,7 +328,7 @@ export const tryPortalRelayLogin = async (token: string, payload: JsonObject) =>
   return portalJsonRequest('/portal/relay/try-login', {
     method: 'POST',
     headers: authHeader(token),
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
 };
 
@@ -306,7 +336,7 @@ export const portalRelayRequest = async (token: string, payload: JsonObject) => 
   return portalJsonRequest('/portal/relay/request', {
     method: 'POST',
     headers: authHeader(token),
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
 };
 
@@ -314,7 +344,7 @@ export const portalSdkLogin = async (token: string, payload: JsonObject) => {
   return portalJsonRequest('/portal/sdk/login', {
     method: 'POST',
     headers: authHeader(token),
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
 };
 
@@ -322,10 +352,16 @@ export const fetchPortalSdkSession = async (token: string, refresh = PORTAL_REAL
   sdkGet(token, '/portal/sdk/session', withRealtime({}, refresh));
 export const fetchPortalAttendanceMeta = async (token: string, refresh = PORTAL_REALTIME_DEFAULT) =>
   sdkGet(token, '/portal/sdk/attendance/meta', withRealtime({}, refresh));
-export const fetchPortalAttendance = async (token: string, semester: string, refresh = PORTAL_REALTIME_DEFAULT) =>
-  sdkGet(token, '/portal/sdk/attendance', withRealtime({ semester }, refresh));
-export const fetchPortalAttendanceCounts = async (token: string, semester: string, refresh = false) =>
-  sdkGet(token, '/portal/sdk/attendance/counts', withRealtime({ semester }, refresh));
+export const fetchPortalAttendance = async (
+  token: string,
+  semester: string,
+  refresh = PORTAL_REALTIME_DEFAULT
+) => sdkGet(token, '/portal/sdk/attendance', withRealtime({ semester }, refresh));
+export const fetchPortalAttendanceCounts = async (
+  token: string,
+  semester: string,
+  refresh = false
+) => sdkGet(token, '/portal/sdk/attendance/counts', withRealtime({ semester }, refresh));
 export const fetchPortalSubjectAttendance = async (
   token: string,
   semester: string,
@@ -336,12 +372,16 @@ export const fetchPortalProfile = async (token: string, refresh = PORTAL_REALTIM
   sdkGet(token, '/portal/sdk/profile', withRealtime({}, refresh));
 
 export const fetchPortalProfilePhotoBlob = async (token: string, source: string) => {
-  const response = await portalFetch('/portal/sdk/profile/photo', {
-    headers: { Authorization: `Bearer ${token}` },
-    next: { revalidate: 300 }
-  }, { source });
+  const response = await portalFetch(
+    '/portal/sdk/profile/photo',
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      next: { revalidate: 300 },
+    },
+    { source }
+  );
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({} as { message?: string }));
+    const errorData = await response.json().catch(() => ({}) as { message?: string });
     throw new Error(errorData.message || 'Failed to fetch official portal profile photo');
   }
 
@@ -356,37 +396,62 @@ export const fetchPortalGrades = async (token: string, refresh = PORTAL_REALTIME
   sdkGet(token, '/portal/sdk/grades', withRealtime({}, refresh));
 export const fetchPortalExams = async (token: string, refresh = PORTAL_REALTIME_DEFAULT) =>
   sdkGet(token, '/portal/sdk/exams', withRealtime({}, refresh));
-export const fetchPortalSubjects = async (token: string, semester: string, refresh = PORTAL_REALTIME_DEFAULT) =>
-  sdkGet(token, '/portal/sdk/subjects', withRealtime({ semester }, refresh));
-export const fetchPortalMarksSemesters = async (token: string, refresh = PORTAL_REALTIME_DEFAULT) => {
-  const response = await sdkGet<{ data?: unknown }>(token, '/portal/sdk/marks/semesters', withRealtime({}, refresh));
+export const fetchPortalSubjects = async (
+  token: string,
+  semester: string,
+  refresh = PORTAL_REALTIME_DEFAULT
+) => sdkGet(token, '/portal/sdk/subjects', withRealtime({ semester }, refresh));
+export const fetchPortalMarksSemesters = async (
+  token: string,
+  refresh = PORTAL_REALTIME_DEFAULT
+) => {
+  const response = await sdkGet<{ data?: unknown }>(
+    token,
+    '/portal/sdk/marks/semesters',
+    withRealtime({}, refresh)
+  );
   return Array.isArray(response?.data) ? response.data : [];
 };
 
-export const fetchPortalFees = async (token: string, options: boolean | { debug?: boolean; refresh?: boolean } = false) => {
+export const fetchPortalFees = async (
+  token: string,
+  options: boolean | { debug?: boolean; refresh?: boolean } = false
+) => {
   const debug = typeof options === 'boolean' ? options : Boolean(options?.debug);
-  const refresh = typeof options === 'boolean'
-    ? PORTAL_REALTIME_DEFAULT
-    : options?.refresh !== undefined
-      ? Boolean(options?.refresh)
-      : PORTAL_REALTIME_DEFAULT;
+  const refresh =
+    typeof options === 'boolean'
+      ? PORTAL_REALTIME_DEFAULT
+      : options?.refresh !== undefined
+        ? Boolean(options?.refresh)
+        : PORTAL_REALTIME_DEFAULT;
 
   return sdkGet(token, '/portal/sdk/fees', {
     ...(debug ? { debug: 1 } : {}),
-    ...withRealtime({}, refresh)
+    ...withRealtime({}, refresh),
   });
 };
 
-export const downloadPortalMarks = async (token: string, registration_id: string, registration_code: string) => {
+export const downloadPortalMarks = async (
+  token: string,
+  registration_id: string,
+  registration_code: string
+) => {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), Math.max(5000, PORTAL_MARKS_DOWNLOAD_TIMEOUT_MS));
+  const timer = setTimeout(
+    () => controller.abort(),
+    Math.max(5000, PORTAL_MARKS_DOWNLOAD_TIMEOUT_MS)
+  );
 
   let response: Response;
   try {
-    response = await portalFetch('/portal/sdk/marks/download', {
-      headers: { Authorization: `Bearer ${token}` },
-      signal: controller.signal
-    }, { registration_id, registration_code });
+    response = await portalFetch(
+      '/portal/sdk/marks/download',
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      },
+      { registration_id, registration_code }
+    );
   } catch (error: unknown) {
     const err = error as { name?: string };
     if (err?.name === 'AbortError') {
@@ -398,7 +463,7 @@ export const downloadPortalMarks = async (token: string, registration_id: string
   }
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({} as { message?: string }));
+    const errorData = await response.json().catch(() => ({}) as { message?: string });
     throw new Error(errorData.message || 'Failed to download marks PDF');
   }
 
@@ -407,7 +472,10 @@ export const downloadPortalMarks = async (token: string, registration_id: string
   const hasPdfMime = contentType.includes('pdf') || contentType.includes('octet-stream');
 
   if (!hasPdfMime) {
-    const signature = await blob.slice(0, 5).text().catch(() => '');
+    const signature = await blob
+      .slice(0, 5)
+      .text()
+      .catch(() => '');
     if (!signature.startsWith('%PDF-')) {
       const text = await blob.text().catch(() => '');
       let parsedMessage = '';
@@ -432,12 +500,16 @@ export const fetchPortalMarksData = async (
   registration_code: string,
   refresh = false
 ) => {
-  const response = await portalFetch('/portal/sdk/marks/data', {
-    headers: { Authorization: `Bearer ${token}` },
-    next: { revalidate: 300 }
-  }, { registration_id, registration_code, ...(refresh ? { refresh: 1 } : {}) });
+  const response = await portalFetch(
+    '/portal/sdk/marks/data',
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      next: { revalidate: 300 },
+    },
+    { registration_id, registration_code, ...(refresh ? { refresh: 1 } : {}) }
+  );
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({} as { message?: string }));
+    const errorData = await response.json().catch(() => ({}) as { message?: string });
     throw new Error(errorData.message || 'Failed to fetch marks data');
   }
   const json = await response.json();

@@ -1,10 +1,18 @@
 /* eslint-disable react/no-unknown-property */
+
 'use client';
 
 import { useEffect, useRef, useState, useMemo, Suspense } from 'react';
 import { Canvas, extend, useFrame } from '@react-three/fiber';
 import { Environment, Lightformer } from '@react-three/drei';
-import { BallCollider, CuboidCollider, Physics, RigidBody, useRopeJoint, useSphericalJoint } from '@react-three/rapier';
+import {
+  BallCollider,
+  CuboidCollider,
+  Physics,
+  RigidBody,
+  useRopeJoint,
+  useSphericalJoint,
+} from '@react-three/rapier';
 import { MeshLineGeometry, MeshLineMaterial } from 'meshline';
 import * as THREE from 'three';
 
@@ -94,7 +102,10 @@ function createCardTexture(name, enrollment, photoImg) {
   ctx.fillText('STUDENT IDENTITY MODULE', w / 2, 92);
 
   // Photo area
-  const px = 126, py = 120, pw = 260, ph = 320;
+  const px = 126;
+  const py = 120;
+  const pw = 260;
+  const ph = 320;
   ctx.fillStyle = '#111';
   ctx.fillRect(px, py, pw, ph);
 
@@ -104,7 +115,10 @@ function createCardTexture(name, enrollment, photoImg) {
       // Draw the image, fitting it into the photo area while maintaining aspect ratio
       const imgAspect = photoImg.width / photoImg.height;
       const areaAspect = pw / ph;
-      let drawW, drawH, drawX, drawY;
+      let drawW;
+      let drawH;
+      let drawX;
+      let drawY;
       if (imgAspect > areaAspect) {
         // Image is wider — fit by height, crop width
         drawH = ph;
@@ -172,21 +186,34 @@ function Band({ maxSpeed = 50, minSpeed = 0, isMobile = false, fixed, j1, j2, j3
   const lanyardTexture = useMemo(() => createLanyardTexture(), []);
 
   const [curve] = useState(
-    () => new THREE.CatmullRomCurve3([
-      new THREE.Vector3(),
-      new THREE.Vector3(),
-      new THREE.Vector3(),
-      new THREE.Vector3()
-    ])
+    () =>
+      new THREE.CatmullRomCurve3([
+        new THREE.Vector3(),
+        new THREE.Vector3(),
+        new THREE.Vector3(),
+        new THREE.Vector3(),
+      ])
   );
 
   useFrame((state, delta) => {
-    if (!fixed.current || !j1.current || !j2.current || !j3.current || !card.current || !bandRef.current) return;
+    if (
+      !fixed.current ||
+      !j1.current ||
+      !j2.current ||
+      !j3.current ||
+      !card.current ||
+      !bandRef.current
+    )
+      return;
 
     // Lerped positions for smooth band (official pattern)
-    [j1, j2].forEach(ref => {
-      if (!ref.current.lerped) ref.current.lerped = new THREE.Vector3().copy(ref.current.translation());
-      const clampedDistance = Math.max(0.1, Math.min(1, ref.current.lerped.distanceTo(ref.current.translation())));
+    [j1, j2].forEach((ref) => {
+      if (!ref.current.lerped)
+        ref.current.lerped = new THREE.Vector3().copy(ref.current.translation());
+      const clampedDistance = Math.max(
+        0.1,
+        Math.min(1, ref.current.lerped.distanceTo(ref.current.translation()))
+      );
       ref.current.lerped.lerp(
         ref.current.translation(),
         delta * (minSpeed + clampedDistance * (maxSpeed - minSpeed))
@@ -251,7 +278,9 @@ function LanyardScene({ profileName, enrollment, profilePhotoSrc, isMobile }) {
   };
 
   // Card face texture — procedurally generated with photo baked in
-  const [cardTexture, setCardTexture] = useState(() => createCardTexture(profileName, enrollment, null));
+  const [cardTexture, setCardTexture] = useState(() =>
+    createCardTexture(profileName, enrollment, null)
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -271,20 +300,27 @@ function LanyardScene({ profileName, enrollment, profilePhotoSrc, isMobile }) {
     };
 
     buildTexture();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [profileName, enrollment, profilePhotoSrc]);
 
   // Joint chain (official pattern)
   useRopeJoint(fixed, j1, [[0, 0, 0], [0, 0, 0], 1]);
   useRopeJoint(j1, j2, [[0, 0, 0], [0, 0, 0], 1]);
   useRopeJoint(j2, j3, [[0, 0, 0], [0, 0, 0], 1]);
-  useSphericalJoint(j3, card, [[0, 0, 0], [0, 1.5, 0]]);
+  useSphericalJoint(j3, card, [
+    [0, 0, 0],
+    [0, 1.5, 0],
+  ]);
 
   // Cursor management
   useEffect(() => {
     if (hovered) {
       document.body.style.cursor = dragged ? 'grabbing' : 'grab';
-      return () => { document.body.style.cursor = 'auto'; };
+      return () => {
+        document.body.style.cursor = 'auto';
+      };
     }
   }, [hovered, dragged]);
 
@@ -294,7 +330,7 @@ function LanyardScene({ profileName, enrollment, profilePhotoSrc, isMobile }) {
       vec.set(state.pointer.x, state.pointer.y, 0.5).unproject(state.camera);
       dir.copy(vec).sub(state.camera.position).normalize();
       vec.add(dir.multiplyScalar(state.camera.position.length()));
-      [card, j1, j2, j3, fixed].forEach(ref => ref.current?.wakeUp());
+      [card, j1, j2, j3, fixed].forEach((ref) => ref.current?.wakeUp());
       card.current?.setNextKinematicTranslation({
         x: vec.x - dragged.x,
         y: vec.y - dragged.y,
@@ -378,14 +414,7 @@ function LanyardScene({ profileName, enrollment, profilePhotoSrc, isMobile }) {
       </group>
 
       {/* The visible lanyard band */}
-      <Band
-        fixed={fixed}
-        j1={j1}
-        j2={j2}
-        j3={j3}
-        card={card}
-        isMobile={isMobile}
-      />
+      <Band fixed={fixed} j1={j1} j2={j2} j3={j3} card={card} isMobile={isMobile} />
     </>
   );
 }
@@ -395,8 +424,8 @@ function LanyardScene({ profileName, enrollment, profilePhotoSrc, isMobile }) {
  * Dynamically imported with { ssr: false } in ProfileView.
  */
 export default function LanyardBadge({ profilePhotoSrc, profileName, enrollment }) {
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== 'undefined' && window.innerWidth < 768
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 768
   );
 
   useEffect(() => {
@@ -432,10 +461,34 @@ export default function LanyardBadge({ profilePhotoSrc, profileName, enrollment 
             />
           </Physics>
           <Environment blur={0.75}>
-            <Lightformer intensity={2} color="white" position={[0, -1, 5]} rotation={[0, 0, Math.PI / 3]} scale={[100, 0.1, 1]} />
-            <Lightformer intensity={3} color="white" position={[-1, -1, 1]} rotation={[0, 0, Math.PI / 3]} scale={[100, 0.1, 1]} />
-            <Lightformer intensity={3} color="white" position={[1, 1, 1]} rotation={[0, 0, Math.PI / 3]} scale={[100, 0.1, 1]} />
-            <Lightformer intensity={10} color="white" position={[-10, 0, 14]} rotation={[0, Math.PI / 2, Math.PI / 3]} scale={[100, 10, 1]} />
+            <Lightformer
+              intensity={2}
+              color="white"
+              position={[0, -1, 5]}
+              rotation={[0, 0, Math.PI / 3]}
+              scale={[100, 0.1, 1]}
+            />
+            <Lightformer
+              intensity={3}
+              color="white"
+              position={[-1, -1, 1]}
+              rotation={[0, 0, Math.PI / 3]}
+              scale={[100, 0.1, 1]}
+            />
+            <Lightformer
+              intensity={3}
+              color="white"
+              position={[1, 1, 1]}
+              rotation={[0, 0, Math.PI / 3]}
+              scale={[100, 0.1, 1]}
+            />
+            <Lightformer
+              intensity={10}
+              color="white"
+              position={[-10, 0, 14]}
+              rotation={[0, Math.PI / 2, Math.PI / 3]}
+              scale={[100, 10, 1]}
+            />
           </Environment>
         </Suspense>
       </Canvas>

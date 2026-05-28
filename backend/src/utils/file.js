@@ -1,4 +1,3 @@
-
 const path = require('path');
 
 const extensionToType = {
@@ -11,7 +10,7 @@ const extensionToType = {
   '.zip': 'zip',
   '.xls': 'xls',
   '.xlsx': 'xlsx',
-  '.txt': 'txt'
+  '.txt': 'txt',
 };
 
 const getFileTypeFromName = (filename) => {
@@ -31,5 +30,5 @@ const sanitizeKeyPart = (value) =>
 module.exports = {
   getFileTypeFromName,
   isSupportedFileType,
-  sanitizeKeyPart
+  sanitizeKeyPart,
 };

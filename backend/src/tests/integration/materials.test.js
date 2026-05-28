@@ -3,9 +3,11 @@ const app = require('../../app');
 const Material = require('../../models/Material');
 
 jest.mock('../../services/s3Service', () => ({
-  uploadFileToS3: jest.fn().mockResolvedValue({ fileUrl: 'http://mock.s3.url/file.pdf', s3Key: 'mock-s3-key.pdf' }),
+  uploadFileToS3: jest
+    .fn()
+    .mockResolvedValue({ fileUrl: 'http://mock.s3.url/file.pdf', s3Key: 'mock-s3-key.pdf' }),
   deleteFromS3: jest.fn().mockResolvedValue(true),
-  safeDeleteLocalFile: jest.fn().mockResolvedValue(true)
+  safeDeleteLocalFile: jest.fn().mockResolvedValue(true),
 }));
 
 describe('Materials Integration Tests', () => {
@@ -24,7 +26,7 @@ describe('Materials Integration Tests', () => {
       fileSizeBytes: 1024,
       fileUrl: 'http://test.com/math.pdf',
       s3Key: 'math-1-notes.pdf',
-      isPublished: true
+      isPublished: true,
     });
   });
 
@@ -74,7 +76,7 @@ describe('Materials Integration Tests', () => {
         .set('X-Admin-Key', 'test-admin-key')
         .set('X-Admin-Email', 'admin@example.com')
         .field('title', 'Only Title provided');
-      
+
       if (res.status === 500) console.log(res.body);
       expect(res.status).toBe(400);
       expect(res.body.message).toBe('Validation failed');
@@ -92,14 +94,14 @@ describe('Materials Integration Tests', () => {
         .field('semester', 2)
         .field('subject', 'Physics')
         .field('resourceType', 'Slides')
-        .attach('file', Buffer.from('dummy content'), 'dummy.pdf'); 
+        .attach('file', Buffer.from('dummy content'), 'dummy.pdf');
 
       // Status might be 200 or 201 depending on controller logic, usually 200/201 on success.
       if (res.status === 500) console.log(res.body);
       expect(res.status).toBeGreaterThanOrEqual(200);
       expect(res.status).toBeLessThan(300);
       expect(res.body.success).toBe(true);
-      
+
       // Verify it was saved
       const saved = await Material.findOne({ title: 'Physics Slides' });
       expect(saved).not.toBeNull();
@@ -112,10 +114,10 @@ describe('Materials Integration Tests', () => {
         .delete(`/api/v1/admin/materials/${sampleMaterial._id}`)
         .set('X-Admin-Key', 'test-admin-key')
         .set('X-Admin-Email', 'admin@example.com');
-      
+
       expect(res.status).toBeGreaterThanOrEqual(200);
       expect(res.status).toBeLessThan(300);
-      
+
       const check = await Material.findById(sampleMaterial._id);
       expect(check).toBeNull();
     });

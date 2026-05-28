@@ -1,4 +1,3 @@
-
 const app = require('./app');
 const connectDb = require('./config/db');
 const env = require('./config/env');
@@ -43,7 +42,9 @@ const startServer = async () => {
       if (!env.allowStartWithoutDb) {
         throw dbError;
       }
-      console.warn('MongoDB connection failed; starting without DB because ALLOW_START_WITHOUT_DB=true');
+      console.warn(
+        'MongoDB connection failed; starting without DB because ALLOW_START_WITHOUT_DB=true'
+      );
       console.warn(dbError?.message || dbError);
     }
 

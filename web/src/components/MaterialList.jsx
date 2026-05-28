@@ -33,14 +33,20 @@ async function triggerDownload(url, fallbackName) {
   }
 }
 
-export default function MaterialList({ items, isGuest = false, guestUsage = { used: 0, limit: GUEST_USAGE_LIMIT } }) {
+export default function MaterialList({
+  items,
+  isGuest = false,
+  guestUsage = { used: 0, limit: GUEST_USAGE_LIMIT },
+}) {
   const [downloadsUsed, setDownloadsUsed] = useState(() => Number(guestUsage.used || 0));
   const limitReached = isGuest && downloadsUsed >= GUEST_USAGE_LIMIT;
   if (!items.length) {
     return (
       <Card className="border-dashed bg-card/80 dark:bg-card/70">
         <CardContent className="p-6 text-center">
-          <p className="text-sm text-muted-foreground">No materials found for the selected filters.</p>
+          <p className="text-sm text-muted-foreground">
+            No materials found for the selected filters.
+          </p>
         </CardContent>
       </Card>
     );
@@ -49,7 +55,9 @@ export default function MaterialList({ items, isGuest = false, guestUsage = { us
   return (
     <div className="space-y-4">
       {isGuest && (
-        <div className={`rounded-xl border px-4 py-3 text-sm ${limitReached ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/50 dark:text-red-300' : 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300'}`}>
+        <div
+          className={`rounded-xl border px-4 py-3 text-sm ${limitReached ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/50 dark:text-red-300' : 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300'}`}
+        >
           {limitReached
             ? 'Guest download limit reached. Sign in with your college account for unlimited downloads.'
             : `Guest mode: ${downloadsUsed}/${GUEST_USAGE_LIMIT} combined views + downloads used.`}
@@ -94,10 +102,13 @@ export default function MaterialList({ items, isGuest = false, guestUsage = { us
                       toast.info(`Downloading...`, { description: filename });
                       triggerDownload(materialAccessUrl(item._id, 'download'), filename)
                         .then(() => {
-                          if (isGuest) setDownloadsUsed((prev) => Math.min(GUEST_USAGE_LIMIT, prev + 1));
+                          if (isGuest)
+                            setDownloadsUsed((prev) => Math.min(GUEST_USAGE_LIMIT, prev + 1));
                         })
                         .catch((error) => {
-                          toast.error(error?.message || 'Download failed', { description: 'Sign in with your college account for unlimited access.' });
+                          toast.error(error?.message || 'Download failed', {
+                            description: 'Sign in with your college account for unlimited access.',
+                          });
                         });
                     }}
                   >

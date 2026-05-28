@@ -5,29 +5,29 @@ const errorHandler = (err, _req, res, _next) => {
     return res.status(400).json({
       success: false,
       message: 'Validation failed',
-      errors: (err.issues || err.errors || []).map(e => ({
+      errors: (err.issues || err.errors || []).map((e) => ({
         field: e.path.join('.'),
-        message: e.message
-      }))
+        message: e.message,
+      })),
     });
   }
 
   if (err.name === 'ValidationError') {
-    const errors = Object.values(err.errors).map(el => ({
+    const errors = Object.values(err.errors).map((el) => ({
       field: el.path,
-      message: el.message
+      message: el.message,
     }));
     return res.status(400).json({
       success: false,
       message: 'Invalid input data',
-      errors
+      errors,
     });
   }
 
   if (err.code === 11000) {
     return res.status(400).json({
       success: false,
-      message: 'Duplicate field value entered'
+      message: 'Duplicate field value entered',
     });
   }
 
@@ -44,7 +44,7 @@ const errorHandler = (err, _req, res, _next) => {
 
   res.status(statusCode).json({
     success: false,
-    message
+    message,
   });
 };
 

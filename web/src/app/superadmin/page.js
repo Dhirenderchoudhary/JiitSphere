@@ -17,11 +17,22 @@ const Cell = dynamic(() => import('recharts').then((m) => m.Cell), { ssr: false 
 const XAxis = dynamic(() => import('recharts').then((m) => m.XAxis), { ssr: false });
 const YAxis = dynamic(() => import('recharts').then((m) => m.YAxis), { ssr: false });
 const Tooltip = dynamic(() => import('recharts').then((m) => m.Tooltip), { ssr: false });
-const ResponsiveContainer = dynamic(() => import('recharts').then((m) => m.ResponsiveContainer), { ssr: false });
+const ResponsiveContainer = dynamic(() => import('recharts').then((m) => m.ResponsiveContainer), {
+  ssr: false,
+});
 
 const fmt = (n) => Number(n || 0).toLocaleString();
 
-const COLORS = ['#34d399', '#60a5fa', '#f87171', '#fbbf24', '#a78bfa', '#fb923c', '#2dd4bf', '#e879f9'];
+const COLORS = [
+  '#34d399',
+  '#60a5fa',
+  '#f87171',
+  '#fbbf24',
+  '#a78bfa',
+  '#fb923c',
+  '#2dd4bf',
+  '#e879f9',
+];
 
 function aggregate(days, count) {
   const slice = days.slice(-count);
@@ -29,7 +40,7 @@ function aggregate(days, count) {
     visitors: slice.reduce((s, d) => s + d.visitors, 0),
     portalVisitors: slice.reduce((s, d) => s + (d.portalVisitors || 0), 0),
     studyMaterialVisitors: slice.reduce((s, d) => s + (d.studyMaterialVisitors || 0), 0),
-    pageViews: slice.reduce((s, d) => s + d.views, 0)
+    pageViews: slice.reduce((s, d) => s + d.views, 0),
   };
 }
 
@@ -61,7 +72,9 @@ function ChartTooltip({ active, payload, label }) {
     <div className="rounded-xl border border-border bg-popover px-3 py-2 text-xs shadow-xl">
       <p className="mb-1 font-semibold text-muted-foreground">{label}</p>
       {payload.map((p, i) => (
-        <p key={i} style={{ color: p.color }} className="font-mono">{p.name}: {fmt(p.value)}</p>
+        <p key={i} style={{ color: p.color }} className="font-mono">
+          {p.name}: {fmt(p.value)}
+        </p>
       ))}
     </div>
   );
@@ -98,7 +111,7 @@ function LoginView({ onLogin }) {
       const res = await fetch('/api/superadmin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, password })
+        body: JSON.stringify({ id, password }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Login failed');
@@ -118,7 +131,9 @@ function LoginView({ onLogin }) {
             <Shield className="size-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Restricted Area</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Restricted Area
+            </p>
             <h1 className="mt-0.5 text-2xl font-black tracking-tight">Superadmin</h1>
           </div>
         </div>
@@ -132,12 +147,37 @@ function LoginView({ onLogin }) {
             )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label htmlFor="superadmin-id" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Admin ID</label>
-                <Input id="superadmin-id" placeholder="Enter admin ID" value={id} onChange={(e) => setId(e.target.value)} required autoComplete="username" />
+                <label
+                  htmlFor="superadmin-id"
+                  className="text-xs font-semibold text-muted-foreground uppercase tracking-wide"
+                >
+                  Admin ID
+                </label>
+                <Input
+                  id="superadmin-id"
+                  placeholder="Enter admin ID"
+                  value={id}
+                  onChange={(e) => setId(e.target.value)}
+                  required
+                  autoComplete="username"
+                />
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="superadmin-password" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Password</label>
-                <Input id="superadmin-password" type="password" placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
+                <label
+                  htmlFor="superadmin-password"
+                  className="text-xs font-semibold text-muted-foreground uppercase tracking-wide"
+                >
+                  Password
+                </label>
+                <Input
+                  id="superadmin-password"
+                  type="password"
+                  placeholder="Enter password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
               </div>
               <Button type="submit" className="w-full" size="lg" disabled={loading}>
                 {loading ? 'Verifying...' : 'Sign In'}
@@ -158,17 +198,40 @@ function Dashboard({ token, onLogout }) {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch('/api/superadmin/analytics', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch('/api/superadmin/analytics', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const json = await res.json();
-      if (!res.ok || !json.success) { if (res.status === 401) onLogout(); return; }
+      if (!res.ok || !json.success) {
+        if (res.status === 401) onLogout();
+        return;
+      }
       setData(json.data);
-    } catch { /* silent */ } finally { setLoading(false); }
+    } catch {
+      /* silent */
+    } finally {
+      setLoading(false);
+    }
   }, [token, onLogout]);
 
-  useEffect(() => { fetchData(); const t = setInterval(fetchData, 30000); return () => clearInterval(t); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+    const t = setInterval(fetchData, 30000);
+    return () => clearInterval(t);
+  }, [fetchData]);
 
-  if (loading) return <main className="flex min-h-screen items-center justify-center"><p className="text-muted-foreground animate-pulse">Loading analytics…</p></main>;
-  if (!data) return <main className="flex min-h-screen items-center justify-center"><p className="text-red-500">Failed to load analytics</p></main>;
+  if (loading)
+    return (
+      <main className="flex min-h-screen items-center justify-center">
+        <p className="text-muted-foreground animate-pulse">Loading analytics…</p>
+      </main>
+    );
+  if (!data)
+    return (
+      <main className="flex min-h-screen items-center justify-center">
+        <p className="text-red-500">Failed to load analytics</p>
+      </main>
+    );
 
   const days30 = data.pv?.last30Days || [];
   const periodSlice = period === 'Last 7 days' ? 7 : period === 'Last 30 days' ? 30 : 1;
@@ -180,19 +243,30 @@ function Dashboard({ token, onLogout }) {
     Visitors: d.visitors,
     Portal: d.portalVisitors || 0,
     'Study Material': d.studyMaterialVisitors || 0,
-    'Page Views': d.views
+    'Page Views': d.views,
   }));
 
-  const browserData = (data.pv?.topBrowsers || []).filter((b) => b.count > 0).map((b) => ({ name: b.name, value: b.count }));
-  const osData = (data.pv?.topOs || []).filter((o) => o.count > 0).map((o) => ({ name: o.name, value: o.count }));
-  const deviceData = Object.entries(data.pv?.byDevice || {}).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
+  const browserData = (data.pv?.topBrowsers || [])
+    .filter((b) => b.count > 0)
+    .map((b) => ({ name: b.name, value: b.count }));
+  const osData = (data.pv?.topOs || [])
+    .filter((o) => o.count > 0)
+    .map((o) => ({ name: o.name, value: o.count }));
+  const deviceData = Object.entries(data.pv?.byDevice || {})
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, value]) => ({ name, value }));
   const referrerData = (data.pv?.topReferrers || []).filter((r) => r.count > 0);
   const maxRef = referrerData.length ? Math.max(...referrerData.map((r) => r.count)) : 1;
 
   const pvSection = data.pv?.sectionVisitors || {};
   const materials = data.materials || {};
 
-  const hourlyData = (data.pv?.last24Hours || []).map((h) => ({ time: `${h.hour}:00`, Visitors: h.visitors || 0, Views: h.views || 0 }));
+  const hourlyData = (data.pv?.last24Hours || []).map((h) => ({
+    time: `${h.hour}:00`,
+    Visitors: h.visitors || 0,
+    Views: h.views || 0,
+  }));
 
   return (
     <main className="page-shell min-h-screen py-5 sm:py-6">
@@ -200,17 +274,31 @@ function Dashboard({ token, onLogout }) {
       <header className="sticky top-0 z-30 mb-5 rounded-2xl border border-border bg-card/90 backdrop-blur">
         <div className="flex items-center justify-between px-4 py-3 sm:px-5">
           <div className="flex items-center gap-3">
-            <button type="button" onClick={() => window.history.back()} className="text-muted-foreground hover:text-foreground transition">&larr;</button>
+            <button
+              type="button"
+              onClick={() => window.history.back()}
+              className="text-muted-foreground hover:text-foreground transition"
+            >
+              &larr;
+            </button>
             <h1 className="text-lg font-bold">JiitSphere</h1>
           </div>
           <div className="flex items-center gap-2">
-            <select value={period} onChange={(e) => setPeriod(e.target.value)}
-              className="rounded-xl border border-input bg-background px-3 py-1.5 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <select
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              className="rounded-xl border border-input bg-background px-3 py-1.5 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               <option>Today</option>
               <option>Last 7 days</option>
               <option>Last 30 days</option>
             </select>
-            <Button variant="ghost" size="sm" onClick={fetchData} className="gap-1.5 text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={fetchData}
+              className="gap-1.5 text-muted-foreground"
+            >
               <RefreshCw className="size-[3.5]" /> Refresh
             </Button>
             <Button variant="destructive" size="sm" onClick={onLogout} className="gap-1.5">
@@ -226,7 +314,9 @@ function Dashboard({ token, onLogout }) {
           <div className="absolute inset-0 dot-grid opacity-[0.06]" />
           <div className="relative z-10">
             <h2 className="text-2xl font-extrabold">Web Analytics Dashboard</h2>
-            <p className="text-sm text-white/60">Tracking since {data.startedAt?.slice(0, 10)} &middot; Auto-refreshes every 30s</p>
+            <p className="text-sm text-white/60">
+              Tracking since {data.startedAt?.slice(0, 10)} &middot; Auto-refreshes every 30s
+            </p>
           </div>
         </div>
 
@@ -244,9 +334,12 @@ function Dashboard({ token, onLogout }) {
             { label: 'All-time Visitors', val: data.pv?.totalVisitors || 0 },
             { label: 'Portal (all-time)', val: pvSection.portal || 0 },
             { label: 'Study Material (all-time)', val: pvSection.studyMaterial || 0 },
-            { label: 'Materials Uploaded', val: materials.total || 0 }
+            { label: 'Materials Uploaded', val: materials.total || 0 },
           ].map((s) => (
-            <div key={s.label} className="rounded-2xl border border-border bg-card/95 px-4 py-3 backdrop-blur">
+            <div
+              key={s.label}
+              className="rounded-2xl border border-border bg-card/95 px-4 py-3 backdrop-blur"
+            >
               <p className="text-xs text-muted-foreground">{s.label}</p>
               <p className="text-xl font-bold">{fmt(s.val)}</p>
             </div>
@@ -254,7 +347,10 @@ function Dashboard({ token, onLogout }) {
         </div>
 
         {/* Visitors Over Time */}
-        <ChartCard title="Visitors Over Time" subtitle={`Total visitor count — ${period.toLowerCase()}`}>
+        <ChartCard
+          title="Visitors Over Time"
+          subtitle={`Total visitor count — ${period.toLowerCase()}`}
+        >
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
@@ -264,17 +360,36 @@ function Dashboard({ token, onLogout }) {
                     <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} width={35} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: '#94a3b8', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fill: '#94a3b8', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={35}
+                />
                 <Tooltip content={<ChartTooltip />} />
-                <Area type="monotone" dataKey="Visitors" stroke="#34d399" strokeWidth={2} fill="url(#gVisitors)" />
+                <Area
+                  type="monotone"
+                  dataKey="Visitors"
+                  stroke="#34d399"
+                  strokeWidth={2}
+                  fill="url(#gVisitors)"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </ChartCard>
 
         {/* Page Views Over Time */}
-        <ChartCard title="Page Views Over Time" subtitle={`Total page view count — ${period.toLowerCase()}`}>
+        <ChartCard
+          title="Page Views Over Time"
+          subtitle={`Total page view count — ${period.toLowerCase()}`}
+        >
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
@@ -284,31 +399,84 @@ function Dashboard({ token, onLogout }) {
                     <stop offset="100%" stopColor="#60a5fa" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} width={35} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: '#94a3b8', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fill: '#94a3b8', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={35}
+                />
                 <Tooltip content={<ChartTooltip />} />
-                <Area type="monotone" dataKey="Page Views" stroke="#60a5fa" strokeWidth={2} fill="url(#gPageViews)" />
+                <Area
+                  type="monotone"
+                  dataKey="Page Views"
+                  stroke="#60a5fa"
+                  strokeWidth={2}
+                  fill="url(#gPageViews)"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </ChartCard>
 
         {/* Portal vs Study Material Visitors */}
-        <ChartCard title="Section Visitors Over Time" subtitle="Portal vs Study Material unique visitors">
+        <ChartCard
+          title="Section Visitors Over Time"
+          subtitle="Portal vs Study Material unique visitors"
+        >
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
-                <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} width={35} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: '#94a3b8', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fill: '#94a3b8', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={35}
+                />
                 <Tooltip content={<ChartTooltip />} />
-                <Line type="monotone" dataKey="Portal" stroke="#34d399" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="Study Material" stroke="#60a5fa" strokeWidth={2} dot={false} />
+                <Line
+                  type="monotone"
+                  dataKey="Portal"
+                  stroke="#34d399"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="Study Material"
+                  stroke="#60a5fa"
+                  strokeWidth={2}
+                  dot={false}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
           <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
-            <span><span className="mr-1.5 inline-block h-2 w-4 rounded" style={{ background: '#34d399' }} />Portal</span>
-            <span><span className="mr-1.5 inline-block h-2 w-4 rounded" style={{ background: '#60a5fa' }} />Study Material</span>
+            <span>
+              <span
+                className="mr-1.5 inline-block h-2 w-4 rounded"
+                style={{ background: '#34d399' }}
+              />
+              Portal
+            </span>
+            <span>
+              <span
+                className="mr-1.5 inline-block h-2 w-4 rounded"
+                style={{ background: '#60a5fa' }}
+              />
+              Study Material
+            </span>
           </div>
         </ChartCard>
 
@@ -319,8 +487,19 @@ function Dashboard({ token, onLogout }) {
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={browserData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} dataKey="value" nameKey="name" stroke="none">
-                      {browserData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    <Pie
+                      data={browserData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      dataKey="value"
+                      nameKey="name"
+                      stroke="none"
+                    >
+                      {browserData.map((_, i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
                     </Pie>
                     <Tooltip content={<ChartTooltip />} />
                   </PieChart>
@@ -329,19 +508,41 @@ function Dashboard({ token, onLogout }) {
               <div className="mt-2 w-full space-y-1.5">
                 {browserData.map((b, i) => {
                   const maxB = Math.max(...browserData.map((x) => x.value));
-                  return <BarRow key={b.name} label={b.name} value={b.value} max={maxB} color={COLORS[i % COLORS.length]} />;
+                  return (
+                    <BarRow
+                      key={b.name}
+                      label={b.name}
+                      value={b.value}
+                      max={maxB}
+                      color={COLORS[i % COLORS.length]}
+                    />
+                  );
                 })}
               </div>
             </div>
           </ChartCard>
 
-          <ChartCard title="Operating System Distribution" subtitle="Breakdown of visitors by operating system">
+          <ChartCard
+            title="Operating System Distribution"
+            subtitle="Breakdown of visitors by operating system"
+          >
             <div className="flex flex-col items-center">
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={osData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} dataKey="value" nameKey="name" stroke="none">
-                      {osData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    <Pie
+                      data={osData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      dataKey="value"
+                      nameKey="name"
+                      stroke="none"
+                    >
+                      {osData.map((_, i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
                     </Pie>
                     <Tooltip content={<ChartTooltip />} />
                   </PieChart>
@@ -350,7 +551,15 @@ function Dashboard({ token, onLogout }) {
               <div className="mt-2 w-full space-y-1.5">
                 {osData.map((o, i) => {
                   const maxO = Math.max(...osData.map((x) => x.value));
-                  return <BarRow key={o.name} label={o.name} value={o.value} max={maxO} color={COLORS[i % COLORS.length]} />;
+                  return (
+                    <BarRow
+                      key={o.name}
+                      label={o.name}
+                      value={o.value}
+                      max={maxO}
+                      color={COLORS[i % COLORS.length]}
+                    />
+                  );
                 })}
               </div>
             </div>
@@ -363,8 +572,19 @@ function Dashboard({ token, onLogout }) {
             <div className="h-64 w-full max-w-md mx-auto">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={deviceData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} dataKey="value" nameKey="name" stroke="none">
-                    {deviceData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  <Pie
+                    data={deviceData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    dataKey="value"
+                    nameKey="name"
+                    stroke="none"
+                  >
+                    {deviceData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
                   </Pie>
                   <Tooltip content={<ChartTooltip />} />
                 </PieChart>
@@ -373,7 +593,15 @@ function Dashboard({ token, onLogout }) {
             <div className="mt-2 w-full max-w-md space-y-1.5">
               {deviceData.map((d, i) => {
                 const maxD = Math.max(...deviceData.map((x) => x.value));
-                return <BarRow key={d.name} label={d.name} value={d.value} max={maxD} color={COLORS[i % COLORS.length]} />;
+                return (
+                  <BarRow
+                    key={d.name}
+                    label={d.name}
+                    value={d.value}
+                    max={maxD}
+                    color={COLORS[i % COLORS.length]}
+                  />
+                );
               })}
             </div>
           </div>
@@ -390,10 +618,26 @@ function Dashboard({ token, onLogout }) {
                     <stop offset="100%" stopColor="#fbbf24" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="time" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} width={30} />
+                <XAxis
+                  dataKey="time"
+                  tick={{ fill: '#94a3b8', fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fill: '#94a3b8', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={30}
+                />
                 <Tooltip content={<ChartTooltip />} />
-                <Area type="monotone" dataKey="Visitors" stroke="#fbbf24" strokeWidth={2} fill="url(#gHourly)" />
+                <Area
+                  type="monotone"
+                  dataKey="Visitors"
+                  stroke="#fbbf24"
+                  strokeWidth={2}
+                  fill="url(#gHourly)"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -402,9 +646,19 @@ function Dashboard({ token, onLogout }) {
         {/* Referrers */}
         <ChartCard title="Top Referrers" subtitle="Where visitors are coming from">
           <div className="space-y-2">
-            {referrerData.length ? referrerData.map((r) => (
-              <BarRow key={r.source} label={r.source} value={r.count} max={maxRef} color="bg-violet-500" />
-            )) : <p className="text-sm text-muted-foreground">No referrer data yet.</p>}
+            {referrerData.length ? (
+              referrerData.map((r) => (
+                <BarRow
+                  key={r.source}
+                  label={r.source}
+                  value={r.count}
+                  max={maxRef}
+                  color="bg-violet-500"
+                />
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">No referrer data yet.</p>
+            )}
           </div>
         </ChartCard>
 
@@ -413,7 +667,13 @@ function Dashboard({ token, onLogout }) {
           <ChartCard title="Top Pages" subtitle="Most visited pages">
             <div className="space-y-2">
               {(data.pv.topPages || []).map((p) => (
-                <BarRow key={p.page} label={p.page} value={p.count} max={data.pv.topPages[0]?.count || 1} color="bg-cyan-500" />
+                <BarRow
+                  key={p.page}
+                  label={p.page}
+                  value={p.count}
+                  max={data.pv.topPages[0]?.count || 1}
+                  color="bg-cyan-500"
+                />
               ))}
             </div>
           </ChartCard>
@@ -422,12 +682,29 @@ function Dashboard({ token, onLogout }) {
         {/* Materials Stats */}
         {materials.total > 0 && (
           <div className="grid gap-6 lg:grid-cols-2">
-            <ChartCard title="Materials by Degree" subtitle={`${fmt(materials.total)} total uploaded`}>
+            <ChartCard
+              title="Materials by Degree"
+              subtitle={`${fmt(materials.total)} total uploaded`}
+            >
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={(materials.byDegree || []).map((d) => ({ name: d.name, value: d.count }))} cx="50%" cy="50%" innerRadius={50} outerRadius={85} dataKey="value" nameKey="name" stroke="none">
-                      {(materials.byDegree || []).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    <Pie
+                      data={(materials.byDegree || []).map((d) => ({
+                        name: d.name,
+                        value: d.count,
+                      }))}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={85}
+                      dataKey="value"
+                      nameKey="name"
+                      stroke="none"
+                    >
+                      {(materials.byDegree || []).map((_, i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
                     </Pie>
                     <Tooltip content={<ChartTooltip />} />
                   </PieChart>
@@ -436,8 +713,16 @@ function Dashboard({ token, onLogout }) {
               <div className="mt-2 space-y-1">
                 {(materials.byDegree || []).map((d, i) => (
                   <div key={d.name} className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />{d.name}</span>
-                    <span className="font-mono font-bold text-muted-foreground">{fmt(d.count)}</span>
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ background: COLORS[i % COLORS.length] }}
+                      />
+                      {d.name}
+                    </span>
+                    <span className="font-mono font-bold text-muted-foreground">
+                      {fmt(d.count)}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -446,8 +731,19 @@ function Dashboard({ token, onLogout }) {
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={(materials.byType || []).map((t) => ({ name: t.name, value: t.count }))} cx="50%" cy="50%" innerRadius={50} outerRadius={85} dataKey="value" nameKey="name" stroke="none">
-                      {(materials.byType || []).map((_, i) => <Cell key={i} fill={COLORS[(i + 3) % COLORS.length]} />)}
+                    <Pie
+                      data={(materials.byType || []).map((t) => ({ name: t.name, value: t.count }))}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={85}
+                      dataKey="value"
+                      nameKey="name"
+                      stroke="none"
+                    >
+                      {(materials.byType || []).map((_, i) => (
+                        <Cell key={i} fill={COLORS[(i + 3) % COLORS.length]} />
+                      ))}
                     </Pie>
                     <Tooltip content={<ChartTooltip />} />
                   </PieChart>
@@ -456,8 +752,16 @@ function Dashboard({ token, onLogout }) {
               <div className="mt-2 space-y-1">
                 {(materials.byType || []).map((t, i) => (
                   <div key={t.name} className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: COLORS[(i + 3) % COLORS.length] }} />{t.name}</span>
-                    <span className="font-mono font-bold text-muted-foreground">{fmt(t.count)}</span>
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ background: COLORS[(i + 3) % COLORS.length] }}
+                      />
+                      {t.name}
+                    </span>
+                    <span className="font-mono font-bold text-muted-foreground">
+                      {fmt(t.count)}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -478,8 +782,14 @@ export default function SuperadminPage() {
     if (saved) setToken(saved);
   }, []);
 
-  const handleLogin = (t) => { sessionStorage.setItem('superadmin_token', t); setToken(t); };
-  const handleLogout = () => { sessionStorage.removeItem('superadmin_token'); setToken(null); };
+  const handleLogin = (t) => {
+    sessionStorage.setItem('superadmin_token', t);
+    setToken(t);
+  };
+  const handleLogout = () => {
+    sessionStorage.removeItem('superadmin_token');
+    setToken(null);
+  };
 
   if (!token) return <LoginView onLogin={handleLogin} />;
   return <Dashboard token={token} onLogout={handleLogout} />;

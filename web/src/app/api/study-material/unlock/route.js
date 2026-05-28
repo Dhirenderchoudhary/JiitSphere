@@ -7,17 +7,23 @@ const limiter = rateLimit({ name: 'study-unlock', windowMs: 15 * 60 * 1000, max:
 const STUDY_ACCESS_COOKIE = 'study_material_access';
 const STUDY_ACCESS_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
-const hashValue = (value) => createHash('sha256').update(String(value || '')).digest('hex');
+const hashValue = (value) =>
+  createHash('sha256')
+    .update(String(value || ''))
+    .digest('hex');
 
 const hashesMatch = (left, right) => {
   const leftBuffer = Buffer.from(String(left || ''), 'utf8');
   const rightBuffer = Buffer.from(String(right || ''), 'utf8');
-  if (!leftBuffer.length || !rightBuffer.length || leftBuffer.length !== rightBuffer.length) return false;
+  if (!leftBuffer.length || !rightBuffer.length || leftBuffer.length !== rightBuffer.length)
+    return false;
   return timingSafeEqual(leftBuffer, rightBuffer);
 };
 
 const getPasswordHash = () => {
-  const configured = String(process.env.STUDY_MATERIAL_PASSWORD_HASH || '').trim().toLowerCase();
+  const configured = String(process.env.STUDY_MATERIAL_PASSWORD_HASH || '')
+    .trim()
+    .toLowerCase();
   return configured;
 };
 
@@ -46,7 +52,7 @@ export async function POST(request) {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
-    maxAge: STUDY_ACCESS_COOKIE_MAX_AGE
+    maxAge: STUDY_ACCESS_COOKIE_MAX_AGE,
   });
   return response;
 }
@@ -60,7 +66,7 @@ export async function DELETE() {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 0
+    maxAge: 0,
   });
   return response;
 }

@@ -15,7 +15,7 @@ describe('DownloadButton', () => {
 
     mockFetch = jest.fn().mockResolvedValue({
       ok: true,
-      blob: async () => new Blob(['dummy content'])
+      blob: async () => new Blob(['dummy content']),
     });
     global.fetch = mockFetch;
   });
@@ -27,10 +27,10 @@ describe('DownloadButton', () => {
 
   it('renders correctly and handles download', async () => {
     render(<DownloadButton fileUrl="http://example.com/file.pdf" filename="test.pdf" />);
-    
+
     const button = screen.getByRole('button', { name: /download/i });
     expect(button).toBeInTheDocument();
-    
+
     fireEvent.click(button);
     expect(button).toHaveTextContent('Downloading…');
     expect(button).toBeDisabled();
@@ -41,8 +41,8 @@ describe('DownloadButton', () => {
 
     await waitFor(() => {
       expect(button).toHaveTextContent('Download');
-      expect(button).not.toBeDisabled();
     });
+    expect(button).toBeEnabled();
   });
 
   it('falls back to window.open if fetch fails', async () => {
@@ -50,7 +50,7 @@ describe('DownloadButton', () => {
     mockFetch.mockRejectedValue(new Error('Network error'));
 
     render(<DownloadButton fileUrl="http://example.com/file.pdf" />);
-    
+
     const button = screen.getByRole('button', { name: /download/i });
     fireEvent.click(button);
 

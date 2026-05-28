@@ -5,7 +5,7 @@ const createMaterialSchema = z.object({
   description: z.string().optional().default(''),
   degree: z.enum(['BTech', 'MTech', 'BCA', 'MCA'], {
     invalid_type_error: 'Invalid degree',
-    required_error: 'Invalid degree'
+    required_error: 'Invalid degree',
   }),
   branch: z.string().trim().min(1, 'Branch is required'),
   // For multipart/form-data, numbers might come as strings, so we coerce them
@@ -14,9 +14,9 @@ const createMaterialSchema = z.object({
   subject: z.string().trim().min(1, 'Subject is required'),
   resourceType: z.enum(['Slides', 'Lectures', 'Tutorials', 'PYQs', 'Solutions'], {
     invalid_type_error: 'Invalid resource type',
-    required_error: 'Invalid resource type'
+    required_error: 'Invalid resource type',
   }),
-  isPublished: z.coerce.boolean().optional().default(true)
+  isPublished: z.coerce.boolean().optional().default(true),
   // fileUrl, s3Key, fileSizeBytes, fileType are determined in controller/service
 });
 
@@ -24,5 +24,5 @@ const updateMaterialSchema = createMaterialSchema.partial();
 
 module.exports = {
   createMaterialSchema,
-  updateMaterialSchema
+  updateMaterialSchema,
 };

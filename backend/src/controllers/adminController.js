@@ -1,4 +1,3 @@
-
 const Material = require('../models/Material');
 const asyncHandler = require('../middlewares/asyncHandler');
 const { uploadFileToS3, deleteFromS3, safeDeleteLocalFile } = require('../services/s3Service');
@@ -19,7 +18,12 @@ const parseOptionalInt = (value, label, { min, max }) => {
   return parsed;
 };
 
-const parsePositiveInt = (value, label, fallback, { min = 1, max = Number.MAX_SAFE_INTEGER } = {}) => {
+const parsePositiveInt = (
+  value,
+  label,
+  fallback,
+  { min = 1, max = Number.MAX_SAFE_INTEGER } = {}
+) => {
   if (value === undefined || value === null || value === '') return fallback;
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
@@ -50,7 +54,7 @@ const listMaterialsAdmin = asyncHandler(async (req, res) => {
     resourceType,
     page = 1,
     limit = 25,
-    includeUnpublished = 'true'
+    includeUnpublished = 'true',
   } = req.query;
 
   const query = {};
@@ -70,7 +74,7 @@ const listMaterialsAdmin = asyncHandler(async (req, res) => {
 
   const [items, total] = await Promise.all([
     Material.find(query).sort({ createdAt: -1 }).skip(skip).limit(limitNumber).lean(),
-    Material.countDocuments(query)
+    Material.countDocuments(query),
   ]);
 
   return res.json({
@@ -80,8 +84,8 @@ const listMaterialsAdmin = asyncHandler(async (req, res) => {
       page: pageNumber,
       limit: limitNumber,
       total,
-      totalPages: Math.ceil(total / limitNumber)
-    }
+      totalPages: Math.ceil(total / limitNumber),
+    },
   });
 });
 
@@ -97,7 +101,7 @@ const createMaterial = asyncHandler(async (req, res) => {
       filePath: req.file.path,
       mimeType: req.file.mimetype,
       payload: req.body,
-      originalFilename: req.file.originalname
+      originalFilename: req.file.originalname,
     });
 
     const material = await Material.create({
@@ -108,7 +112,7 @@ const createMaterial = asyncHandler(async (req, res) => {
       fileSizeBytes: req.file.size,
       fileUrl: uploadResult.fileUrl,
       s3Key: uploadResult.s3Key,
-      uploadedBy: req.adminEmail || 'admin'
+      uploadedBy: req.adminEmail || 'admin',
     });
 
     return res.status(201).json({ success: true, data: material });
@@ -133,7 +137,7 @@ const updateMaterial = asyncHandler(async (req, res) => {
     'semester',
     'subject',
     'resourceType',
-    'isPublished'
+    'isPublished',
   ];
 
   updatableFields.forEach((field) => {
@@ -163,9 +167,9 @@ const updateMaterial = asyncHandler(async (req, res) => {
           year: material.year,
           semester: material.semester,
           subject: material.subject,
-          resourceType: material.resourceType
+          resourceType: material.resourceType,
         },
-        originalFilename: req.file.originalname
+        originalFilename: req.file.originalname,
       });
 
       material.fileType = getFileTypeFromName(req.file.originalname);
@@ -209,5 +213,5 @@ module.exports = {
   createMaterial,
   updateMaterial,
   deleteMaterial,
-  deleteAllMaterials
+  deleteAllMaterials,
 };

@@ -1,16 +1,16 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import Navbar from '@/components/Navbar';
 import { useSession } from 'next-auth/react';
+import Navbar from '@/components/Navbar';
 
 jest.mock('next-auth/react', () => ({
   useSession: jest.fn(),
-  signOut: jest.fn()
+  signOut: jest.fn(),
 }));
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn() }),
-  usePathname: () => '/'
+  usePathname: () => '/',
 }));
 
 describe('Navbar Component', () => {
@@ -24,7 +24,7 @@ describe('Navbar Component', () => {
   it('renders user specific links when logged in', () => {
     useSession.mockReturnValue({
       data: { user: { name: 'Student', role: 'student' } },
-      status: 'authenticated'
+      status: 'authenticated',
     });
     render(<Navbar />);
     expect(screen.getByText(/JiitSphere/i)).toBeInTheDocument();

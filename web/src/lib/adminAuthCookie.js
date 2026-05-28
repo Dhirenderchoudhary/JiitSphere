@@ -21,7 +21,7 @@ export const createAdminCookieToken = (adminId) => {
   const payload = {
     id: String(adminId || ''),
     iat: Date.now(),
-    exp: Date.now() + ADMIN_COOKIE_MAX_AGE_SECONDS * 1000
+    exp: Date.now() + ADMIN_COOKIE_MAX_AGE_SECONDS * 1000,
   };
 
   const encodedPayload = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');

@@ -14,7 +14,7 @@ const isProduction = String(process.env.NODE_ENV || 'development').toLowerCase()
 const INSECURE_DEFAULTS = [
   'replace-this-auth-secret',
   'replace-with-strong-random-secret',
-  'change-this-admin-key'
+  'change-this-admin-key',
 ];
 
 const rawConfig = {
@@ -61,20 +61,27 @@ const rawConfig = {
     .split(',')
     .map((value) => value.trim())
     .includes('*'),
-  portalRelayBaseUrl: process.env.PORTAL_RELAY_BASE_URL || 'https://webportal.jiit.ac.in:6011/studentportal',
-  authRateLimitWindowMs: Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS || (isProduction ? 15 * 60 * 1000 : 60 * 1000)),
+  portalRelayBaseUrl:
+    process.env.PORTAL_RELAY_BASE_URL || 'https://webportal.jiit.ac.in:6011/studentportal',
+  authRateLimitWindowMs: Number(
+    process.env.AUTH_RATE_LIMIT_WINDOW_MS || (isProduction ? 15 * 60 * 1000 : 60 * 1000)
+  ),
   authRateLimitMax: Number(process.env.AUTH_RATE_LIMIT_MAX || (isProduction ? 5 : 30)),
   portalPublicDemoEnabled: parseBool(process.env.PORTAL_PUBLIC_DEMO_ENABLED, true),
   relayRateLimitWindowMs: Number(process.env.RELAY_RATE_LIMIT_WINDOW_MS || 60 * 1000),
   relayRateLimitMax: Number(process.env.RELAY_RATE_LIMIT_MAX || (isProduction ? 60 : 120)),
   maxUploadSizeMb: Number(process.env.MAX_UPLOAD_SIZE_MB || 200),
   portalRealtimeDefault: parseBool(process.env.PORTAL_REALTIME_DEFAULT, false),
-  portalRealtimeMinSyncIntervalMs: Number(process.env.PORTAL_REALTIME_MIN_SYNC_INTERVAL_MS || 30000),
-  portalBootstrapAttendanceSemesters: Number(process.env.PORTAL_BOOTSTRAP_ATTENDANCE_SEMESTERS || 1),
+  portalRealtimeMinSyncIntervalMs: Number(
+    process.env.PORTAL_REALTIME_MIN_SYNC_INTERVAL_MS || 30000
+  ),
+  portalBootstrapAttendanceSemesters: Number(
+    process.env.PORTAL_BOOTSTRAP_ATTENDANCE_SEMESTERS || 1
+  ),
   portalRequestTimeoutMs: Number(process.env.PORTAL_REQUEST_TIMEOUT_MS || 12000),
   portalTokenMaxAgeMs: Number(process.env.PORTAL_TOKEN_MAX_AGE_MS || 1000 * 60 * 60 * 24 * 7),
   sessionMaxAgeMs: Number(process.env.SESSION_MAX_AGE_MS || 24 * 60 * 60 * 1000),
-  sessionCleanupIntervalMs: Number(process.env.SESSION_CLEANUP_INTERVAL_MS || 15 * 60 * 1000)
+  sessionCleanupIntervalMs: Number(process.env.SESSION_CLEANUP_INTERVAL_MS || 15 * 60 * 1000),
 };
 
 const envSchema = z.object({
@@ -85,7 +92,7 @@ const envSchema = z.object({
   logStartup: z.boolean(),
   trustProxy: z.boolean(),
   corsAllowedOrigins: z.array(z.string()).refine((val) => !isProduction || val.length > 0, {
-    message: "CORS_ALLOWED_ORIGINS must explicitly list allowed origins in production"
+    message: 'CORS_ALLOWED_ORIGINS must explicitly list allowed origins in production',
   }),
   jsonBodyLimitMb: z.number(),
   globalRateLimitWindowMs: z.number(),
@@ -105,19 +112,28 @@ const envSchema = z.object({
   s3ExistingPrefix: z.string(),
   cloudFrontBaseUrl: z.string().optional(),
   importUploadedBy: z.string(),
-  adminApiKey: z.string().refine((val) => {
-    if (!isProduction) return true;
-    return val.length > 0 && !INSECURE_DEFAULTS.includes(val);
-  }, { message: "ADMIN_API_KEY must be set to a strong random value in production" }),
+  adminApiKey: z.string().refine(
+    (val) => {
+      if (!isProduction) return true;
+      return val.length > 0 && !INSECURE_DEFAULTS.includes(val);
+    },
+    { message: 'ADMIN_API_KEY must be set to a strong random value in production' }
+  ),
   adminAllowedEmails: z.array(z.string()),
-  authSecret: z.string().refine((val) => {
-    if (!isProduction) return true;
-    return val.length >= 32 && !INSECURE_DEFAULTS.includes(val);
-  }, { message: "AUTH_SECRET must be at least 32 characters and not a default in production" }),
-  userPasswordHash: z.string().refine((val) => {
-    if (!isProduction) return true;
-    return val.length > 0;
-  }, { message: "USER_PASSWORD_HASH must be set in production" }),
+  authSecret: z.string().refine(
+    (val) => {
+      if (!isProduction) return true;
+      return val.length >= 32 && !INSECURE_DEFAULTS.includes(val);
+    },
+    { message: 'AUTH_SECRET must be at least 32 characters and not a default in production' }
+  ),
+  userPasswordHash: z.string().refine(
+    (val) => {
+      if (!isProduction) return true;
+      return val.length > 0;
+    },
+    { message: 'USER_PASSWORD_HASH must be set in production' }
+  ),
   userAllowedIdentifiers: z.array(z.string()),
   userAllowAll: z.boolean(),
   portalRelayBaseUrl: z.string(),
@@ -133,7 +149,7 @@ const envSchema = z.object({
   portalRequestTimeoutMs: z.number(),
   portalTokenMaxAgeMs: z.number(),
   sessionMaxAgeMs: z.number(),
-  sessionCleanupIntervalMs: z.number()
+  sessionCleanupIntervalMs: z.number(),
 });
 
 const parsed = envSchema.safeParse(rawConfig);
