@@ -37,6 +37,10 @@ module.exports = {
     'no-use-before-define': 'warn',
     'camelcase': 'warn',
     'global-require': 'warn',
-    'node/no-unsupported-features/es-builtins': 'warn'
+    'node/no-unsupported-features/es-builtins': 'warn',
+    'no-cond-assign': 'warn',
+    'no-shadow': 'warn',
+    'class-methods-use-this': 'warn',
+    'max-classes-per-file': 'warn'
   }
 };

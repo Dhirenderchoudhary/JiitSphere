@@ -39,6 +39,9 @@ module.exports = {
     'react/jsx-filename-extension': 'warn',
     'react/button-has-type': 'warn',
     'jsx-a11y/label-has-associated-control': 'warn',
-    'no-continue': 'warn'
+    'no-continue': 'warn',
+    'no-param-reassign': 'warn',
+    'consistent-return': 'warn',
+    'jsx-a11y/media-has-caption': 'warn'
   }
 };

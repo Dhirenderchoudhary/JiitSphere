@@ -67,9 +67,9 @@ jobs:
         working-directory: ./web
         run: pnpm exec prettier --check src/
 
-      - name: Run Next.js Lint
+      - name: Run ESLint
         working-directory: ./web
-        run: pnpm exec next lint
+        run: pnpm exec eslint src/
 
   test-backend:
     name: Test Backend
