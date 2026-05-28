@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "NEXT_RUNTIME_PREP_MODE=build bun scripts/prepare-next-runtime.cjs",
+    "prebuild": "NEXT_RUNTIME_PREP_MODE=build node scripts/prepare-next-runtime.cjs",
     "build": "next build",
-    "prestart": "NEXT_RUNTIME_PREP_MODE=start bun scripts/prepare-next-runtime.cjs && next build",
+    "prestart": "NEXT_RUNTIME_PREP_MODE=start node scripts/prepare-next-runtime.cjs && next build",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
