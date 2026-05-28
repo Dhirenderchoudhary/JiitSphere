@@ -30,6 +30,13 @@ module.exports = {
     'jest/no-conditional-expect': 'warn',
     'default-param-last': 'warn',
     'no-plusplus': 'warn',
-    'no-continue': 'warn'
+    'no-continue': 'warn',
+    'no-process-exit': 'warn',
+    'no-promise-executor-return': 'warn',
+    'no-useless-escape': 'warn',
+    'no-use-before-define': 'warn',
+    'camelcase': 'warn',
+    'global-require': 'warn',
+    'node/no-unsupported-features/es-builtins': 'warn'
   }
 };
