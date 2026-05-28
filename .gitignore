@@ -60,6 +60,7 @@ downloads/
 backend/import-report*.json
 temp_repos/
 backend/package-lock.json
+web/package-lock.json
 
 # Optional local material storage (uncomment if needed)
 # materials/
