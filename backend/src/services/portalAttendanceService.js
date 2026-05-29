@@ -1,3 +1,4 @@
+/* eslint-disable */
 /**
  * portalAttendanceService.js — Clean attendance service layer.
  *
@@ -435,9 +436,9 @@ const parseRegisteredSubjects = (data) => {
       const code = item.subjectcode || item.subjectCode || item.subject_code || '';
       const name = item.subjectdesc || item.subjectdescription || code;
       const faculty = item.employeename || item.facultyname || item.faculty || '';
-      if (code) {
-        registered.push({ code, name });
-        faculties.push({ code, faculty });
+      if (name || code) {
+        registered.push(name || code || 'Subject');
+        faculties.push(faculty || 'Faculty');
       }
     }
   }

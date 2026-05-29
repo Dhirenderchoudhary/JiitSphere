@@ -31,6 +31,10 @@ jobs:
         
       - name: Poll Render API Status
         run: |
+          if [ -z "${{ secrets.RENDER_API_KEY }}" ] || [ -z "${{ secrets.RENDER_BACKEND_SERVICE_ID }}" ]; then
+            echo "RENDER_API_KEY or RENDER_BACKEND_SERVICE_ID not set. Skipping polling."
+            exit 0
+          fi
           echo "Polling Render API for backend deployment status..."
           for i in {1..40}; do
             STATUS=$(curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
@@ -64,6 +68,10 @@ jobs:
 
       - name: Poll Render API Status
         run: |
+          if [ -z "${{ secrets.RENDER_API_KEY }}" ] || [ -z "${{ secrets.RENDER_FRONTEND_SERVICE_ID }}" ]; then
+            echo "RENDER_API_KEY or RENDER_FRONTEND_SERVICE_ID not set. Skipping polling."
+            exit 0
+          fi
           echo "Polling Render API for frontend deployment status..."
           for i in {1..40}; do
             STATUS=$(curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
