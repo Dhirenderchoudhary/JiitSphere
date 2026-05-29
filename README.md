@@ -1,19 +1,33 @@
+<div>
+  <p align="center">
+  <img src="web/public/jiitsphere-logo.png" width="150" alt="JiitSphere Logo">
+</p>
+
 <div align="center">
-  <img src="https://via.placeholder.com/150/000000/FFFFFF/?text=JiitSphere" alt="JiitSphere Logo" width="150" height="150">
-  
-  # 🎓 JiitSphere
 
-  **The ultimate study material & student portal platform for JIIT students.**  
-  *Notes, slides, PYQs, lectures, and an integrated web portal.*
+<h1>JiitSphere</h1>
 
-  [![CI/CD Pipeline](https://github.com/Dhirenderchoudhary/JiitSphere/actions/workflows/ci.yml/badge.svg)](https://github.com/Dhirenderchoudhary/JiitSphere/actions/workflows/ci.yml)
-  [![Coverage Status](https://codecov.io/gh/Dhirenderchoudhary/JiitSphere/branch/main/graph/badge.svg)](https://codecov.io/gh/Dhirenderchoudhary/JiitSphere)
-  [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-  [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
+<p><strong>The ultimate study material & student portal platform for JIIT students.</strong></p>
+
+<p><em>Notes, slides, PYQs, lectures, and an integrated web portal.</em></p>
+
+<p>
+  <a href="https://github.com/Dhirenderchoudhary/JiitSphere/actions/workflows/ci.yml">
+    <img src="https://github.com/Dhirenderchoudhary/JiitSphere/actions/workflows/ci.yml/badge.svg" alt="CI/CD Pipeline">
+  </a>
+  <a href="https://codecov.io/gh/Dhirenderchoudhary/JiitSphere">
+    <img src="https://codecov.io/gh/Dhirenderchoudhary/JiitSphere/branch/main/graph/badge.svg" alt="Coverage">
+  </a>
+  <a href="https://www.gnu.org/licenses/gpl-3.0">
+    <img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="GPLv3">
+  </a>
+  <a href="http://makeapullrequest.com">
+    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" alt="PRs Welcome">
+  </a>
+</p>
 
 </div>
 
----
 
 ## 📖 Table of Contents
 
