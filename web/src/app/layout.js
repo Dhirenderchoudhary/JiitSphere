@@ -26,18 +26,27 @@ export const metadata = {
   },
   description:
     'Study material & student portal for JIIT students. Access attendance, grades, exams, and 1300+ study resources.',
-  manifest: '/manifest.webmanifest',
+  manifest: '/api/manifest',
   metadataBase: new URL('https://jiitsphere.com'),
   openGraph: {
     title: 'JiitSphere',
     description: 'The academic dashboard for JIIT students.',
     siteName: 'JiitSphere',
     type: 'website',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'JiitSphere - The academic dashboard for JIIT students.',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'JiitSphere',
     description: 'The academic dashboard for JIIT students.',
+    images: ['/og-image.png'],
   },
   other: {
     'mobile-web-app-capable': 'yes',
