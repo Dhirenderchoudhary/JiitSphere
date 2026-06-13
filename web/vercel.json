@@ -1,5 +1,6 @@
 {
   "framework": "nextjs",
   "installCommand": "npm i -g pnpm && pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm run build"
+  "buildCommand": "pnpm run build",
+  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_AUTHOR_LOGIN\" = \"dependabot[bot]\" ]; then exit 0; else exit 1; fi"
 }
