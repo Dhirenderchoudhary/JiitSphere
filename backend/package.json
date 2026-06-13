@@ -21,7 +21,7 @@
     "test:ci": "jest --ci --coverage --runInBand"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.883.0",
+    "@aws-sdk/client-s3": "^3.1068.0",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
