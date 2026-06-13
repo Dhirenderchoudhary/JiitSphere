@@ -33,7 +33,7 @@
     "multer": "^2.0.2",
     "node-cache": "^5.1.2",
     "pdf-parse": "^2.4.5",
-    "uuid": "^10.0.0",
+    "uuid": "^14.0.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
