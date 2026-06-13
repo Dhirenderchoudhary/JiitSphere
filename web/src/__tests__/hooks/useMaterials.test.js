@@ -25,8 +25,21 @@ const useMaterials = (filters) => {
 };
 
 describe('useMaterials hook', () => {
-  it('handles loading state and fetches data from MSW', async () => {
-    const { result } = renderHook(() => useMaterials({ subject: 'Physics' }));
+  beforeEach(() => {
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        json: () => Promise.resolve({ data: [{ title: 'Physics Notes' }, {}, {}] }),
+      })
+    );
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('handles loading state and fetches data', async () => {
+    const filters = { subject: 'Physics' };
+    const { result } = renderHook(() => useMaterials(filters));
 
     expect(result.current.loading).toBe(true);
 
@@ -34,7 +47,7 @@ describe('useMaterials hook', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.data).toHaveLength(3); // from MSW handler
+    expect(result.current.data).toHaveLength(3); // from mock
     expect(result.current.data[0].title).toBe('Physics Notes');
   });
 });

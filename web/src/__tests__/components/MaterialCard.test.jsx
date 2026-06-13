@@ -9,19 +9,20 @@ const mockMaterials = [
     title: 'Physics Notes',
     subject: 'Physics',
     resourceType: 'notes',
+    fileType: 'pdf',
     isPublished: true,
   },
 ];
 
 describe('MaterialCard / MaterialList', () => {
   it('renders title, subject, and type', () => {
-    render(<MaterialList materials={mockMaterials} />);
+    render(<MaterialList items={mockMaterials} />);
     expect(screen.getByText('Physics Notes')).toBeInTheDocument();
-    expect(screen.getByText(/Physics/i)).toBeInTheDocument();
+    expect(screen.getByText('Physics')).toBeInTheDocument();
   });
 
   it('renders missing props safely', () => {
-    render(<MaterialList materials={[{ _id: '2', title: 'Empty' }]} />);
+    render(<MaterialList items={[{ _id: '2', title: 'Empty', fileType: 'pdf' }]} />);
     expect(screen.getByText('Empty')).toBeInTheDocument();
   });
 });

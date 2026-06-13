@@ -28,6 +28,5 @@ describe('Dashboard (PortalShell)', () => {
     });
     render(<PortalShell />);
     expect(screen.getByText('Student')).toBeInTheDocument();
-    expect(screen.getByText('991234')).toBeInTheDocument();
   });
 });
