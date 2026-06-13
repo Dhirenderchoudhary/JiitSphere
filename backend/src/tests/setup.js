@@ -3,12 +3,16 @@ const mongoose = require('mongoose');
 
 let mongoServer;
 
+// Increase timeout to allow MongoDB binary download
+jest.setTimeout(60000);
+
 beforeAll(async () => {
   // Prevent env validation from crashing
   process.env.NODE_ENV = 'test';
   process.env.AUTH_SECRET = 'test-secret-that-is-long-enough-for-zod';
   process.env.ADMIN_API_KEY = 'test-admin-key';
   process.env.USER_PASSWORD_HASH = 'test-hash';
+  process.env.MONGOMS_MD5_CHECK = '0';
 
   mongoServer = await MongoMemoryServer.create();
   const uri = mongoServer.getUri();
