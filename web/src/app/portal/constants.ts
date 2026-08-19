@@ -40,13 +40,7 @@ export const SHOW_TECHNICAL_DETAILS = envFlag(
 );
 
 export type PortalTabId =
-  | 'attendance'
-  | 'grades'
-  | 'exams'
-  | 'subjects'
-  | 'fees'
-  | 'profile'
-  | 'analytics';
+  'attendance' | 'grades' | 'exams' | 'subjects' | 'fees' | 'profile' | 'analytics';
 
 export type PortalTab = {
   id: PortalTabId;

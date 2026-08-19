@@ -2,13 +2,13 @@ const { PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const fsSync = require('fs');
 const fs = require('fs/promises');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('node:crypto');
 const s3Client = require('../config/aws');
 const env = require('../config/env');
 const { sanitizeKeyPart } = require('../utils/file');
 
 const createS3Key = (payload, originalFilename) => {
-  const uniquePrefix = uuidv4();
+  const uniquePrefix = randomUUID();
   const safeFilename = sanitizeKeyPart(originalFilename || 'file');
 
   return [

@@ -1,6 +1,7 @@
 {
   "name": "jiitsphere-root",
   "private": true,
+  "packageManager": "pnpm@10.20.0",
   "scripts": {
     "lint:all": "pnpm --filter jiit-study-material-backend lint && pnpm --filter jiit-study-material-web lint",
     "format:all": "pnpm --filter jiit-study-material-backend format && pnpm --filter jiit-study-material-web format",
@@ -9,7 +10,7 @@
   },
   "devDependencies": {
     "husky": "^9.0.11",
-    "lint-staged": "^15.2.2"
+    "lint-staged": "^17.3.0"
   },
   "lint-staged": {
     "backend/src/**/*.js": [
