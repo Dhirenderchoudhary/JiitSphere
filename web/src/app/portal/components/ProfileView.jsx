@@ -199,14 +199,14 @@ export default function ProfileView({ token, onExpired }) {
         const raw = payload?.[resolved];
         if (raw !== undefined && raw !== null && String(raw).trim() !== '') return raw;
       }
-      const normalizedTokens = contains.flatMap((token) => {
-        const normalized = keyNorm(token);
+      const normalizedTokens = contains.flatMap((fragment) => {
+        const normalized = keyNorm(fragment);
         return normalized ? [normalized] : [];
       });
       for (const [rawKey, rawValue] of Object.entries(payload || {})) {
         if (rawValue === undefined || rawValue === null || String(rawValue).trim() === '') continue;
         const normalizedKey = keyNorm(rawKey);
-        if (normalizedTokens.some((token) => normalizedKey.includes(token))) {
+        if (normalizedTokens.some((fragment) => normalizedKey.includes(fragment))) {
           return rawValue;
         }
       }
@@ -337,11 +337,11 @@ export default function ProfileView({ token, onExpired }) {
         const raw = profile?.[resolved];
         if (raw) return typeof raw === 'string' ? raw : String(raw);
       }
-      const normalizedTokens = contains.map((token) => keyNorm(token)).filter(Boolean);
+      const normalizedTokens = contains.map((fragment) => keyNorm(fragment)).filter(Boolean);
       for (const [rawKey, rawValue] of Object.entries(profile || {})) {
         if (!rawValue) continue;
         const normalizedKey = keyNorm(rawKey);
-        if (normalizedTokens.some((token) => normalizedKey.includes(token))) {
+        if (normalizedTokens.some((fragment) => normalizedKey.includes(fragment))) {
           return typeof rawValue === 'string' ? rawValue : String(rawValue);
         }
       }
@@ -354,11 +354,11 @@ export default function ProfileView({ token, onExpired }) {
         const raw = profile?.[resolved];
         if (raw !== undefined && raw !== null && String(raw).trim() !== '') return raw;
       }
-      const normalizedTokens = contains.map((token) => keyNorm(token)).filter(Boolean);
+      const normalizedTokens = contains.map((fragment) => keyNorm(fragment)).filter(Boolean);
       for (const [rawKey, rawValue] of Object.entries(profile || {})) {
         if (rawValue === undefined || rawValue === null || String(rawValue).trim() === '') continue;
         const normalizedKey = keyNorm(rawKey);
-        if (normalizedTokens.some((token) => normalizedKey.includes(token))) {
+        if (normalizedTokens.some((fragment) => normalizedKey.includes(fragment))) {
           return rawValue;
         }
       }
@@ -400,23 +400,31 @@ export default function ProfileView({ token, onExpired }) {
     ) {
       try {
         window.localStorage.setItem('jaypee_buddy_cached_photo', src);
-      } catch (e) {}
+      } catch {
+        // Private-mode storage can throw; the cached value is optional.
+      }
     }
 
     if (rawName) {
       try {
         window.localStorage.setItem('jaypee_buddy_cached_profile_name', rawName);
-      } catch (e) {}
+      } catch {
+        // Private-mode storage can throw; the cached value is optional.
+      }
     }
 
     const identityMode =
       String(profile?.source || '').toLowerCase() === 'public-demo' ? 'demo' : 'portal';
     try {
       window.localStorage.setItem('jaypee_buddy_identity_mode', identityMode);
-    } catch (e) {}
+    } catch {
+      // Private-mode storage can throw; the cached value is optional.
+    }
     try {
       window.dispatchEvent(new Event('jaypee-buddy-identity-updated'));
-    } catch (e) {}
+    } catch {
+      // Private-mode storage can throw; the cached value is optional.
+    }
   }, [profile]);
 
   useEffect(() => {
@@ -444,12 +452,12 @@ export default function ProfileView({ token, onExpired }) {
           if (raw !== undefined && raw !== null && String(raw).trim() !== '') return raw;
         }
 
-        const normalizedTokens = contains.map((token) => keyNorm(token)).filter(Boolean);
+        const normalizedTokens = contains.map((fragment) => keyNorm(fragment)).filter(Boolean);
         for (const [rawKey, rawValue] of Object.entries(profile || {})) {
           if (rawValue === undefined || rawValue === null || String(rawValue).trim() === '')
             continue;
           const normalizedKey = keyNorm(rawKey);
-          if (normalizedTokens.some((token) => normalizedKey.includes(token))) {
+          if (normalizedTokens.some((fragment) => normalizedKey.includes(fragment))) {
             return rawValue;
           }
         }
@@ -543,12 +551,12 @@ export default function ProfileView({ token, onExpired }) {
       if (pretty) return pretty;
     }
 
-    const normalizedTokens = contains.map((token) => keyNorm(token)).filter(Boolean);
+    const normalizedTokens = contains.map((fragment) => keyNorm(fragment)).filter(Boolean);
     for (const [rawKey, rawValue] of Object.entries(profile || {})) {
       const pretty = toPrettyValue(rawValue);
       if (!pretty) continue;
       const normalizedKey = keyNorm(rawKey);
-      if (normalizedTokens.some((token) => normalizedKey.includes(token))) {
+      if (normalizedTokens.some((fragment) => normalizedKey.includes(fragment))) {
         return pretty;
       }
     }
@@ -562,11 +570,11 @@ export default function ProfileView({ token, onExpired }) {
       if (raw !== undefined && raw !== null && String(raw).trim() !== '') return raw;
     }
 
-    const normalizedTokens = contains.map((token) => keyNorm(token)).filter(Boolean);
+    const normalizedTokens = contains.map((fragment) => keyNorm(fragment)).filter(Boolean);
     for (const [rawKey, rawValue] of Object.entries(profile || {})) {
       if (rawValue === undefined || rawValue === null || String(rawValue).trim() === '') continue;
       const normalizedKey = keyNorm(rawKey);
-      if (normalizedTokens.some((token) => normalizedKey.includes(token))) {
+      if (normalizedTokens.some((fragment) => normalizedKey.includes(fragment))) {
         return rawValue;
       }
     }

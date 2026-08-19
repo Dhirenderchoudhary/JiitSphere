@@ -139,7 +139,9 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
       if (targetAttendancePct) {
         window.localStorage.setItem(getAttendanceTargetStorageKey(), String(targetAttendancePct));
       }
-    } catch (_error) {}
+    } catch {
+      // Private-mode storage can throw; the saved target is optional.
+    }
   }, [targetAttendancePct]);
 
   useEffect(() => {

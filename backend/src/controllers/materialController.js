@@ -218,20 +218,33 @@ const getBrowseOptions = asyncHandler(async (req, res) => {
   }
 
   const computePromise = (async () => {
-    const [branches, years, semesters, subjects, resourceTypes] = await Promise.all([
+    const [branches, years, semesters, subjects, resourceTypeGroups] = await Promise.all([
       Material.distinct('branch', query),
       Material.distinct('year', query),
       Material.distinct('semester', query),
       Material.distinct('subject', query),
-      Material.distinct('resourceType', query),
+      // Counts, not just distinct values: the client renders one tab per
+      // resource type with its total, and it must be able to do that before
+      // any material has been fetched.
+      Material.aggregate([
+        { $match: query },
+        { $group: { _id: '$resourceType', count: { $sum: 1 } } },
+      ]),
     ]);
+
+    const resourceTypeCounts = {};
+    resourceTypeGroups.forEach((group) => {
+      const type = normalizeOption(group?._id);
+      if (type) resourceTypeCounts[type] = group.count;
+    });
 
     const data = {
       branches: uniqueNaturalSort(branches),
       years: years.sort((a, b) => a - b),
       semesters: semesters.sort((a, b) => a - b),
       subjects: uniqueNaturalSort(subjects),
-      resourceTypes: uniqueNaturalSort(resourceTypes),
+      resourceTypes: uniqueNaturalSort(Object.keys(resourceTypeCounts)),
+      resourceTypeCounts,
     };
 
     setBrowseCache(cacheKey, data);

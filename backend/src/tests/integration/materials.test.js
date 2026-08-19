@@ -50,6 +50,63 @@ describe('Materials Integration Tests', () => {
     });
   });
 
+  describe('GET /api/v1/materials/filters/browse', () => {
+    it('reports a count for every resource type in the selection', async () => {
+      await Material.create([
+        {
+          title: 'Math Tutorial 1',
+          degree: 'BTech',
+          branch: 'CSE',
+          year: 1,
+          semester: 1,
+          subject: 'Math 1',
+          resourceType: 'Tutorials',
+          fileType: 'pdf',
+          fileSizeBytes: 1024,
+          fileUrl: 'http://test.com/tut1.pdf',
+          s3Key: 'math-1-tut-1.pdf',
+          isPublished: true,
+        },
+        {
+          title: 'Math Tutorial 2',
+          degree: 'BTech',
+          branch: 'CSE',
+          year: 1,
+          semester: 1,
+          subject: 'Math 1',
+          resourceType: 'Tutorials',
+          fileType: 'pdf',
+          fileSizeBytes: 1024,
+          fileUrl: 'http://test.com/tut2.pdf',
+          s3Key: 'math-1-tut-2.pdf',
+          isPublished: true,
+        },
+        {
+          title: 'Unpublished paper',
+          degree: 'BTech',
+          branch: 'CSE',
+          year: 1,
+          semester: 1,
+          subject: 'Math 1',
+          resourceType: 'PYQs',
+          fileType: 'pdf',
+          fileSizeBytes: 1024,
+          fileUrl: 'http://test.com/pyq.pdf',
+          s3Key: 'math-1-pyq.pdf',
+          isPublished: false,
+        },
+      ]);
+
+      const res = await request(app).get('/api/v1/materials/filters/browse?subject=Math 1');
+
+      expect(res.status).toBe(200);
+      // Counts must cover every type in the subject, not just the ones on the
+      // first page of results — that is what drives the tab strip.
+      expect(res.body.data.resourceTypeCounts).toEqual({ Lectures: 1, Tutorials: 2 });
+      expect(res.body.data.resourceTypes).toEqual(['Lectures', 'Tutorials']);
+    });
+  });
+
   describe('GET /api/v1/materials/:id', () => {
     it('should return a material by ID', async () => {
       const res = await request(app).get(`/api/v1/materials/${sampleMaterial._id}`);

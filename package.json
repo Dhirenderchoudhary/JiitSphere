@@ -13,12 +13,12 @@
   },
   "lint-staged": {
     "backend/src/**/*.js": [
-      "eslint --fix",
-      "prettier --write"
+      "pnpm -C backend exec eslint --fix",
+      "pnpm -C backend exec prettier --write"
     ],
     "web/src/**/*.{js,jsx,ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
+      "pnpm -C web exec eslint --fix",
+      "pnpm -C web exec prettier --write"
     ]
   }
 }

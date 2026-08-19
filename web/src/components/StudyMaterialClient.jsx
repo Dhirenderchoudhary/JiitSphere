@@ -35,7 +35,6 @@ import { fetchBrowseOptions, fetchFilterOptions, fetchMaterials, materialAccessU
 import { toast } from 'sonner';
 
 /* ── constants ──────────────────────────────────────────────── */
-const GUEST_USAGE_LIMIT = 5;
 const MATERIAL_PAGE_SIZE = 24;
 
 const YEAR_META = {
@@ -109,6 +108,14 @@ const RESOURCE_TYPES = {
 };
 
 const TYPE_ORDER = ['Slides', 'Lectures', 'Tutorials', 'PYQs', 'Solutions'];
+
+/**
+ * Selected tab when the server could not tell us which resource types exist.
+ * In that mode materials are fetched unfiltered and the tabs fall back to
+ * whatever types the loaded page happens to contain.
+ */
+const ALL_TYPES = '__all__';
+
 const STEP_ICONS = {
   year: Calendar,
   semester: GraduationCap,
@@ -116,36 +123,76 @@ const STEP_ICONS = {
   subject: BookMarked,
 };
 
+function saveBlob(blob, filename) {
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 150);
+}
+
+/**
+ * Fetching the file as a blob is what makes the browser honour `filename`, but
+ * the CDN does not send CORS headers, so the fetch can be blocked outright.
+ * Fall back to a plain navigation, which always works — the user just gets the
+ * CDN's own filename.
+ */
 async function triggerDownload(url, fallbackName) {
+  const filename = fallbackName || url.split('/').pop() || 'download';
   try {
     const res = await fetch(url);
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData?.message || 'Download failed');
-    }
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = fallbackName || url.split('/').pop() || 'download';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 150);
-  } catch (error) {
-    console.error('Download error:', error);
-    throw error;
+    if (!res.ok) throw new Error('Download failed');
+    saveBlob(await res.blob(), filename);
+  } catch {
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
+}
+
+/**
+ * Open a connection to the file CDN as soon as we know where the files live.
+ *
+ * DNS, TCP and TLS to the CDN would otherwise only start once the viewer page
+ * has rendered and the iframe begins loading. Doing it here moves that setup —
+ * easily a few hundred ms on mobile — off the critical path, and it costs no
+ * bandwidth, unlike prefetching the files themselves.
+ */
+function usePreconnectToFileHost(materials) {
+  const originRef = useRef('');
+
+  useEffect(() => {
+    const fileUrl = materials.find((item) => item?.fileUrl)?.fileUrl;
+    if (!fileUrl) return undefined;
+
+    let origin;
+    try {
+      origin = new URL(fileUrl).origin;
+    } catch {
+      return undefined;
+    }
+
+    if (origin === window.location.origin || origin === originRef.current) return undefined;
+    originRef.current = origin;
+
+    const links = ['preconnect', 'dns-prefetch'].map((rel) => {
+      const link = document.createElement('link');
+      link.rel = rel;
+      link.href = origin;
+      if (rel === 'preconnect') link.crossOrigin = 'anonymous';
+      document.head.appendChild(link);
+      return link;
+    });
+
+    return () => links.forEach((link) => link.remove());
+  }, [materials]);
 }
 
 /* ── step flow ──────────────────────────────────────────────── */
 const STEPS = ['year', 'semester', 'branch', 'subject'];
 
-export default function StudyMaterialClient({
-  user = null,
-  isGuest = false,
-  initialGuestUsage = { used: 0, limit: GUEST_USAGE_LIMIT },
-}) {
+export default function StudyMaterialClient({ user = null, isGuest = false }) {
   const router = useRouter();
   const [options, setOptions] = useState({});
   const [filters, setFilters] = useState({ degree: 'BTech' });
@@ -157,19 +204,19 @@ export default function StudyMaterialClient({
   const [optionsError, setOptionsError] = useState('');
   const [optionsRefreshKey, setOptionsRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState(null);
+  // The resourceType actually sent to the API. Normally tracks activeTab, but
+  // stays ALL_TYPES when the server could not tell us which types exist, so
+  // clicking a tab in that mode filters locally instead of refetching.
+  const [fetchType, setFetchType] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreMaterials, setHasMoreMaterials] = useState(false);
   const [currentMaterialPage, setCurrentMaterialPage] = useState(1);
   const [guestSignOutLoading, setGuestSignOutLoading] = useState(false);
   const browseRequestIdRef = useRef(0);
+  const materialsRequestIdRef = useRef(0);
 
-  const guestUsage = isGuest
-    ? {
-        used: Number(initialGuestUsage.used || 0),
-        limit: Number(initialGuestUsage.limit || GUEST_USAGE_LIMIT),
-      }
-    : { used: 0, limit: GUEST_USAGE_LIMIT };
-  const limitReached = isGuest && guestUsage.used >= guestUsage.limit;
+  usePreconnectToFileHost(materials);
+
   const stepOptionsLoading = optionsLoading || browseOptionsLoading;
   const currentStepIndex = STEPS.findIndex((key) => !filters[key]);
   const currentStep = currentStepIndex === -1 ? 'done' : STEPS[currentStepIndex];
@@ -219,6 +266,9 @@ export default function StudyMaterialClient({
       .catch((error) => {
         if (browseRequestIdRef.current !== requestId) return;
         setOptionsError(error?.message || 'Failed to load browse options.');
+        // Empty (not undefined) counts unblock the fetch in fallback mode,
+        // without discarding counts an earlier step already resolved.
+        setOptions((prev) => ({ ...prev, resourceTypeCounts: prev.resourceTypeCounts || {} }));
       })
       .finally(() => {
         if (browseRequestIdRef.current !== requestId) return;
@@ -226,12 +276,23 @@ export default function StudyMaterialClient({
       });
   }, [filters.degree, filters.year, filters.semester, filters.branch, filters.subject]);
 
-  const loadMaterials = useCallback(async (f, { page = 1, append = false } = {}) => {
+  const loadMaterials = useCallback(async (f, { page = 1, append = false, resourceType } = {}) => {
+    // Switching tabs starts a new request while the previous one may still be
+    // in flight; only the newest may touch state.
+    const requestId = materialsRequestIdRef.current + 1;
+    materialsRequestIdRef.current = requestId;
+
     setLoading(page === 1 && !append);
     setLoadingMore(page > 1 || append);
     setMaterialsError('');
     try {
-      const response = await fetchMaterials({ ...f, page, limit: MATERIAL_PAGE_SIZE });
+      const response = await fetchMaterials({
+        ...f,
+        resourceType: resourceType === ALL_TYPES ? undefined : resourceType,
+        page,
+        limit: MATERIAL_PAGE_SIZE,
+      });
+      if (materialsRequestIdRef.current !== requestId) return;
       const nextItems = Array.isArray(response.data) ? response.data : [];
       const pagination = response.pagination || {};
 
@@ -255,28 +316,33 @@ export default function StudyMaterialClient({
         )
       );
     } catch (error) {
+      if (materialsRequestIdRef.current !== requestId) return;
       setMaterials([]);
       setMaterialsError(error?.message || 'Failed to load materials.');
     } finally {
-      setLoading(false);
-      setLoadingMore(false);
+      if (materialsRequestIdRef.current === requestId) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    if (allSelected) {
-      loadMaterials(filters, { page: 1, append: false });
-      setActiveTab(null); // reset tab when subject changes
-    } else {
+    if (!allSelected || !fetchType) {
       setMaterials([]);
       setHasMoreMaterials(false);
       setCurrentMaterialPage(1);
+      return;
     }
+    loadMaterials(filters, { page: 1, append: false, resourceType: fetchType });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.year, filters.semester, filters.branch, filters.subject, allSelected]);
+  }, [filters.year, filters.semester, filters.branch, filters.subject, allSelected, fetchType]);
 
   /* ── handlers ─────────────────────────────────────────────── */
   const selectOption = (key, value) => {
+    setOptionsError('');
+    setBrowseOptionsLoading(true);
+
     if (key === 'year' || key === 'semester' || key === 'branch') {
       setOptions((prev) => {
         const next = { ...prev };
@@ -292,8 +358,6 @@ export default function StudyMaterialClient({
         }
         return next;
       });
-      setOptionsError('');
-      setBrowseOptionsLoading(true);
     }
 
     setFilters((prev) => {
@@ -331,7 +395,7 @@ export default function StudyMaterialClient({
     });
     setMaterials([]);
     setMaterialsError('');
-    setActiveTab(null);
+    setFetchType(null);
   };
 
   const resetAll = () => {
@@ -339,6 +403,7 @@ export default function StudyMaterialClient({
     setMaterials([]);
     setMaterialsError('');
     setActiveTab(null);
+    setFetchType(null);
     setOptions({});
     setOptionsError('');
     setBrowseOptionsLoading(false);
@@ -375,15 +440,80 @@ export default function StudyMaterialClient({
     [grouped]
   );
 
-  // Set default active tab once materials load
+  /* ── resource type tabs ───────────────────────────────────── */
+  /**
+   * Tabs come from the server's per-type counts, not from the materials that
+   * happen to be on screen. Deriving them from the loaded page meant a subject
+   * whose first 24 files were all lectures showed only a Lectures tab —
+   * Tutorials and PYQs appeared only after paging to the end of the list.
+   */
+  const resourceCounts = options.resourceTypeCounts || null;
+
+  const tabTypes = useMemo(() => {
+    if (!resourceCounts) return [];
+    const present = Object.keys(resourceCounts).filter((type) => resourceCounts[type] > 0);
+    return [
+      ...TYPE_ORDER.filter((type) => present.includes(type)),
+      ...present.filter((type) => !TYPE_ORDER.includes(type)).sort(),
+    ];
+  }, [resourceCounts]);
+
+  // True once the server has told us the types: each tab then fetches its own
+  // page, so "Load more" pages within a tab instead of across all of them.
+  const serverFiltered = tabTypes.length > 0;
+
   useEffect(() => {
-    if (sortedTypes.length > 0 && (activeTab === null || !sortedTypes.includes(activeTab))) {
+    if (!allSelected || !resourceCounts) return;
+    if (!tabTypes.length) {
+      setFetchType(ALL_TYPES);
+      return;
+    }
+    // A tab that survives the new selection keeps its place, which lets its
+    // materials load in parallel with the counts request.
+    if (activeTab && tabTypes.includes(activeTab)) {
+      setFetchType(activeTab);
+      return;
+    }
+    // Choosing a default, though, has to wait for counts that belong to this
+    // selection — otherwise the previous subject's types pick the tab.
+    if (browseOptionsLoading) return;
+    setActiveTab(tabTypes[0]);
+    setFetchType(tabTypes[0]);
+  }, [allSelected, resourceCounts, tabTypes, activeTab, browseOptionsLoading]);
+
+  // Fallback only: without counts the tabs are whatever the unfiltered page
+  // contained, so the selection has to follow that list.
+  useEffect(() => {
+    if (serverFiltered) return;
+    if (sortedTypes.length > 0 && (!activeTab || !sortedTypes.includes(activeTab))) {
       setActiveTab(sortedTypes[0]);
     }
     if (!sortedTypes.length && activeTab !== null) {
       setActiveTab(null);
     }
-  }, [activeTab, sortedTypes]);
+  }, [activeTab, sortedTypes, serverFiltered]);
+
+  // Until fetchType is settled the tab set still belongs to the previous
+  // selection, so render nothing rather than let stale tabs flash.
+  const tabsSettled = Boolean(fetchType);
+  const availableTypes = serverFiltered ? tabTypes : sortedTypes;
+  const tabTypesToRender = tabsSettled ? availableTypes : [];
+  const materialsPending = loading || (allSelected && !tabsSettled);
+  const visibleItems = serverFiltered ? materials : grouped[activeTab] || [];
+  const tabCount = (type) =>
+    serverFiltered ? resourceCounts?.[type] || 0 : grouped[type]?.length || 0;
+
+  const selectTab = (type) => {
+    if (type === activeTab) return;
+    setActiveTab(type);
+    if (!serverFiltered) return;
+    // The fetch is kicked off by an effect, which runs after paint. Clearing
+    // here keeps the previous tab's files from showing for a frame under the
+    // newly selected tab.
+    setMaterials([]);
+    setLoading(true);
+    setFetchType(type);
+  };
 
   /* ── option lists ─────────────────────────────────────────── */
   const optionMap = {
@@ -682,12 +812,7 @@ export default function StudyMaterialClient({
       {/* ── Materials — tabbed by resource type ─────────────────── */}
       {allSelected && (
         <section className="mt-6">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="size-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-              <p className="mt-3 text-sm text-muted-foreground">Loading materials…</p>
-            </div>
-          ) : materialsError ? (
+          {materialsError ? (
             <div className="rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300">
               <p className="font-semibold">Unable to load materials</p>
               <p className="mt-1 text-xs opacity-90">{materialsError}</p>
@@ -696,68 +821,80 @@ export default function StudyMaterialClient({
                 size="sm"
                 variant="outline"
                 className="mt-3"
-                onClick={() => loadMaterials(filters)}
+                onClick={() =>
+                  loadMaterials(filters, { page: 1, append: false, resourceType: fetchType })
+                }
               >
                 Retry
               </Button>
-            </div>
-          ) : sortedTypes.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border bg-card/50 p-12 text-center">
-              <FileText className="mx-auto h-10 w-10 text-muted-foreground/30" />
-              <p className="mt-3 text-sm text-muted-foreground">
-                No materials found for <strong>{filters.subject}</strong>.
-              </p>
             </div>
           ) : (
             <>
               {/* Guest banner */}
               {isGuest && (
-                <div
-                  className={`mb-5 rounded-xl border px-4 py-3 text-sm ${limitReached ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/50 dark:text-red-300' : 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300'}`}
-                >
-                  {limitReached
-                    ? 'Guest limit reached. Sign in for unlimited access.'
-                    : `Guest: ${guestUsage.used}/${guestUsage.limit} combined views + downloads used.`}
+                <div className="mb-5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                  You are browsing as a guest. Sign in with your college account to keep your access
+                  across devices.
                 </div>
               )}
 
-              {/* Resource type tabs */}
-              <div className="mb-5 flex flex-wrap gap-2">
-                {sortedTypes.map((type) => {
-                  const meta = RESOURCE_TYPES[type] || RESOURCE_TYPES.Slides;
-                  const Icon = meta.icon;
-                  const isActive = activeTab === type;
-                  return (
-                    <button
-                      type="button"
-                      key={type}
-                      onClick={() => setActiveTab(type)}
-                      aria-label={`View ${type} materials`}
-                      className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold transition-all duration-200 ${
-                        isActive
-                          ? `${meta.border} ${meta.bg} ${meta.text} shadow-sm scale-[1.02]`
-                          : 'border-border bg-card text-muted-foreground hover:border-border hover:bg-muted/50'
-                      }`}
-                    >
-                      <Icon className="size-4" />
-                      {type}
-                      <span
-                        className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${isActive ? meta.badge : 'bg-muted text-muted-foreground'}`}
+              {/* Resource type tabs — rendered from the server's counts, so the
+                  full set is present before any material has loaded, and it
+                  stays put while a tab is fetching. */}
+              {tabTypesToRender.length > 0 && (
+                <div className="mb-5 flex flex-wrap gap-2">
+                  {tabTypesToRender.map((type) => {
+                    const meta = RESOURCE_TYPES[type] || RESOURCE_TYPES.Slides;
+                    const Icon = meta.icon;
+                    const isActive = activeTab === type;
+                    return (
+                      <button
+                        type="button"
+                        key={type}
+                        onClick={() => selectTab(type)}
+                        aria-label={`View ${type} materials`}
+                        aria-pressed={isActive}
+                        className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold transition-all duration-200 ${
+                          isActive
+                            ? `${meta.border} ${meta.bg} ${meta.text} shadow-sm scale-[1.02]`
+                            : 'border-border bg-card text-muted-foreground hover:border-border hover:bg-muted/50'
+                        }`}
                       >
-                        {grouped[type]?.length || 0}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+                        <Icon className="size-4" />
+                        {type}
+                        <span
+                          className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${isActive ? meta.badge : 'bg-muted text-muted-foreground'}`}
+                        >
+                          {tabCount(type)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
-              {/* Active tab content */}
-              {activeTab &&
-                grouped[activeTab] &&
+              {materialsPending ? (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="h-[7.5rem] animate-pulse rounded-xl border border-border bg-card/70"
+                    />
+                  ))}
+                </div>
+              ) : tabTypesToRender.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border bg-card/50 p-12 text-center">
+                  <FileText className="mx-auto h-10 w-10 text-muted-foreground/30" />
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    No materials found for <strong>{filters.subject}</strong>.
+                  </p>
+                </div>
+              ) : (
+                activeTab &&
                 (() => {
                   const meta = RESOURCE_TYPES[activeTab] || RESOURCE_TYPES.Slides;
                   const Icon = meta.icon;
-                  const items = grouped[activeTab];
+                  const total = tabCount(activeTab) || visibleItems.length;
 
                   return (
                     <div>
@@ -775,13 +912,13 @@ export default function StudyMaterialClient({
                           <p className="text-xs text-muted-foreground">{meta.description}</p>
                         </div>
                         <Badge className={`ml-auto ${meta.badge} border-0`}>
-                          {items.length} {items.length === 1 ? 'file' : 'files'}
+                          {total} {total === 1 ? 'file' : 'files'}
                         </Badge>
                       </div>
 
                       {/* File grid */}
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        {items.map((item, i) => (
+                        {visibleItems.map((item) => (
                           <div
                             key={item._id}
                             className="group rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md"
@@ -808,36 +945,24 @@ export default function StudyMaterialClient({
                                   <BookOpen className="mr-1.5 size-[3.5]" /> View
                                 </Button>
                               </Link>
-                              {limitReached ? (
-                                <Button type="button" size="sm" disabled className="flex-1">
-                                  <Download className="mr-1.5 size-[3.5]" /> Limit
-                                </Button>
-                              ) : (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  className="flex-1"
-                                  onClick={() => {
-                                    const filename = `${item.title || item.subject}.${item.fileType}`;
-                                    toast.info(`Downloading...`, { description: filename });
-                                    triggerDownload(
-                                      materialAccessUrl(item._id, 'download'),
-                                      filename
-                                    )
-                                      .then(() => {
-                                        // Guest usage tracking is now handled by server-side state
-                                      })
-                                      .catch((error) => {
-                                        toast.error(error?.message || 'Download failed', {
-                                          description:
-                                            'Sign in with your college account for unlimited access.',
-                                        });
-                                      });
-                                  }}
-                                >
-                                  <Download className="mr-1.5 size-[3.5]" /> Download
-                                </Button>
-                              )}
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="flex-1"
+                                onClick={() => {
+                                  const filename = `${item.title || item.subject}.${item.fileType}`;
+                                  toast.info('Downloading...', { description: filename });
+                                  // The list response already carries fileUrl, so go
+                                  // straight to the CDN instead of paying for a
+                                  // round trip through the access route.
+                                  triggerDownload(
+                                    item.fileUrl || materialAccessUrl(item._id, 'download'),
+                                    filename
+                                  );
+                                }}
+                              >
+                                <Download className="mr-1.5 size-[3.5]" /> Download
+                              </Button>
                             </div>
                           </div>
                         ))}
@@ -852,6 +977,7 @@ export default function StudyMaterialClient({
                               loadMaterials(filters, {
                                 page: currentMaterialPage + 1,
                                 append: true,
+                                resourceType: fetchType,
                               })
                             }
                             disabled={loadingMore}
@@ -862,7 +988,8 @@ export default function StudyMaterialClient({
                       )}
                     </div>
                   );
-                })()}
+                })()
+              )}
             </>
           )}
         </section>

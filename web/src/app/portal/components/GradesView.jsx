@@ -476,8 +476,8 @@ export default function GradesView({ token, onExpired }) {
     if (!selectedToken) return directKey;
 
     const matchedSem = sortedSemesters.find((sem) => {
-      const token = normalizeSemesterToken(sem?.registration_code);
-      if (!token || token !== selectedToken) return false;
+      const semToken = normalizeSemesterToken(sem?.registration_code);
+      if (!semToken || semToken !== selectedToken) return false;
       const semId = String(sem?.registration_id || '').trim();
       return semId && Array.isArray(gradeCards?.[semId]);
     });
@@ -805,6 +805,7 @@ export default function GradesView({ token, onExpired }) {
       import('jspdf-autotable'),
     ]);
 
+    // eslint-disable-next-line new-cap -- jsPDF is the library's exported constructor name
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
     const heading = `JPortal Marks - ${currentSummary?.registration_code || selectedSem}`;
     doc.setFontSize(14);
@@ -854,6 +855,7 @@ export default function GradesView({ token, onExpired }) {
       import('jspdf-autotable'),
     ]);
 
+    // eslint-disable-next-line new-cap -- jsPDF is the library's exported constructor name
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
     const heading = `JPortal Grades - ${currentSummary?.registration_code || selectedSem}`;
     doc.setFontSize(14);

@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getSession } from 'lib/session';
+import { GUEST_COOKIE } from 'lib/sessionCookies';
 import StudyMaterialClient from 'components/StudyMaterialClient';
 
 export const metadata = { title: 'Study Material' };
@@ -8,7 +9,7 @@ export const metadata = { title: 'Study Material' };
 export default async function StudyMaterialPage() {
   const session = await getSession();
   const cookieStore = await cookies();
-  const isGuest = !session && cookieStore.get('guest_mode')?.value === '1';
+  const isGuest = !session && cookieStore.get(GUEST_COOKIE)?.value === '1';
 
   if (!session && !isGuest) {
     redirect('/study-access?next=/study-material');
