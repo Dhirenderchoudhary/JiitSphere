@@ -1,15 +1,45 @@
 import { cookies } from 'next/headers';
-import { verify } from './token';
+import { sign, verify } from './token';
+import {
+  SESSION_COOKIE,
+  SESSION_MAX_AGE,
+  STUDY_ACCESS_COOKIE,
+  cookieOptions,
+  clearedCookieOptions,
+  getAuthSecret,
+} from './sessionCookies';
 
-export const SESSION_COOKIE = 'jiitsphere_token';
-export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
-
-const getSecret = () => process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || '';
+export {
+  SESSION_COOKIE,
+  SESSION_MAX_AGE,
+  STUDY_ACCESS_COOKIE,
+  cookieOptions,
+  clearedCookieOptions,
+};
 
 const ADMIN_EMAIL = () =>
   String(process.env.ADMIN_EMAIL || '')
     .trim()
     .toLowerCase();
+
+/**
+ * Mint a session token that expires SESSION_MAX_AGE from now.
+ * `exp`/`iat` are milliseconds, matching what lib/token.js verify() expects.
+ * `iat` is what the middleware uses to decide when to slide the window.
+ */
+export const createSessionToken = (claims, secret) => {
+  const now = Date.now();
+  return sign({ ...claims, iat: now, exp: now + SESSION_MAX_AGE * 1000 }, secret);
+};
+
+/**
+ * Write the session token and the study-material access flag with identical
+ * attributes and a fresh 7-day window.
+ */
+export const setSessionCookies = (response, token) => {
+  response.cookies.set(SESSION_COOKIE, token, cookieOptions());
+  response.cookies.set(STUDY_ACCESS_COOKIE, '1', cookieOptions());
+};
 
 /**
  * Server-side session from the jiitsphere_token httpOnly cookie.
@@ -20,7 +50,7 @@ export async function getSession() {
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
-  const secret = getSecret();
+  const secret = getAuthSecret();
   if (!secret) return null;
 
   const payload = verify(token, secret);

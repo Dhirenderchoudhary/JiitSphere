@@ -78,79 +78,109 @@ const rawConfig = {
   portalBootstrapAttendanceSemesters: Number(
     process.env.PORTAL_BOOTSTRAP_ATTENDANCE_SEMESTERS || 1
   ),
-  portalRequestTimeoutMs: Number(process.env.PORTAL_REQUEST_TIMEOUT_MS || 12000),
-  portalTokenMaxAgeMs: Number(process.env.PORTAL_TOKEN_MAX_AGE_MS || 1000 * 60 * 60 * 24 * 7),
-  sessionMaxAgeMs: Number(process.env.SESSION_MAX_AGE_MS || 24 * 60 * 60 * 1000),
-  sessionCleanupIntervalMs: Number(process.env.SESSION_CLEANUP_INTERVAL_MS || 15 * 60 * 1000),
+  portalRequestTimeoutMs: Number(process.env.PORTAL_REQUEST_TIMEOUT || 12000),
+  portalTokenMaxAgeMs: Number(process.env.PORTAL_TOKEN_MAX_AGE || 1000 * 60 * 60 * 24 * 7),
+  /**
+   * Idle TTL for the server-side portal SDK and relay sessions. This must not
+   * be shorter than portalTokenMaxAgeMs: when it lapses first, the user still
+   * holds a valid token but every portal request 404s, which the app surfaces
+   * as being signed out.
+   */
+  sessionMaxAgeMs: Number(process.env.SESSION_MAX_AGE || 1000 * 60 * 60 * 24 * 7),
+  /** Re-issue a portal token once it is older than this. */
+  sessionRefreshAfterMs: Number(process.env.SESSION_REFRESH_AFTER || 1000 * 60 * 60 * 24),
+  sessionCleanupIntervalMs: Number(process.env.SESSION_CLEANUP_INTERVAL || 15 * 60 * 1000),
 };
 
-const envSchema = z.object({
-  nodeEnv: z.string(),
-  isProduction: z.boolean(),
-  port: z.number(),
-  logHttpRequests: z.boolean(),
-  logStartup: z.boolean(),
-  trustProxy: z.boolean(),
-  corsAllowedOrigins: z.array(z.string()).refine((val) => !isProduction || val.length > 0, {
-    message: 'CORS_ALLOWED_ORIGINS must explicitly list allowed origins in production',
-  }),
-  jsonBodyLimitMb: z.number(),
-  globalRateLimitWindowMs: z.number(),
-  globalRateLimitMax: z.number(),
-  serverKeepAliveTimeoutMs: z.number(),
-  serverHeadersTimeoutMs: z.number(),
-  gracefulShutdownTimeoutMs: z.number(),
-  mongodbUri: z.string().min(1, 'MONGODB_URI must be set'),
-  allowStartWithoutDb: z.boolean(),
-  storageProvider: z.string(),
-  localMaterialsRoot: z.string().optional(),
-  publicBaseUrl: z.string(),
-  awsRegion: z.string().optional(),
-  awsAccessKeyId: z.string().optional(),
-  awsSecretAccessKey: z.string().optional(),
-  awsS3Bucket: z.string().optional(),
-  s3ExistingPrefix: z.string(),
-  cloudFrontBaseUrl: z.string().optional(),
-  importUploadedBy: z.string(),
-  adminApiKey: z.string().refine(
-    (val) => {
-      if (!isProduction) return true;
-      return val.length > 0 && !INSECURE_DEFAULTS.includes(val);
-    },
-    { message: 'ADMIN_API_KEY must be set to a strong random value in production' }
-  ),
-  adminAllowedEmails: z.array(z.string()),
-  authSecret: z.string().refine(
-    (val) => {
-      if (!isProduction) return true;
-      return val.length >= 32 && !INSECURE_DEFAULTS.includes(val);
-    },
-    { message: 'AUTH_SECRET must be at least 32 characters and not a default in production' }
-  ),
-  userPasswordHash: z.string().refine(
-    (val) => {
-      if (!isProduction) return true;
-      return val.length > 0;
-    },
-    { message: 'USER_PASSWORD_HASH must be set in production' }
-  ),
-  userAllowedIdentifiers: z.array(z.string()),
-  userAllowAll: z.boolean(),
-  portalRelayBaseUrl: z.string(),
-  authRateLimitWindowMs: z.number(),
-  authRateLimitMax: z.number(),
-  portalPublicDemoEnabled: z.boolean(),
-  relayRateLimitWindowMs: z.number(),
-  relayRateLimitMax: z.number(),
-  maxUploadSizeMb: z.number(),
-  portalRealtimeDefault: z.boolean(),
-  portalRealtimeMinSyncIntervalMs: z.number(),
-  portalBootstrapAttendanceSemesters: z.number(),
-  portalRequestTimeoutMs: z.number(),
-  portalTokenMaxAgeMs: z.number(),
-  sessionMaxAgeMs: z.number(),
-  sessionCleanupIntervalMs: z.number(),
-});
+const envSchema = z
+  .object({
+    nodeEnv: z.string(),
+    isProduction: z.boolean(),
+    port: z.number(),
+    logHttpRequests: z.boolean(),
+    logStartup: z.boolean(),
+    trustProxy: z.boolean(),
+    corsAllowedOrigins: z.array(z.string()).refine((val) => !isProduction || val.length > 0, {
+      message: 'CORS_ALLOWED_ORIGINS must explicitly list allowed origins in production',
+    }),
+    jsonBodyLimitMb: z.number(),
+    globalRateLimitWindowMs: z.number(),
+    globalRateLimitMax: z.number(),
+    serverKeepAliveTimeoutMs: z.number(),
+    serverHeadersTimeoutMs: z.number(),
+    gracefulShutdownTimeoutMs: z.number(),
+    mongodbUri: z.string().min(1, 'MONGODB_URI must be set'),
+    allowStartWithoutDb: z.boolean(),
+    storageProvider: z.string(),
+    localMaterialsRoot: z.string().optional(),
+    publicBaseUrl: z.string(),
+    awsRegion: z.string().optional(),
+    awsAccessKeyId: z.string().optional(),
+    awsSecretAccessKey: z.string().optional(),
+    awsS3Bucket: z.string().optional(),
+    s3ExistingPrefix: z.string(),
+    cloudFrontBaseUrl: z.string().optional(),
+    importUploadedBy: z.string(),
+    adminApiKey: z.string().refine(
+      (val) => {
+        if (!isProduction) return true;
+        return val.length > 0 && !INSECURE_DEFAULTS.includes(val);
+      },
+      { message: 'ADMIN_API_KEY must be set to a strong random value in production' }
+    ),
+    adminAllowedEmails: z.array(z.string()),
+    authSecret: z.string().refine(
+      (val) => {
+        if (!isProduction) return true;
+        return val.length >= 32 && !INSECURE_DEFAULTS.includes(val);
+      },
+      { message: 'AUTH_SECRET must be at least 32 characters and not a default in production' }
+    ),
+    userPasswordHash: z.string().refine(
+      (val) => {
+        if (!isProduction) return true;
+        return val.length > 0;
+      },
+      { message: 'USER_PASSWORD_HASH must be set in production' }
+    ),
+    userAllowedIdentifiers: z.array(z.string()),
+    userAllowAll: z.boolean(),
+    portalRelayBaseUrl: z.string(),
+    authRateLimitWindowMs: z.number(),
+    authRateLimitMax: z.number(),
+    portalPublicDemoEnabled: z.boolean(),
+    relayRateLimitWindowMs: z.number(),
+    relayRateLimitMax: z.number(),
+    maxUploadSizeMb: z.number(),
+    portalRealtimeDefault: z.boolean(),
+    portalRealtimeMinSyncIntervalMs: z.number(),
+    portalBootstrapAttendanceSemesters: z.number(),
+    portalRequestTimeoutMs: z.number(),
+    portalTokenMaxAgeMs: z.number().int().positive(),
+    sessionMaxAgeMs: z.number().int().positive(),
+    sessionRefreshAfterMs: z.number().int().positive(),
+    sessionCleanupIntervalMs: z.number().int().positive(),
+  })
+  /**
+   * A server-side portal session that expires before the token it serves is
+   * the classic cause of "I got signed out at random": the browser still holds
+   * a valid token, but every portal request 404s. Fail at boot instead.
+   */
+  .refine((config) => config.sessionMaxAgeMs >= config.portalTokenMaxAgeMs, {
+    path: ['sessionMaxAgeMs'],
+    message: 'SESSION_MAX_AGE must be >= PORTAL_TOKEN_MAX_AGE, or portal sessions die first',
+  })
+  /** A refresh window at or past the TTL never slides the session forward. */
+  .refine(
+    (config) =>
+      config.sessionRefreshAfterMs < config.sessionMaxAgeMs &&
+      config.sessionRefreshAfterMs < config.portalTokenMaxAgeMs,
+    {
+      path: ['sessionRefreshAfterMs'],
+      message:
+        'SESSION_REFRESH_AFTER must be shorter than both SESSION_MAX_AGE and PORTAL_TOKEN_MAX_AGE',
+    }
+  );
 
 const parsed = envSchema.safeParse(rawConfig);
 

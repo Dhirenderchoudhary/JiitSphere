@@ -3013,8 +3013,27 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
   return dataset;
 };
 
-const ensureSession = (req, res) => {
-  const session = getSessionByOwner(ownerKey(req));
+/**
+ * Logins that are still hydrating, keyed by owner.
+ *
+ * loginSdk cannot create the session until its upstream bootstrap finishes, but
+ * the client navigates to the portal the moment login is dispatched. Without
+ * this the first getSdkSession lands mid-bootstrap and 404s, leaving a freshly
+ * signed-in user staring at an empty portal until the next refresh.
+ */
+const sdkLoginInFlightByOwner = new Map();
+
+const ensureSession = async (req, res) => {
+  const owner = ownerKey(req);
+  let session = getSessionByOwner(owner);
+
+  // Join the in-flight login rather than racing it — same hydration, no
+  // duplicate upstream work.
+  if (!session && sdkLoginInFlightByOwner.has(owner)) {
+    await sdkLoginInFlightByOwner.get(owner).catch(() => null);
+    session = getSessionByOwner(owner);
+  }
+
   if (!session) {
     res.status(404).json({
       success: false,
@@ -3145,19 +3164,32 @@ const loginSdk = async (req, res) => {
     return res.status(400).json({ success: false, message: 'No active portal session' });
   }
 
-  const hydratedDataset = {
-    ...(await bootstrapDatasetFromPortal(relaySession, authContext, {
-      includeExamHydration: false,
-    })),
-    lastRealtimeSyncAt: Date.now(),
-  };
+  // Publish the hydration promise before awaiting it, so a getSdkSession that
+  // arrives while this is still running waits for it instead of 404ing.
+  const hydration = (async () => {
+    const hydratedDataset = {
+      ...(await bootstrapDatasetFromPortal(relaySession, authContext, {
+        includeExamHydration: false,
+      })),
+      lastRealtimeSyncAt: Date.now(),
+    };
 
-  const session = createOrUpdateSession({
-    ownerId,
-    userId: String(userId).trim(),
-    relaySessionId,
-    dataset: hydratedDataset,
-  });
+    return createOrUpdateSession({
+      ownerId,
+      userId: String(userId).trim(),
+      relaySessionId,
+      dataset: hydratedDataset,
+    });
+  })();
+
+  sdkLoginInFlightByOwner.set(ownerId, hydration);
+
+  let session;
+  try {
+    session = await hydration;
+  } finally {
+    sdkLoginInFlightByOwner.delete(ownerId);
+  }
 
   const latestSemesterId = session?.dataset?.semesters?.[0]?.registration_id;
   if (latestSemesterId) {
@@ -3176,7 +3208,7 @@ const loginSdk = async (req, res) => {
 };
 
 const getSdkSession = async (req, res) => {
-  const session = ensureSession(req, res);
+  const session = await ensureSession(req, res);
   if (!session) return undefined;
 
   const shouldRealtime = shouldRefreshRealtime(req);
@@ -3203,7 +3235,7 @@ const getSdkSession = async (req, res) => {
 };
 
 const getAttendanceMeta = async (req, res) => {
-  const session = ensureSession(req, res);
+  const session = await ensureSession(req, res);
   if (!session) return undefined;
 
   const { relaySessionId } = session.dataset;
@@ -3683,7 +3715,7 @@ const warmSubjectDailyCountsForSemester = async (session, req, sem) => {
 };
 
 const getAttendance = async (req, res) => {
-  const session = ensureSession(req, res);
+  const session = await ensureSession(req, res);
   if (!session) return undefined;
 
   const sem = req.query.semester || session.dataset.semesters[0]?.registration_id;
@@ -3740,7 +3772,7 @@ const getAttendance = async (req, res) => {
 };
 
 const getAttendanceCounts = async (req, res) => {
-  const session = ensureSession(req, res);
+  const session = await ensureSession(req, res);
   if (!session) return undefined;
 
   const sem = req.query.semester || session.dataset.semesters[0]?.registration_id;
@@ -3819,7 +3851,7 @@ const getAttendanceCounts = async (req, res) => {
 };
 
 const getSubjectAttendance = async (req, res) => {
-  const session = ensureSession(req, res);
+  const session = await ensureSession(req, res);
   if (!session) return undefined;
 
   const sem = req.query.semester || session.dataset.semesters[0]?.registration_id;
@@ -4213,7 +4245,7 @@ const getExamsOnDemand = async (session, req) => {
 };
 
 const getProfile = async (req, res) => {
-  const session = ensureSession(req, res);
+  const session = await ensureSession(req, res);
   if (!session) return undefined;
   const forceRefresh = shouldRefreshRealtime(req);
 
@@ -4268,7 +4300,7 @@ const getProfile = async (req, res) => {
 };
 
 const getProfilePhoto = async (req, res) => {
-  const session = ensureSession(req, res);
+  const session = await ensureSession(req, res);
   if (!session) return undefined;
   const debug = parseBooleanLike(req?.query?.debug, false);
 
@@ -4404,7 +4436,7 @@ const getProfilePhoto = async (req, res) => {
 };
 
 const getGrades = async (req, res) => {
-  const session = ensureSession(req, res);
+  const session = await ensureSession(req, res);
   if (!session) return undefined;
 
   const shouldRealtime = shouldRefreshRealtime(req);
@@ -4428,7 +4460,7 @@ const getGrades = async (req, res) => {
 };
 
 const getMarksSemesters = async (req, res) => {
-  const session = ensureSession(req, res);
+  const session = await ensureSession(req, res);
   if (!session) return undefined;
 
   const ownerId = ownerKey(req);
@@ -4568,7 +4600,7 @@ const getMarksSemesters = async (req, res) => {
 };
 
 const getExams = async (req, res) => {
-  const session = ensureSession(req, res);
+  const session = await ensureSession(req, res);
   if (!session) return undefined;
 
   const forceRefresh = shouldRefreshRealtime(req);
@@ -4583,7 +4615,7 @@ const getExams = async (req, res) => {
 };
 
 const getSubjects = async (req, res) => {
-  const session = ensureSession(req, res);
+  const session = await ensureSession(req, res);
   if (!session) return undefined;
 
   const sem = req.query.semester || session.dataset.semesters[0]?.registration_id;
@@ -4681,7 +4713,7 @@ const buildFeeDebugPreview = (payload) => {
 };
 
 const getFees = async (req, res) => {
-  const session = ensureSession(req, res);
+  const session = await ensureSession(req, res);
   if (!session) return undefined;
 
   const debugMode = String(req.query?.debug || '').trim() === '1';
@@ -4828,7 +4860,7 @@ const getFees = async (req, res) => {
 };
 
 const downloadMarks = async (req, res) => {
-  const session = ensureSession(req, res);
+  const session = await ensureSession(req, res);
   if (!session) return undefined;
 
   const { registration_id, registration_code } = req.query;

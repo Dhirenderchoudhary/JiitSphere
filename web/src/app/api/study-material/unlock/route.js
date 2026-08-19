@@ -1,11 +1,14 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { rateLimit } from 'lib/rateLimit';
+import {
+  STUDY_ACCESS_COOKIE,
+  STUDY_UNLOCK_MAX_AGE,
+  cookieOptions,
+  clearedCookieOptions,
+} from 'lib/sessionCookies';
 
 const limiter = rateLimit({ name: 'study-unlock', windowMs: 15 * 60 * 1000, max: 10 });
-
-const STUDY_ACCESS_COOKIE = 'study_material_access';
-const STUDY_ACCESS_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
 const hashValue = (value) =>
   createHash('sha256')
@@ -45,28 +48,12 @@ export async function POST(request) {
   }
 
   const response = NextResponse.json({ ok: true });
-  response.cookies.set({
-    name: STUDY_ACCESS_COOKIE,
-    value: '1',
-    path: '/',
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: STUDY_ACCESS_COOKIE_MAX_AGE,
-  });
+  response.cookies.set(STUDY_ACCESS_COOKIE, '1', cookieOptions(STUDY_UNLOCK_MAX_AGE));
   return response;
 }
 
 export async function DELETE() {
   const response = NextResponse.json({ ok: true });
-  response.cookies.set({
-    name: STUDY_ACCESS_COOKIE,
-    value: '',
-    path: '/',
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 0,
-  });
+  response.cookies.set(STUDY_ACCESS_COOKIE, '', clearedCookieOptions());
   return response;
 }

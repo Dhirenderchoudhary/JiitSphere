@@ -12,6 +12,7 @@ import { cn } from 'lib/utils';
 import {
   tabs,
   adminTabs,
+  TOKEN_KEY,
   SHOW_PORTAL_DIAGNOSTICS,
   STALE_ON_FOCUS_MS,
   AUTO_REFRESH_INTERVAL_MS,
@@ -114,6 +115,19 @@ export default function PortalShell({ token, onLogout }) {
       // 2. Handle Identity (only fetches on initial mount)
       if (meResult.status === 'fulfilled' && refreshKey === 0) {
         setCurrentUser(meResult.value?.data?.user || null);
+
+        // The server returns a token only when it has slid the expiry forward.
+        // Persist it so the window keeps extending for as long as the portal
+        // gets used; the current token stays valid, so nothing needs remounting.
+        const renewedToken = meResult.value?.data?.token;
+        if (renewedToken) {
+          try {
+            window.localStorage.setItem(TOKEN_KEY, renewedToken);
+          } catch (_error) {
+            // Storage can be unavailable in private mode — the existing token
+            // is still valid, so this is not worth surfacing.
+          }
+        }
       } else if (meResult.status === 'rejected' && meResult.reason instanceof SessionExpiredError) {
         onExpired();
       }

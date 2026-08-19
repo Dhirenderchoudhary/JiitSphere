@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { rateLimit } from 'lib/rateLimit';
+import { GUEST_COOKIE, STUDY_ACCESS_COOKIE, cookieOptions } from 'lib/sessionCookies';
 
 const limiter = rateLimit({ name: 'guest-login', windowMs: 60 * 1000, max: 10 });
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
 
 export async function POST(request) {
   try {
@@ -11,25 +11,8 @@ export async function POST(request) {
 
     const response = NextResponse.json({ ok: true });
 
-    response.cookies.set({
-      name: 'study_material_access',
-      value: '1',
-      path: '/',
-      httpOnly: false,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: COOKIE_MAX_AGE,
-    });
-
-    response.cookies.set({
-      name: 'guest_mode',
-      value: '1',
-      path: '/',
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: COOKIE_MAX_AGE,
-    });
+    response.cookies.set(STUDY_ACCESS_COOKIE, '1', cookieOptions());
+    response.cookies.set(GUEST_COOKIE, '1', cookieOptions());
 
     response.headers.set('cache-control', 'no-store');
     return response;

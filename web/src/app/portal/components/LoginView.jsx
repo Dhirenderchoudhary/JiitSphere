@@ -139,8 +139,13 @@ export default function LoginView({ onAuth }) {
           activeToken = auth?.data?.token || '';
           if (!activeToken) throw new Error('Authentication token missing');
 
-          const relay = await startPortalRelaySession(activeToken);
-          activeRelaySessionId = relay?.data?.sessionId || '';
+          // The login response now carries the relay session, saving a round
+          // trip. Fall back for backends that predate that.
+          activeRelaySessionId = auth?.data?.relaySessionId || '';
+          if (!activeRelaySessionId) {
+            const relay = await startPortalRelaySession(activeToken);
+            activeRelaySessionId = relay?.data?.sessionId || '';
+          }
         } catch (authErr) {
           throw new Error('Invalid Credentials. Please check your enrollment number and password.');
         }

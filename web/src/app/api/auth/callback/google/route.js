@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { sign, verify } from 'lib/token';
-import { SESSION_COOKIE, SESSION_MAX_AGE } from 'lib/session';
+import { verify } from 'lib/token';
+import { createSessionToken, setSessionCookies } from 'lib/session';
 import { trackStudySignIn } from 'lib/studyAnalyticsStore';
 import { rateLimit } from 'lib/rateLimit';
 
@@ -86,26 +86,21 @@ export async function GET(request) {
       return NextResponse.redirect(`${base}/study-access?error=AccessDenied`);
     }
 
-    // Issue session JWT
-    const sessionToken = sign(
+    // Issue session JWT — 7 days, slid forward on every visit by the middleware.
+    const sessionToken = createSessionToken(
       {
         email,
         name: String(profile.name || ''),
         image: String(profile.picture || ''),
         provider: 'google',
-        exp: Date.now() + SESSION_MAX_AGE * 1000,
       },
       secret
     );
 
     trackStudySignIn(email);
 
-    const isProduction = process.env.NODE_ENV === 'production';
-    const cookieBase = { path: '/', httpOnly: true, sameSite: 'lax', secure: isProduction };
-
     const response = NextResponse.redirect(`${base}${next}`);
-    response.cookies.set(SESSION_COOKIE, sessionToken, { ...cookieBase, maxAge: SESSION_MAX_AGE });
-    response.cookies.set('study_material_access', '1', { ...cookieBase, maxAge: SESSION_MAX_AGE });
+    setSessionCookies(response, sessionToken);
     return response;
   } catch {
     return NextResponse.redirect(`${base}/study-access?error=OAuthCallback`);

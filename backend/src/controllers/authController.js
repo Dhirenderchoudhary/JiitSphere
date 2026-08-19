@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const env = require('../config/env');
 const { sign } = require('../utils/token');
+const { createRelaySession } = require('../services/portalRelayService');
 const { getSnapshot } = require('../services/requestAnalyticsStore');
 
 const allowedUsers = env.userAllowedIdentifiers.reduce((acc, identifier) => {
@@ -90,14 +91,23 @@ const login = async (req, res) => {
       {
         ...user,
         scope: ['portal:relay', 'portal:sdk-login'],
+        // iat lets /auth/me slide the window for users who keep coming back.
+        iat: Date.now(),
         exp: Date.now() + env.portalTokenMaxAgeMs,
       },
       env.authSecret
     );
 
-    return res
-      .status(200)
-      .json({ success: true, message: 'Portal pre-auth successful', data: { token, user } });
+    // Creating the relay session is pure in-memory work, so hand it back with
+    // the token. The client used to spend a second full round trip on
+    // /portal/relay/start just to receive this UUID.
+    const relaySessionId = createRelaySession(user.userId);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Portal pre-auth successful',
+      data: { token, user, relaySessionId, relayBaseUrl: env.portalRelayBaseUrl },
+    });
   }
 
   if (!env.userAllowAll && !allowedUsers[normalizedIdentifier]) {
@@ -118,10 +128,13 @@ const login = async (req, res) => {
     role: env.adminAllowedEmails.includes(normalizedIdentifier) ? 'admin' : 'student',
   };
 
+  // Was hardcoded to 24h, which ignored SESSION_MAX_AGE and forced a daily
+  // re-login. Now shares the configured window with every other session.
   const token = sign(
     {
       ...user,
-      exp: Date.now() + 1000 * 60 * 60 * 24,
+      iat: Date.now(),
+      exp: Date.now() + env.sessionMaxAgeMs,
     },
     env.authSecret
   );
@@ -131,8 +144,33 @@ const login = async (req, res) => {
     .json({ success: true, message: 'Login successful', data: { token, user } });
 };
 
+/**
+ * Mint a replacement token when the caller's is older than the refresh
+ * threshold, so an active user's window keeps sliding instead of expiring a
+ * fixed period after they first logged in. Returns null when the current token
+ * is still fresh, to avoid re-signing on every request.
+ */
+const renewedTokenFor = (payload) => {
+  if (!payload || typeof payload !== 'object') return null;
+
+  const issuedAt = Number(payload.iat) || 0;
+  // Tokens issued before iat existed have no age to compare, so refresh them
+  // once and they slide normally from then on.
+  if (issuedAt && Date.now() - issuedAt < env.sessionRefreshAfterMs) return null;
+
+  const maxAgeMs = payload.portalMode ? env.portalTokenMaxAgeMs : env.sessionMaxAgeMs;
+  const now = Date.now();
+  const { iat: _iat, exp: _exp, ...claims } = payload;
+
+  return sign({ ...claims, iat: now, exp: now + maxAgeMs }, env.authSecret);
+};
+
 const me = (req, res) => {
-  return res.status(200).json({ success: true, data: { user: normalizeDemoUser(req.user || {}) } });
+  const user = normalizeDemoUser(req.user || {});
+  const token = renewedTokenFor(req.user);
+
+  // `token` is present only when it changed; the client keeps its own otherwise.
+  return res.status(200).json({ success: true, data: { user, ...(token ? { token } : {}) } });
 };
 
 const demoLogin = (req, res) => {

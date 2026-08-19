@@ -1,20 +1,20 @@
 import { NextResponse } from 'next/server';
-import { SESSION_COOKIE } from 'lib/session';
-
-const getSiteBase = () =>
-  String(
-    process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-  ).replace(/\/+$/, '');
-
-const clearCookies = (response) => {
-  const base = { path: '/', maxAge: 0 };
-  response.cookies.set(SESSION_COOKIE, '', base);
-  response.cookies.set('study_material_access', '', base);
-  response.cookies.set('guest_mode', '', base);
-};
+import {
+  GUEST_COOKIE,
+  SESSION_COOKIE,
+  STUDY_ACCESS_COOKIE,
+  clearedCookieOptions,
+} from 'lib/sessionCookies';
 
 export async function POST() {
   const response = NextResponse.json({ ok: true });
-  clearCookies(response);
+
+  // Same attributes as the writers — otherwise the browser keeps the original
+  // cookie next to the expired one and the user stays signed in.
+  [SESSION_COOKIE, STUDY_ACCESS_COOKIE, GUEST_COOKIE].forEach((name) => {
+    response.cookies.set(name, '', clearedCookieOptions());
+  });
+
+  response.headers.set('cache-control', 'no-store');
   return response;
 }

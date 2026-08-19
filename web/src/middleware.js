@@ -1,8 +1,52 @@
 import { NextResponse } from 'next/server';
+import { signEdge, verifyEdge } from 'lib/tokenEdge';
+import {
+  SESSION_COOKIE,
+  SESSION_MAX_AGE,
+  SESSION_REFRESH_AFTER,
+  STUDY_ACCESS_COOKIE,
+  cookieOptions,
+  getAuthSecret,
+} from 'lib/sessionCookies';
 
-const STUDY_ACCESS_COOKIE = 'study_material_access';
+/**
+ * Slide the 7-day session window forward.
+ *
+ * Without this the cookie and the JWT both expire a fixed 7 days after sign-in,
+ * so every user is bounced to the login screen on a rolling weekly basis no
+ * matter how often they use the site. Re-issuing on each visit means only a
+ * genuinely inactive week signs someone out.
+ *
+ * The token is only re-signed once it is older than SESSION_REFRESH_AFTER, so
+ * the common case costs one HMAC verify and no re-sign.
+ */
+async function renewSession(request, response) {
+  const token = request.cookies.get(SESSION_COOKIE)?.value;
+  if (!token) return;
 
-export function middleware(request) {
+  const secret = getAuthSecret();
+  if (!secret) return;
+
+  const payload = await verifyEdge(token, secret);
+  if (!payload) return;
+
+  // Renew at most once a day. Writing Set-Cookie on every request would make
+  // each response uncacheable at the CDN, and a daily refresh already keeps the
+  // window rolling: the cookie only lapses after ~7 days of real inactivity.
+  const issuedAt = Number(payload.iat) || 0;
+  if (issuedAt && Date.now() - issuedAt < SESSION_REFRESH_AFTER * 1000) return;
+
+  const now = Date.now();
+  const nextToken = await signEdge(
+    { ...payload, iat: now, exp: now + SESSION_MAX_AGE * 1000 },
+    secret
+  );
+
+  response.cookies.set(SESSION_COOKIE, nextToken, cookieOptions());
+  response.cookies.set(STUDY_ACCESS_COOKIE, '1', cookieOptions());
+}
+
+export async function middleware(request) {
   const { pathname } = request.nextUrl;
   const isStudyMaterialRoute =
     pathname === '/study-material' ||
@@ -68,12 +112,15 @@ export function middleware(request) {
   // Only Study Material routes use the study-access lock.
   // Portal, login, and other app areas should not be redirected there.
   if (!isStudyMaterialRoute) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    await renewSession(request, response);
+    return response;
   }
 
   const isUnlocked = request.cookies.get(STUDY_ACCESS_COOKIE)?.value === '1';
   if (isUnlocked) {
     const response = NextResponse.next();
+    await renewSession(request, response);
     response.headers.set('X-Frame-Options', 'DENY');
     response.headers.set('X-Content-Type-Options', 'nosniff');
     return response;
