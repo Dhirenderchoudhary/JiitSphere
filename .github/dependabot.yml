@@ -1,29 +1,53 @@
 version: 2
 updates:
+  # One entry covers the whole pnpm workspace. Separate /backend and /web
+  # entries used to duplicate every update, because the root lockfile already
+  # resolves both packages — express, morgan, react and typescript each opened
+  # two identical pull requests.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5
     assignees:
-      - kaiser
-      
-  - package-ecosystem: "npm"
-    directory: "/backend"
-    schedule:
-      interval: "weekly"
-    assignees:
-      - kaiser
-
-  - package-ecosystem: "npm"
-    directory: "/web"
-    schedule:
-      interval: "weekly"
-    assignees:
-      - kaiser
+      - Dhirenderchoudhary
+    groups:
+      # Routine upgrades arrive as one reviewable PR instead of a dozen.
+      production-dependencies:
+        applies-to: version-updates
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      development-dependencies:
+        applies-to: version-updates
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # React 19 needs Next 15 first; this repo is on Next 14, where React 19
+      # is unsupported. Revisit together with the Next upgrade.
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react-dom"
+        update-types: ["version-update:semver-major"]
+      # Tailwind 4 is a CSS-first rewrite: globals.css and tailwind.config.cjs
+      # both have to be migrated by hand, so it is not a bump.
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
     assignees:
-      - kaiser
+      - Dhirenderchoudhary
+    groups:
+      github-actions:
+        patterns:
+          - "*"

@@ -66,3 +66,6 @@ web/package-lock.json
 # materials/
 .pnpm-store/
 .pnpm-state.json
+
+# TypeScript incremental build cache
+*.tsbuildinfo

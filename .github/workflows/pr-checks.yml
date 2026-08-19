@@ -20,7 +20,7 @@ jobs:
           fi
 
       - name: Auto-label PR Size
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const linesChanged = context.payload.pull_request.additions + context.payload.pull_request.deletions;
@@ -37,7 +37,7 @@ jobs:
             });
 
       - name: Post comment with changed files
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const { data: files } = await github.rest.pulls.listFiles({
