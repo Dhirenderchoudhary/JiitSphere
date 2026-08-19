@@ -49,7 +49,16 @@ const buildForwardHeaders = (request) => {
   return headers;
 };
 
+/**
+ * Only GET/HEAD may be replayed. A POST that times out may well have been
+ * delivered and be running upstream — retrying it can submit an upload twice.
+ */
+const IDEMPOTENT_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
 const fetchWithRetry = async (targetUrl, options = {}) => {
+  const maxAttempts = IDEMPOTENT_METHODS.has(String(options.method || 'GET').toUpperCase())
+    ? REQUEST_RETRIES
+    : 0;
   let attempt = 0;
 
   while (true) {
@@ -63,7 +72,7 @@ const fetchWithRetry = async (targetUrl, options = {}) => {
         cache: 'no-store',
       });
     } catch (error) {
-      if (attempt >= REQUEST_RETRIES) {
+      if (attempt >= maxAttempts) {
         throw error;
       }
       attempt += 1;

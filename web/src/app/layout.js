@@ -26,7 +26,9 @@ export const metadata = {
   },
   description:
     'Study material & student portal for JIIT students. Access attendance, grades, exams, and 1300+ study resources.',
-  manifest: '/api/manifest',
+  // Must match the file in public/ — /api/manifest has no route and 404s,
+  // which silently blocks the install prompt and PWA icons.
+  manifest: '/manifest.webmanifest',
   metadataBase: new URL('https://jiitsphere.com'),
   openGraph: {
     title: 'JiitSphere',

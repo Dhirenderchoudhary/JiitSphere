@@ -126,7 +126,17 @@ app.use(
 );
 app.use(helmet.permittedCrossDomainPolicies({ permittedPolicies: 'none' }));
 
-app.use(compression());
+/**
+ * Never gzip the material files themselves. They are already-compressed
+ * formats, and encoding them drops Content-Length and byte-range support — so
+ * the browser's PDF viewer has to pull the whole file before it can render
+ * page one. JSON API responses still get compressed.
+ */
+app.use(
+  compression({
+    filter: (req, res) => !req.path.startsWith('/local-materials') && compression.filter(req, res),
+  })
+);
 app.use(cors(corsOptions));
 app.use(express.json({ limit: `${env.jsonBodyLimitMb}mb` }));
 app.use(express.urlencoded({ extended: true, limit: `${env.jsonBodyLimitMb}mb` }));
@@ -141,7 +151,18 @@ app.use('/api/v1', apiLimiter);
 app.use('/health', healthRoute);
 
 if (env.storageProvider === 'local' && env.localMaterialsRoot) {
-  app.use('/local-materials', express.static(path.resolve(env.localMaterialsRoot)));
+  app.use(
+    '/local-materials',
+    express.static(path.resolve(env.localMaterialsRoot), {
+      // Keys are UUID-prefixed, so a URL never changes content — cache forever
+      // instead of re-downloading the PDF on every view.
+      maxAge: '1y',
+      immutable: true,
+      // Range requests let the browser's PDF viewer stream the first pages
+      // instead of waiting for the whole file.
+      acceptRanges: true,
+    })
+  );
 }
 
 app.use('/api/v1/materials', materialRoutes);

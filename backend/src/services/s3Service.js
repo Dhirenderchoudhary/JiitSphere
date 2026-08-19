@@ -23,6 +23,21 @@ const createS3Key = (payload, originalFilename) => {
   ].join('/');
 };
 
+/**
+ * Every object key carries a UUID prefix, so a given URL always resolves to the
+ * same bytes — safe to cache forever. Without this header S3 sends no
+ * Cache-Control at all and browsers re-download the PDF on every view.
+ */
+const FILE_CACHE_CONTROL = 'public, max-age=31536000, immutable';
+
+/**
+ * Render PDFs and images in the browser's viewer rather than triggering a
+ * save dialog. The download button fetches the same URL as a blob, which is
+ * unaffected by this.
+ */
+const contentDispositionFor = (originalFilename) =>
+  `inline; filename="${sanitizeKeyPart(originalFilename || 'file')}"`;
+
 const buildPublicUrl = (s3Key) => {
   const encoded = String(s3Key || '')
     .split('/')
@@ -89,6 +104,8 @@ const uploadBufferToS3 = async ({
     Key: s3Key,
     Body: buffer,
     ContentType: mimeType,
+    CacheControl: FILE_CACHE_CONTROL,
+    ContentDisposition: contentDispositionFor(originalFilename),
   });
 
   await s3Client.send(command);
@@ -126,6 +143,8 @@ const uploadFileToS3 = async ({
     Key: s3Key,
     Body: fsSync.createReadStream(filePath),
     ContentType: mimeType,
+    CacheControl: FILE_CACHE_CONTROL,
+    ContentDisposition: contentDispositionFor(originalFilename),
   });
 
   await s3Client.send(command);

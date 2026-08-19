@@ -23,6 +23,12 @@ const isRetryableFetchError = (error: unknown): boolean => {
   return /failed to fetch|networkerror|network request failed/i.test(String(err.message || ''));
 };
 
+/**
+ * Only GET/HEAD may be replayed. A POST that timed out may already be running
+ * upstream — retrying it can submit a portal login twice.
+ */
+const IDEMPOTENT_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
 const fetchWithTimeout = async (
   url: string,
   options: FetchWithTimeoutOptions = {}
@@ -32,6 +38,10 @@ const fetchWithTimeout = async (
     retries = DEFAULT_API_RETRIES,
     ...requestOptions
   } = options;
+
+  const maxAttempts = IDEMPOTENT_METHODS.has(String(requestOptions.method || 'GET').toUpperCase())
+    ? retries
+    : 0;
 
   let attempt = 0;
   while (true) {
@@ -47,7 +57,7 @@ const fetchWithTimeout = async (
         signal: controller.signal,
       });
     } catch (error) {
-      if (attempt >= retries || !isRetryableFetchError(error)) {
+      if (attempt >= maxAttempts || !isRetryableFetchError(error)) {
         throw error;
       }
       attempt += 1;

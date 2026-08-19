@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from 'components/ui/button';
 import { FileX2, ExternalLink, Download, FileText, AlertTriangle } from 'lucide-react';
 import { FallbackActions, ErrorCard, LoadingOverlay } from 'components/MaterialViewerComponents';
@@ -11,7 +11,7 @@ import { FallbackActions, ErrorCard, LoadingOverlay } from 'components/MaterialV
  * Props:
  *   embeddedUrl     — the URL to load in the viewer (direct CDN URL, or Google Docs Viewer URL)
  *   viewerStrategy  — 'pdf' | 'image' | 'video' | 'text' | 'office' | 'unsupported'
- *   openUrl         — URL for "Open in New Tab" (the access route which redirects to file)
+ *   openUrl         — URL for "Open in New Tab"
  *   downloadUrl     — URL for "Download" button
  *   title           — material title (for alt/title attributes)
  *   fileType        — file extension string
@@ -22,6 +22,16 @@ import { FallbackActions, ErrorCard, LoadingOverlay } from 'components/MaterialV
  *   • Office files use Google Docs Viewer (no forced download / OS popup)
  *   • Simple loading → ready | error states only
  */
+
+/**
+ * An iframe's `load` event only fires once the *entire* file has been
+ * transferred. Browsers paint page one of a PDF long before that, so gating
+ * visibility on `load` made a 20 MB deck look frozen behind a spinner for the
+ * whole download. Reveal the frame after this delay and let the browser's own
+ * progressive rendering show through.
+ */
+const REVEAL_DELAY_MS = 400;
+
 export default function MaterialViewerClient({
   embeddedUrl,
   viewerStrategy,
@@ -33,6 +43,12 @@ export default function MaterialViewerClient({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const frameRef = useRef(null);
+
+  useEffect(() => {
+    if (!loading) return undefined;
+    const timer = setTimeout(() => setLoading(false), REVEAL_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [loading, embeddedUrl]);
 
   const handleLoad = () => {
     setLoading(false);
@@ -162,10 +178,17 @@ export default function MaterialViewerClient({
         key={embeddedUrl}
         className="h-full w-full border-none transition-opacity duration-300"
         style={{
-          opacity: loading || error ? 0 : 1,
+          opacity: error ? 0 : 1,
           backgroundColor: viewerStrategy === 'office' ? '#f8f9fa' : 'white',
         }}
-        src={embeddedUrl}
+        src={
+          viewerStrategy === 'pdf'
+            ? // Fit the width and skip the thumbnail sidebar: the built-in
+              // viewer then renders page one without waiting to lay out the
+              // rest of the document.
+              `${embeddedUrl}#view=FitH&pagemode=none`
+            : embeddedUrl
+        }
         title={title}
         onLoad={handleLoad}
         onError={handleError}

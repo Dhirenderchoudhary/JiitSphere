@@ -6,13 +6,15 @@ const BACKEND_BASE =
   'http://localhost:5000/api/v1';
 
 /**
- * Lightweight access route — used ONLY for:
- *   • "Open in New Tab" button  (action=view  → redirect to file)
- *   • "Download" button         (action=download → redirect to file)
+ * Fallback access route: resolves a material id to its file and redirects.
  *
- * The embedded viewer does NOT use this route.
- * It receives the direct CDN URL (or Google Docs Viewer URL) from
- * the server component so there is zero proxy overhead.
+ * The `action` query parameter is accepted for backwards compatibility but does
+ * not change the behaviour — both view and download redirect to the same file.
+ * Download naming is handled client-side by fetching the file as a blob.
+ *
+ * Neither the viewer nor the list normally uses this route; both already hold
+ * the direct CDN URL, so there is no proxy hop. It exists for materials whose
+ * fileUrl is missing from a list response and for older links.
  */
 export async function GET(request, { params }) {
   try {
