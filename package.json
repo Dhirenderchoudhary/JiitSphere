@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "husky": "^9.0.11",
-    "lint-staged": "^17.3.0"
+    "lint-staged": "^17.4.1"
   },
   "lint-staged": {
     "backend/src/**/*.js": [
