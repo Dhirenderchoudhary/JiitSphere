@@ -1,18 +1,7 @@
 const crypto = require('crypto');
 const env = require('../config/env');
 const { sign } = require('../utils/token');
-const {
-  createRelaySession,
-  ensureOwnedSession,
-  updateCookiesFromResponse,
-} = require('../services/portalRelayService');
-const {
-  isGoogleCredential,
-  fetchGoogleConfig,
-  exchangeGoogleToken,
-  mapGoogleRegdata,
-  collegeErrorMessage,
-} = require('../services/portalGoogleLogin');
+const { createRelaySession } = require('../services/portalRelayService');
 const { getSnapshot } = require('../services/requestAnalyticsStore');
 
 const allowedUsers = env.userAllowedIdentifiers.reduce((acc, identifier) => {
@@ -217,94 +206,6 @@ const demoLogin = (req, res) => {
     .json({ success: true, message: 'Demo login successful', data: { token, user } });
 };
 
-const googlePortalConfig = async (_req, res) => {
-  try {
-    const config = await fetchGoogleConfig();
-    return res.status(200).json({
-      success: true,
-      data: { enabled: config.enabled, clientId: config.enabled ? config.clientId : '' },
-    });
-  } catch (error) {
-    return res.status(error.statusCode || 503).json({
-      success: false,
-      message: 'College sign-in is unavailable. Try again in a moment.',
-    });
-  }
-};
-
-const googlePortalLogin = async (req, res) => {
-  const googleToken = String(req.body?.googleToken || '').trim();
-  if (!isGoogleCredential(googleToken)) {
-    return res.status(400).json({ success: false, message: 'Google sign-in did not finish' });
-  }
-
-  try {
-    const { response, data } = await exchangeGoogleToken(googleToken);
-    const regdata = mapGoogleRegdata(data?.response);
-    const accepted = data?.status?.responseStatus === 'Success' && regdata;
-
-    if (!accepted) {
-      return res.status(401).json({
-        success: false,
-        message:
-          collegeErrorMessage(data) ||
-          'That Google account is not a student on the college portal. Use your JIIT college email.',
-      });
-    }
-
-    const userId = String(regdata.enrollmentno || regdata.userid || '')
-      .trim()
-      .toLowerCase();
-    if (!userId) {
-      return res.status(502).json({
-        success: false,
-        message: 'College portal did not return a student id',
-      });
-    }
-
-    const user = {
-      userId,
-      name: regdata.name || makeDisplayName(userId),
-      role: 'portal-pending',
-      portalMode: true,
-    };
-
-    const token = sign(
-      {
-        ...user,
-        scope: ['portal:relay', 'portal:sdk-login'],
-        iat: Date.now(),
-        exp: Date.now() + env.portalTokenMaxAgeMs,
-      },
-      env.authSecret
-    );
-
-    const relaySessionId = createRelaySession(user.userId);
-    const session = ensureOwnedSession(relaySessionId, user.userId);
-    session.authContext = {
-      regdata,
-      tokenDate: new Date().toString(),
-      verifiedAt: Date.now(),
-    };
-    if (response) updateCookiesFromResponse(session, response);
-
-    return res.status(200).json({
-      success: true,
-      message: 'Portal Google sign-in successful',
-      data: { token, user, relaySessionId, relayBaseUrl: env.portalRelayBaseUrl },
-    });
-  } catch (error) {
-    const status = error.statusCode || (error.name === 'TimeoutError' ? 504 : 502);
-    return res.status(status).json({
-      success: false,
-      message:
-        status === 503
-          ? 'College Google sign-in is turned off'
-          : 'Official Portal is currently unavailable. Please try again later.',
-    });
-  }
-};
-
 const analytics = (req, res) => {
   if (req.user?.role !== 'admin') {
     return res.status(403).json({ success: false, message: 'Admin access required for analytics' });
@@ -316,8 +217,6 @@ const analytics = (req, res) => {
 module.exports = {
   login,
   demoLogin,
-  googlePortalConfig,
-  googlePortalLogin,
   me,
   analytics,
 };
