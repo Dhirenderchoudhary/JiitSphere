@@ -130,7 +130,6 @@ const portalFetch = async (
   params: QueryParams = {}
 ): Promise<Response> =>
   fetchWithTimeout(portalUrl(path, params), {
-    next: { revalidate: 300 },
     ...options,
     timeoutMs: options.timeoutMs || DEFAULT_API_TIMEOUT_MS,
     retries: options.retries ?? DEFAULT_API_RETRIES,
@@ -182,7 +181,6 @@ const backendJsonRequest = async <T = JsonObject>(
   const promise = (async () => {
     try {
       const response = await fetchWithTimeout(queryUrl, {
-        next: { revalidate: 300 },
         ...options,
         timeoutMs: options.timeoutMs || DEFAULT_API_TIMEOUT_MS,
         retries: options.retries ?? DEFAULT_API_RETRIES,
@@ -211,6 +209,10 @@ const withRealtime = (
 
 // Cache for in-flight GET requests to deduplicate concurrent calls
 const inFlightRequests = new Map<string, Promise<any>>();
+// Short TTL cache so tab switches / remounts reuse fresh data instantly
+// instead of refetching. Key -> { promise, expiresAt }.
+const sdkTtlCache = new Map<string, { promise: Promise<any>; expiresAt: number }>();
+const SDK_TTL_MS = 60_000;
 
 const sdkGet = async <T = JsonObject>(
   token: string,
@@ -219,6 +221,11 @@ const sdkGet = async <T = JsonObject>(
 ): Promise<T> => {
   const queryUrl = portalUrl(path, params);
   const cacheKey = `SDK_GET:${queryUrl}:${token}`;
+
+  const cached = sdkTtlCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.promise as Promise<T>;
+  }
 
   if (inFlightRequests.has(cacheKey)) {
     return inFlightRequests.get(cacheKey) as Promise<T>;
@@ -230,7 +237,6 @@ const sdkGet = async <T = JsonObject>(
         path,
         {
           headers: { Authorization: `Bearer ${token}` },
-          next: { revalidate: 300 },
           timeoutMs: DEFAULT_API_TIMEOUT_MS,
           retries: DEFAULT_API_RETRIES,
         },
@@ -240,12 +246,18 @@ const sdkGet = async <T = JsonObject>(
       const data = await parseJson<T & { message?: string }>(response);
       if (!response.ok) throw new Error(data.message || 'SDK request failed');
       return data;
+    } catch (error) {
+      // Don't cache failures — allow immediate retry.
+      sdkTtlCache.delete(cacheKey);
+      throw error;
     } finally {
       inFlightRequests.delete(cacheKey); // Clean up resolving promises
     }
   })();
 
   inFlightRequests.set(cacheKey, promise);
+  // Cache the promise itself so concurrent + near-term callers share it.
+  sdkTtlCache.set(cacheKey, { promise, expiresAt: Date.now() + SDK_TTL_MS });
   return promise;
 };
 
@@ -273,6 +285,18 @@ export const loginUser = async (payload: JsonObject) => {
   });
 };
 
+export const fetchPortalGoogleConfig = async () => {
+  return portalJsonRequest('/auth/google-portal/config');
+};
+
+export const loginPortalWithGoogle = async (googleToken: string) => {
+  return portalJsonRequest('/auth/google-portal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ googleToken }),
+  });
+};
+
 export const loginPortalDemo = async () => {
   return portalJsonRequest('/auth/demo-login', {
     method: 'POST',
@@ -282,17 +306,19 @@ export const loginPortalDemo = async () => {
 };
 
 export const fetchPortalStatus = async (token: string) => {
-  const profile = await portalJsonRequest<{ data?: { user?: unknown } }>('/auth/me', {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  const status = await portalJsonRequest<JsonObject>('/portal/status', {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  // Parallel: these are independent — sequential await doubled portal load time.
+  const [profile, status] = await Promise.all([
+    portalJsonRequest<{ data?: { user?: unknown } }>('/auth/me', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }),
+    portalJsonRequest<JsonObject>('/portal/status', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }),
+  ]);
   return { ...status, user: profile?.data?.user || null };
 };
 
@@ -313,7 +339,7 @@ export const fetchAdminAnalytics = async (token: string) => {
 };
 
 export const fetchStudyAnalytics = async () => {
-  const response = await fetch('/api/admin/study-analytics', { next: { revalidate: 300 } });
+  const response = await fetch('/api/admin/study-analytics');
   const data = await parseJson<{ message?: string } & JsonObject>(response);
   if (!response.ok) throw new Error(data.message || 'Failed to fetch study analytics');
   return data;
@@ -386,7 +412,6 @@ export const fetchPortalProfilePhotoBlob = async (token: string, source: string)
     '/portal/sdk/profile/photo',
     {
       headers: { Authorization: `Bearer ${token}` },
-      next: { revalidate: 300 },
     },
     { source }
   );
@@ -514,7 +539,6 @@ export const fetchPortalMarksData = async (
     '/portal/sdk/marks/data',
     {
       headers: { Authorization: `Bearer ${token}` },
-      next: { revalidate: 300 },
     },
     { registration_id, registration_code, ...(refresh ? { refresh: 1 } : {}) }
   );

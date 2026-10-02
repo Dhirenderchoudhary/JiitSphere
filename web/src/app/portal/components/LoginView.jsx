@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { Button } from 'components/ui/button';
 import { Input } from 'components/ui/input';
 import {
+  fetchPortalGoogleConfig,
   fetchPortalRelayCaptcha,
   loginPortalDemo,
+  loginPortalWithGoogle,
   loginUser,
   portalSdkLogin,
   startPortalRelaySession,
@@ -36,6 +38,13 @@ export default function LoginView({ onAuth }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [attemptDiagnostics, setAttemptDiagnostics] = useState([]);
+  const [accountType, setAccountType] = useState('S');
+  const [googleConfigLoaded, setGoogleConfigLoaded] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState('');
+  const [gsiReady, setGsiReady] = useState(false);
+  const googleButtonRef = useRef(null);
+  const googleHandlerRef = useRef(null);
 
   const normalizeUiError = (message) => {
     const text = String(message || '').trim();
@@ -77,6 +86,131 @@ export default function LoginView({ onAuth }) {
   useEffect(() => {
     setUserId(window.localStorage.getItem(LAST_PORTAL_USER_ID) || '');
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPortalGoogleConfig()
+      .then((config) => {
+        if (cancelled) return;
+        const enabled = Boolean(config?.data?.enabled && config?.data?.clientId);
+        setGoogleEnabled(enabled);
+        setGoogleClientId(enabled ? String(config.data.clientId) : '');
+        setGoogleConfigLoaded(true);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setGoogleEnabled(false);
+          setGoogleConfigLoaded(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!googleEnabled) return undefined;
+    if (window.google?.accounts?.id) {
+      setGsiReady(true);
+      return undefined;
+    }
+    const existing = document.querySelector('script[data-gsi-client]');
+    if (existing) {
+      existing.addEventListener('load', () => setGsiReady(true), { once: true });
+      return undefined;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.dataset.gsiClient = '1';
+    script.onload = () => setGsiReady(true);
+    script.onerror = () => setError('Google sign-in could not be loaded. Refresh and try again.');
+    document.head.appendChild(script);
+    return undefined;
+  }, [googleEnabled]);
+
+  const finishPortalSession = (activeToken, activeUserId, relaySessionId) => {
+    portalSdkLogin(activeToken, {
+      userId: activeUserId,
+      relaySessionId,
+    })
+      .then(() => {
+        fetchPortalSdkSession(activeToken, false).catch(() => {});
+        fetchPortalAttendanceMeta(activeToken).catch(() => {});
+        fetchPortalExams(activeToken, false).catch(() => {});
+        fetchPortalSubjects(activeToken, '', false).catch(() => {});
+      })
+      .catch(() => {});
+
+    window.localStorage.setItem(TOKEN_KEY, activeToken);
+    window.localStorage.setItem(LAST_PORTAL_USER_ID, activeUserId);
+    window.localStorage.setItem(PORTAL_VERIFIED_KEY, 'true');
+    window.localStorage.setItem('jaypee_buddy_identity_mode', 'portal');
+    window.localStorage.removeItem('jaypee_buddy_cached_photo');
+    window.localStorage.removeItem('jaypee_buddy_cached_profile_name');
+    window.dispatchEvent(new Event('jaypee-buddy-identity-updated'));
+    onAuth(activeToken);
+  };
+
+  const handleGoogleCredential = async (credentialResponse) => {
+    if (loading) return;
+    const googleToken = String(credentialResponse?.credential || '');
+    if (!googleToken) {
+      setError('Google sign-in did not finish. Try again.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setProbeMessage('Signing in with your college account...');
+
+    try {
+      const auth = await loginPortalWithGoogle(googleToken);
+      const activeToken = auth?.data?.token || '';
+      const activeRelaySessionId = auth?.data?.relaySessionId || '';
+      const activeUserId = String(auth?.data?.user?.userId || '').trim();
+      if (!activeToken || !activeRelaySessionId || !activeUserId) {
+        throw new Error('College portal did not start a session');
+      }
+      setProbeMessage('Finalizing session...');
+      finishPortalSession(activeToken, activeUserId, activeRelaySessionId);
+    } catch (err) {
+      setError(normalizeUiError(err?.message || 'Google sign-in failed'));
+      setProbeMessage('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  googleHandlerRef.current = handleGoogleCredential;
+
+  useEffect(() => {
+    if (accountType !== 'S' || !googleEnabled || !gsiReady || !googleClientId) return undefined;
+    const el = googleButtonRef.current;
+    const google = window.google?.accounts?.id;
+    if (!el || !google) return undefined;
+
+    el.innerHTML = '';
+    google.initialize({
+      client_id: googleClientId,
+      callback: (response) => {
+        googleHandlerRef.current?.(response);
+      },
+      ux_mode: 'popup',
+      auto_select: false,
+      cancel_on_tap_outside: true,
+    });
+    google.renderButton(el, {
+      theme: 'filled_blue',
+      size: 'large',
+      type: 'standard',
+      shape: 'rectangular',
+      text: 'signin_with',
+      logo_alignment: 'center',
+      width: 280,
+    });
+    return undefined;
+  }, [accountType, googleEnabled, gsiReady, googleClientId]);
 
   const handleTryDemo = async () => {
     setLoading(true);
@@ -127,7 +261,7 @@ export default function LoginView({ onAuth }) {
 
     try {
       const normalizedUserId = String(userId || '').trim();
-      const effectiveUserType = /^p/i.test(normalizedUserId) ? 'P' : 'S';
+      const effectiveUserType = accountType === 'P' ? 'P' : 'S';
 
       let activeToken = token;
       let activeRelaySessionId = relaySessionId;
@@ -276,13 +410,74 @@ export default function LoginView({ onAuth }) {
             </div>
           </div>
           <p className="text-xs text-muted-foreground font-medium leading-relaxed">
-            Sign in with your WebPortal credentials to access your dashboard.
+            {!googleConfigLoaded
+              ? 'Sign in to your college portal.'
+              : googleEnabled && accountType === 'S'
+                ? 'Students sign in with their JIIT college Google account.'
+                : 'Sign in with your WebPortal credentials to access your dashboard.'}
           </p>
         </div>
 
         <div className="rounded-2xl border border-border/40 bg-card shadow-lg">
           <div className="p-8">
-            <form onSubmit={handleLogin} className="space-y-5">
+            <form
+              onSubmit={(event) => {
+                if (!googleConfigLoaded || (googleEnabled && accountType === 'S')) {
+                  event.preventDefault();
+                  return;
+                }
+                handleLogin(event);
+              }}
+              className="space-y-5"
+            >
+              <fieldset className="flex items-center gap-5">
+                <legend className="sr-only">Account type</legend>
+                <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <input
+                    type="radio"
+                    name="portal-account-type"
+                    value="S"
+                    checked={accountType === 'S'}
+                    onChange={() => setAccountType('S')}
+                    className="accent-primary"
+                  />
+                  Student
+                </label>
+                <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <input
+                    type="radio"
+                    name="portal-account-type"
+                    value="P"
+                    checked={accountType === 'P'}
+                    onChange={() => setAccountType('P')}
+                    className="accent-primary"
+                  />
+                  Parent
+                </label>
+              </fieldset>
+
+              {!googleConfigLoaded ? (
+                <p className="text-xs font-medium text-muted-foreground text-center">
+                  Checking college sign-in...
+                </p>
+              ) : null}
+
+              {googleConfigLoaded && googleEnabled && accountType === 'S' ? (
+                <div className="space-y-3">
+                  <div ref={googleButtonRef} className="flex min-h-11 justify-center" />
+                  {!gsiReady || loading ? (
+                    <p className="text-xs font-medium text-muted-foreground text-center">
+                      {loading ? 'Signing in...' : 'Loading Google sign-in...'}
+                    </p>
+                  ) : null}
+                  <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
+                    Use the college email on your JIIT Google account.
+                  </p>
+                </div>
+              ) : null}
+
+              {googleConfigLoaded && !(googleEnabled && accountType === 'S') ? (
+                <>
               <div className="space-y-1.5">
                 <label
                   htmlFor="portal-enrollment"
@@ -345,6 +540,8 @@ export default function LoginView({ onAuth }) {
                   />
                 </div>
               ) : null}
+                </>
+              ) : null}
 
               {error ? (
                 <div
@@ -361,12 +558,14 @@ export default function LoginView({ onAuth }) {
                 </p>
               )}
 
-              <Button
-                className="w-full h-12 rounded-xl font-bold text-sm shadow-sm"
-                disabled={loading || (Boolean(captchaImage) && !String(captchaValue || '').trim())}
-              >
-                {loading ? 'Signing in...' : captchaImage ? 'Verify & Sign In' : 'Sign In'}
-              </Button>
+              {googleConfigLoaded && !(googleEnabled && accountType === 'S') ? (
+                <Button
+                  className="w-full h-12 rounded-xl font-bold text-sm shadow-sm"
+                  disabled={loading || (Boolean(captchaImage) && !String(captchaValue || '').trim())}
+                >
+                  {loading ? 'Signing in...' : captchaImage ? 'Verify & Sign In' : 'Sign In'}
+                </Button>
+              ) : null}
 
               <div className="space-y-2 pt-1">
                 <div className="flex items-center gap-3">
