@@ -89,6 +89,11 @@ export default function RootLayout({ children }) {
         <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
         <link rel="dns-prefetch" href="https://docs.google.com" />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script
+          defer
+          src="https://cloud.umami.is/script.js"
+          data-website-id="c1d3c6b0-aad5-4fd2-a1e9-7bfbe0ed0313"
+        />
       </head>
       <body
         className={cn(
