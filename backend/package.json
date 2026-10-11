@@ -11,8 +11,6 @@
     "import:s3": "node src/scripts/importFromS3.js",
     "normalize:metadata": "node src/scripts/normalizeMetadata.js",
     "normalize:metadata:apply": "node src/scripts/normalizeMetadata.js --apply",
-    "rebuild:file-urls": "node src/scripts/rebuildFileUrls.js",
-    "rebuild:file-urls:apply": "node src/scripts/rebuildFileUrls.js --apply",
     "lint": "eslint src/ --ext .js",
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write src/",

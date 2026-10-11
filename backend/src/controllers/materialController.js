@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const NodeCache = require('node-cache');
 const Material = require('../models/Material');
 const asyncHandler = require('../middlewares/asyncHandler');
+const { buildPublicUrl } = require('../services/s3Service');
 
 const materialsCache = new NodeCache({ stdTTL: 30, maxKeys: 500 });
 
@@ -49,6 +50,11 @@ const parsePositiveInt = (
 };
 
 const now = () => Date.now();
+
+// Links are built from the key on every read, so moving storage (AWS to R2,
+// a new CDN domain) is a config change, never a database rewrite.
+const withFileUrl = (material) =>
+  material.s3Key ? { ...material, fileUrl: buildPublicUrl(material.s3Key) } : material;
 
 const setBrowseCache = (key, value) => {
   browseOptionsCache.set(key, { expiresAt: now() + BROWSE_OPTIONS_CACHE_TTL_MS, data: value });
@@ -129,7 +135,7 @@ const getMaterials = asyncHandler(async (req, res) => {
 
   const responseData = {
     success: true,
-    data: items,
+    data: items.map(withFileUrl),
     pagination: {
       page: pageNumber,
       limit: limitNumber,
@@ -154,7 +160,7 @@ const getMaterialById = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Material not found' });
   }
 
-  return res.json({ success: true, data: material });
+  return res.json({ success: true, data: withFileUrl(material) });
 });
 
 const getFilterOptions = asyncHandler(async (_req, res) => {
