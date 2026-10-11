@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { randomBytes } from 'node:crypto';
 import { sign } from 'lib/token';
 
+// Without this Next prerenders the redirect at build time, freezing `next` and
+// a state token that expires ten minutes after the deploy.
+export const dynamic = 'force-dynamic';
+
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 
 const getSiteBase = () =>
