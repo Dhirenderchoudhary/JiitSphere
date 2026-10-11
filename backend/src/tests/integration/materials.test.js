@@ -8,6 +8,7 @@ jest.mock('../../services/s3Service', () => ({
     .mockResolvedValue({ fileUrl: 'http://mock.s3.url/file.pdf', s3Key: 'mock-s3-key.pdf' }),
   deleteFromS3: jest.fn().mockResolvedValue(true),
   safeDeleteLocalFile: jest.fn().mockResolvedValue(true),
+  buildPublicUrl: (key) => `https://files.example.com/${key}`,
 }));
 
 describe('Materials Integration Tests', () => {
@@ -38,6 +39,14 @@ describe('Materials Integration Tests', () => {
       expect(Array.isArray(res.body.data)).toBe(true);
       expect(res.body.data.length).toBe(1);
       expect(res.body.pagination).toBeDefined();
+    });
+
+    it('serves file links built from the storage key, not the stored URL', async () => {
+      const list = await request(app).get('/api/v1/materials');
+      expect(list.body.data[0].fileUrl).toBe('https://files.example.com/math-1-notes.pdf');
+
+      const one = await request(app).get(`/api/v1/materials/${sampleMaterial._id}`);
+      expect(one.body.data.fileUrl).toBe('https://files.example.com/math-1-notes.pdf');
     });
 
     it('should filter materials by subject', async () => {
