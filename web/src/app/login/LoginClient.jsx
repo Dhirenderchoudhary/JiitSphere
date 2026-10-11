@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { TOKEN_KEY, PORTAL_VERIFIED_KEY } from '../portal/constants';
 import LoginView from '../portal/components/LoginView';
 
-export default function LoginPage() {
+export default function LoginClient({ collegeEmail }) {
   const { replace } = useRouter();
   const [shouldRender, setShouldRender] = useState(false);
 
@@ -31,5 +31,5 @@ export default function LoginPage() {
     return <div className="min-h-screen bg-background" />;
   }
 
-  return <LoginView onAuth={handleAuth} />;
+  return <LoginView onAuth={handleAuth} collegeEmail={collegeEmail} />;
 }
