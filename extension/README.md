@@ -19,3 +19,11 @@ the portal at any other time are ignored.
 
 To support another JiitSphere domain, add it to the third `matches` list in
 `manifest.json`.
+
+## Publish to the Chrome Web Store
+
+Bump `version` in `manifest.json`, then build the upload zip from this folder:
+
+```sh
+zip -r ../jiitsphere-connect.zip . -x README.md
+```
