@@ -6,19 +6,12 @@ const env = require('../config/env');
 const s3Client = require('../config/aws');
 const Material = require('../models/Material');
 const { getFileTypeFromName } = require('../utils/file');
+const { buildPublicUrl } = require('../services/s3Service');
 
 const S3_PREFIX = process.argv[2] || 'StudyMaterial/';
 const DRY_RUN = process.argv.includes('--dry-run');
 
 /* ── helpers ─────────────────────────────────────────────────── */
-
-const buildPublicUrl = (s3Key) => {
-  const encoded = String(s3Key || '')
-    .split('/')
-    .map((part) => encodeURIComponent(part))
-    .join('/');
-  return `https://${env.awsS3Bucket}.s3.${env.awsRegion}.amazonaws.com/${encoded}`;
-};
 
 const extractNumber = (str) => {
   const m = String(str || '').match(/(\d+)/);

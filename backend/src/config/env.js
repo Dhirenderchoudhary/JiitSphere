@@ -43,6 +43,8 @@ const rawConfig = {
   awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
   awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   awsS3Bucket: process.env.AWS_S3_BUCKET,
+  /** Set for S3-compatible storage such as Cloudflare R2; unset means AWS. */
+  s3Endpoint: process.env.S3_ENDPOINT,
   s3ExistingPrefix: process.env.S3_EXISTING_PREFIX || '',
   cloudFrontBaseUrl: process.env.CLOUDFRONT_BASE_URL,
   importUploadedBy: process.env.IMPORT_UPLOADED_BY || 'bulk-import-script',
@@ -118,6 +120,7 @@ const envSchema = z
     awsAccessKeyId: z.string().optional(),
     awsSecretAccessKey: z.string().optional(),
     awsS3Bucket: z.string().optional(),
+    s3Endpoint: z.string().optional(),
     s3ExistingPrefix: z.string(),
     cloudFrontBaseUrl: z.string().optional(),
     importUploadedBy: z.string(),
