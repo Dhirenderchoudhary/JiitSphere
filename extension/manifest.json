@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "JiitSphere Connect",
+  "version": "1.0.0",
+  "description": "Sign in to JiitSphere with your JIIT Google account through the official college portal.",
+  "permissions": ["storage"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://webportal.jiit.ac.in/*"],
+      "js": ["portal-main.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://webportal.jiit.ac.in/*"],
+      "js": ["portal-relay.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://jiitsphere.com/*", "https://www.jiitsphere.com/*", "http://localhost/*"],
+      "js": ["site-relay.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
