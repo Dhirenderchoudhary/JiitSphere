@@ -26,6 +26,9 @@ import {
 } from '../constants';
 import { extractRelayMessage, relayAttemptLooksAuthenticated } from '../utils';
 
+const EXTENSION_URL =
+  'https://chromewebstore.google.com/detail/jiitsphere-connect/eccflpifjeiapgoimdmnkfiafbchkfgo';
+
 export default function LoginView({ onAuth, collegeEmail = '' }) {
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
@@ -138,8 +141,7 @@ export default function LoginView({ onAuth, collegeEmail = '' }) {
     return () => window.removeEventListener('message', listener);
   }, []);
 
-  let googleHint =
-    'Use your @mail.jiit.ac.in account. Add the JiitSphere Connect extension to skip the password.';
+  let googleHint = 'Use your @mail.jiit.ac.in account.';
   if (collegeEmail) {
     googleHint = `Signed in as ${collegeEmail}. Enter your portal password once to load your data.`;
   }
@@ -369,6 +371,16 @@ export default function LoginView({ onAuth, collegeEmail = '' }) {
               <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
                 {googleHint}
               </p>
+              {!hasExtension && (
+                <a
+                  href={EXTENSION_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-[11px] font-semibold text-center text-primary hover:underline"
+                >
+                  Skip the password: add JiitSphere Connect to Chrome
+                </a>
+              )}
               <div className="flex items-center gap-3">
                 <div className="h-px flex-1 bg-border/60" />
                 <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/70">
