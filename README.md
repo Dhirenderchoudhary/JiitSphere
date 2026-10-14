@@ -1,192 +1,119 @@
-<div>
-  <p align="center">
-  <img src="web/public/jiitsphere-logo.png" width="150" alt="JiitSphere Logo">
-</p>
+# JiitSphere
 
-<div align="center">
+JiitSphere is a site for students of Jaypee Institute of Information Technology,
+Noida. It puts study material and your portal data (attendance, grades, exams)
+in one place, and it is live at https://jiitsphere.com.
 
-<h1>JiitSphere</h1>
+## What it does
 
-<p><strong>The ultimate study material & student portal platform for JIIT students.</strong></p>
+**Study material.** Notes, slides, previous year papers and lab files, sorted by
+degree, branch, year, semester, subject and type. PDFs and slides open in the
+browser. Signing in with a college Google account (`@mail.jiit.ac.in`) gives
+full access; guests get five views or downloads first.
 
-<p><em>Notes, slides, PYQs, lectures, and an integrated web portal.</em></p>
+**Portal data.** Attendance for every subject, with the day-by-day record and how
+many classes you can still miss, plus grades, exam schedules, registered
+subjects, fees and your profile. It all comes from the official JIIT web portal.
 
-<p>
-  <a href="https://github.com/Dhirenderchoudhary/JiitSphere/actions/workflows/ci.yml">
-    <img src="https://github.com/Dhirenderchoudhary/JiitSphere/actions/workflows/ci.yml/badge.svg" alt="CI/CD Pipeline">
-  </a>
-  <a href="https://codecov.io/gh/Dhirenderchoudhary/JiitSphere">
-    <img src="https://codecov.io/gh/Dhirenderchoudhary/JiitSphere/branch/main/graph/badge.svg" alt="Coverage">
-  </a>
-  <a href="https://www.gnu.org/licenses/gpl-3.0">
-    <img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="GPLv3">
-  </a>
-  <a href="http://makeapullrequest.com">
-    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" alt="PRs Welcome">
-  </a>
-</p>
+**Signing in to the portal.** The JIIT portal now signs students in with Google
+only, and Google only allows that on the portal's own page. The JiitSphere
+Connect extension for Chrome and Edge opens the portal, lets you sign in there
+as usual, and hands the session back to JiitSphere. Phones can't run
+extensions, so portal data needs a computer; everything else works on a phone.
+Try Demo shows the dashboard with sample data and no account.
 
-</div>
+**Install as an app.** On Android and iPhone the site offers to install itself to
+the home screen and then opens full screen.
 
+## How the repository is laid out
 
-## 📖 Table of Contents
+| Folder | What it is | Where it runs |
+|---|---|---|
+| `web/` | Next.js 14 site (App Router, Tailwind CSS) | Vercel |
+| `backend/` | Express API: study material, portal sessions, admin | Render |
+| `extension/` | JiitSphere Connect, a Manifest V3 Chrome extension | Chrome Web Store |
 
-- [About the Project](#-about-the-project)
-- [Key Features](#-key-features)
-- [Tech Stack](#-tech-stack)
-- [Getting Started](#-getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation & Execution](#installation--execution)
-- [Deployment & API](#-deployment--api)
-- [Useful Commands](#-useful-commands)
-- [Rollback Strategy](#-rollback-strategy)
-- [License](#-license)
+Study material metadata lives in MongoDB. The files are on Cloudflare R2 behind
+`files.jiitsphere.com`; the backend talks to R2 through its S3-compatible API.
+Portal sessions are kept in memory on the backend and expire on their own.
 
----
+## Running it locally
 
-## 🚀 About the Project
+You need Node.js 22, pnpm and a MongoDB database (local or Atlas).
 
-**JiitSphere** is a comprehensive platform built specifically for students of Jaypee Institute of Information Technology (JIIT), Noida. It seamlessly aggregates study resources (PDFs, PPTs, PYQs, lectures) and integrates directly with the JIIT student web portal. 
-
----
-
-## ✨ Key Features
-
-- **📚 Robust Study Materials API:** Browse logically by Degree ➔ Branch ➔ Year ➔ Semester ➔ Subject ➔ Resource Type.
-- **⚡ Auto-filtering & Caching:** Instant results as you type and filter, aggressively cached using Node-Cache for peak performance.
-- **📖 In-app Document Viewer:** Read PDFs and PPTs directly within the portal—no external downloads required.
-- **🛡️ Admin Dashboards & Validation:** Strict data integrity with Zod-enforced schema validation during material uploads.
-- **🔗 WebKiosk Relay:** Directly syncs and interfaces with the JIIT WebKiosk.
-- **☁️ S3 Bulk Import:** Directly map and import study materials from existing AWS S3 bucket folder structures.
-- **👤 Guest Mode:** Allows unauthenticated users to download up to 5 resources before requiring a JIIT login.
-- **📱 PWA Ready:** Production-grade Progressive Web App featuring offline fallback, dark mode, strict CORS, and Express rate limiting.
-
----
-
-## 🛠 Tech Stack
-
-### Frontend
-- **Framework:** Next.js 14 (App Router)
-- **Styling:** Tailwind CSS & shadcn/ui
-- **PWA:** Service Workers, Manifest
-
-### Backend
-- **Core:** Express.js & Node.js
-- **Database:** MongoDB
-- **Storage:** AWS S3
-
-### Auth & Security
-- **Authentication:** NextAuth (Google OAuth, restricted to `@mail.jiit.ac.in`) + Guest access limits
-- **Validation:** Zod (for env variables & API schemas)
-- **Caching:** Node-Cache
-
----
-
-## 🏁 Getting Started
-
-Follow these instructions to set up the project locally.
-
-### Prerequisites
-
-- **Node.js** (v20 or higher recommended)
-- **MongoDB** (Local instance or MongoDB Atlas URI)
-- **pnpm** installed globally (`npm i -g pnpm`)
-
-### Installation & Execution
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/Dhirenderchoudhary/JiitSphere.git
-   cd JiitSphere
-   ```
-
-2. **Install Root Dependencies (Husky):**
-   ```bash
-   pnpm install
-   ```
-
-3. **Backend Setup:**
-   ```bash
-   cd backend
-   cp .env.example .env
-   # Add your MongoDB URI and OAuth secrets to .env
-   pnpm install
-   pnpm run dev
-   ```
-   > 💡 *Note: Environment variables are strictly validated on startup using Zod. The server will crash gracefully and inform you if required variables are missing.*
-
-4. **Frontend Setup:**
-   Open a new terminal session and run:
-   ```bash
-   cd web
-   cp .env.local.example .env.local
-   # Fill in the required environment variables
-   pnpm install
-   pnpm run dev
-   ```
-
-5. **Test & Lint (Root Folder):**
-   Run all checks across the monorepo:
-   ```bash
-   pnpm run test:all
-   pnpm run lint:all
-   ```
-
----
-
-## 🌐 Deployment & API
-
-This repository includes a Render Blueprint at `render.yaml` for seamless monorepo deployment.
-
-1. In Render, choose **New +** ➔ **Blueprint** and select this repository.
-2. Render will automatically provision two services:
-   - `jiitsphere-backend` (Root: `backend`, Health Check: `/health`)
-   - `jiitsphere-web` (Root: `web`)
-3. **Environment Variables on Render:**
-   - **Backend:** Reference `backend/.env.example`
-   - **Web:** Reference `web/.env.local.example`
-4. **Connect Frontend to Backend:**
-   - `NEXT_PUBLIC_API_BASE_URL=https://<your-backend>.onrender.com/api/v1`
-   - `INTERNAL_API_BASE_URL=https://<your-backend>.onrender.com/api/v1`
-
----
-
-## 🧰 Useful Commands
-
-### S3 Import (Backend)
-Import files directly from your configured AWS S3 bucket:
 ```bash
-cd backend
-pnpm run import:s3              # Import from S3 bucket
-pnpm run import:s3 -- --dry-run # Preview the import without making changes
+git clone https://github.com/Dhirenderchoudhary/JiitSphere.git
+cd JiitSphere
+pnpm install
 ```
 
-### Code Formatting (Backend)
+Start the API:
+
 ```bash
 cd backend
-pnpm run format   # Prettier
-pnpm run lint     # ESLint
+cp .env.example .env    # fill in MONGODB_URI, AUTH_SECRET and the storage keys
+pnpm run dev
 ```
 
----
+The backend checks its environment on startup and stops with a message naming
+anything that is missing.
 
-## ⏪ Rollback Strategy
+In a second terminal, start the site:
 
-In case a bad deployment reaches production, you can trigger an automatic Render rollback directly from GitHub Actions:
+```bash
+cd web
+cp .env.local.example .env.local
+pnpm run dev
+```
 
-1. Navigate to the **Actions** tab in this GitHub repository.
-2. Select **Deploy JiitSphere** from the left sidebar.
-3. Click **Run workflow**.
-4. In the `deploy_id` field, enter the ID of the previous stable deployment *(Find this ID in Render's dashboard under Deploys, e.g., `dep-cjabc123...`)*.
-5. Click **Run workflow**. The GitHub Action will instruct Render to immediately rollback the backend and verify the health check.
+The site runs on http://localhost:3000. To try portal sign-in locally, load
+`extension/` unpacked in Chrome; its README explains the one change it needs for
+localhost.
 
----
+## Tests and checks
 
-## 📜 License
+From the repository root:
 
-This project is licensed under the **GNU General Public License v3.0 or later** (GPL-3.0-or-later). See the [LICENSE](LICENSE) file for more details.
+```bash
+pnpm run test:all    # backend and web tests
+pnpm run lint:all    # ESLint for both packages
+```
 
----
-<div align="center">
-  <i>Built with ❤️ for the students of JIIT</i>
-</div>
+The same checks run on every pull request, and a Git hook runs the tests before
+each push.
+
+`pnpm --filter jiit-study-material-backend bench:portal` measures how long the
+portal dashboard takes to load against a fake portal with a fixed delay per
+request. Pass the delay in milliseconds as the first argument.
+
+## Adding study material
+
+Material is imported from a folder tree or from the storage bucket, both laid
+out by degree, branch, year, semester and subject.
+
+```bash
+cd backend
+pnpm run import:s3 StudyMaterial/ --dry-run    # preview an import from the bucket
+pnpm run import:s3 StudyMaterial/              # import it
+pnpm run import:folder <path> --dry-run        # preview an import from a folder
+pnpm run normalize:metadata                    # report inconsistent metadata
+pnpm run normalize:metadata:apply              # fix it
+```
+
+The first argument is the bucket prefix or folder. Pass it before any flags; a
+bare `--` would be read as the prefix.
+
+## Deploying
+
+Merging to `main` deploys the site on Vercel and the API on Render.
+
+If a bad backend deploy reaches production, roll it back from GitHub: open
+Actions, choose **Deploy JiitSphere**, click **Run workflow**, and enter the ID of
+the last good deploy from the Render dashboard (it looks like `dep-...`).
+
+The Chrome extension is published separately. Its README covers building the
+upload and the store listing.
+
+## License
+
+GPL-3.0-or-later. See [LICENSE](LICENSE).
