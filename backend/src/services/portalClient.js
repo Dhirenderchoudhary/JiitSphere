@@ -129,10 +129,12 @@ class PortalClient {
   async post(path, payload, opts = {}) {
     const { encrypted = true, timeout = DEFAULT_TIMEOUT_MS } = opts;
 
-    const safeUserId = String(
-      this.auth.userid || this.auth.clientid || this.auth.memberid || 'anon'
-    );
-    const dedupKey = `POST:${safeUserId}:${path}:${payloadHash(payload)}`;
+    // Key on the token, not the claimed identity: requests merged across two
+    // tokens would hand one caller the other's portal data.
+    const caller = this.auth.token
+      ? payloadHash(this.auth.token)
+      : String(this.auth.userid || this.auth.clientid || this.auth.memberid || 'anon');
+    const dedupKey = `POST:${caller}:${path}:${payloadHash(payload)}`;
     const existing = inFlightCache.get(dedupKey);
     if (existing) return existing;
 
@@ -252,18 +254,25 @@ class PortalClient {
       });
 
       if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        const errMsg = String(errData?.status?.errors || errData?.message || '');
         // If encrypted request got a 400 due to JSON parse error, retry with plain JSON
         if (encrypted && response.status >= 400 && response.status < 500) {
-          const errData = await response.json().catch(() => null);
-          const errMsg = String(errData?.status?.errors || errData?.message || '').toLowerCase();
-          if (errMsg.includes('json parse error') || errMsg.includes('unrecognized token')) {
+          const lowered = errMsg.toLowerCase();
+          if (lowered.includes('json parse error') || lowered.includes('unrecognized token')) {
             // Retry with plain JSON (not encrypted)
             return this._postOnce(path, payload, false, timeout);
           }
         }
-        throw new PortalError('FETCH_ERROR', `POST ${path} returned HTTP ${response.status}`, {
-          httpStatus: response.status,
-        });
+        const reason = errMsg ? `: ${errMsg.slice(0, 200)}` : '';
+        throw new PortalError(
+          'FETCH_ERROR',
+          `POST ${path} returned HTTP ${response.status}${reason}`,
+          {
+            httpStatus: response.status,
+            portalStatus: errData?.status,
+          }
+        );
       }
 
       const data = await response.json();

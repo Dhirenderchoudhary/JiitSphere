@@ -273,6 +273,14 @@ export const loginUser = async (payload: JsonObject) => {
   });
 };
 
+export const loginPortalWithGoogle = async (response: JsonObject) => {
+  return portalJsonRequest('/auth/portal-google', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ response }),
+  });
+};
+
 export const loginPortalDemo = async () => {
   return portalJsonRequest('/auth/demo-login', {
     method: 'POST',
