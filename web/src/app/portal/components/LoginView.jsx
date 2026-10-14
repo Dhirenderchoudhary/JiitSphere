@@ -41,6 +41,7 @@ export default function LoginView({ onAuth, collegeEmail = '' }) {
   const [loading, setLoading] = useState(false);
   const [attemptDiagnostics, setAttemptDiagnostics] = useState([]);
   const [hasExtension, setHasExtension] = useState(false);
+  const [canAddExtension, setCanAddExtension] = useState(false);
   const [waitingOnPortal, setWaitingOnPortal] = useState(false);
 
   const normalizeUiError = (message) => {
@@ -138,6 +139,11 @@ export default function LoginView({ onAuth, collegeEmail = '' }) {
     };
     window.addEventListener('message', listener);
     window.postMessage({ jiitsphere: 'hello' }, window.location.origin);
+    // Phones can't run Chrome extensions; they install the site as an app instead.
+    const isPhone =
+      /android|iphone|ipad|ipod/i.test(navigator.userAgent) ||
+      (/macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+    setCanAddExtension(!isPhone);
     return () => window.removeEventListener('message', listener);
   }, []);
 
@@ -371,7 +377,7 @@ export default function LoginView({ onAuth, collegeEmail = '' }) {
               <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
                 {googleHint}
               </p>
-              {!hasExtension && (
+              {canAddExtension && !hasExtension && (
                 <a
                   href={EXTENSION_URL}
                   target="_blank"
