@@ -14,7 +14,6 @@
 
 const { PortalClient } = require('./portalClient');
 const cache = require('./portalCache');
-const env = require('../config/env');
 
 // ── Cache TTLs ─────────────────────────────────────────────────────────────
 const META_CACHE_TTL_MS = 10 * 60 * 1000; // 10 min — semesters rarely change
@@ -22,11 +21,6 @@ const ATTEND_CACHE_TTL_MS = 5 * 60 * 1000; // 5 min  — attendance can update
 const COUNTS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-// A refresh still reuses anything fetched within the sync interval: the
-// dashboard asks for one on every load, seconds after sign-in fetched it all.
-const freshness = (forceRefresh) =>
-  forceRefresh ? { maxAgeMs: env.portalRealtimeMinSyncIntervalMs } : {};
 
 const userKey = (authContext) =>
   String(authContext?.userid || authContext?.enrollmentno || authContext?.memberid || 'unknown');
@@ -138,8 +132,10 @@ const fetchAttendanceMeta = async (relaySession, authContext, opts = {}) => {
   const uid = userKey(authContext);
 
   // Check cache
-  const cached = cache.get(uid, 'attendance-meta', freshness(forceRefresh));
-  if (cached) return cached;
+  if (!forceRefresh) {
+    const cached = cache.get(uid, 'attendance-meta');
+    if (cached) return cached;
+  }
 
   const client = new PortalClient(relaySession, authContext);
 
@@ -260,8 +256,10 @@ const fetchAttendance = async (relaySession, authContext, semesterId, opts = {})
   const cacheScope = `attendance:${semesterId}`;
 
   // Check cache
-  const cached = cache.get(uid, cacheScope, freshness(forceRefresh));
-  if (cached) return cached;
+  if (!forceRefresh) {
+    const cached = cache.get(uid, cacheScope);
+    if (cached) return cached;
+  }
 
   // Get meta if not provided (need stynumber + semester details)
   const attendanceMeta = meta || (await fetchAttendanceMeta(relaySession, authContext));
@@ -333,8 +331,10 @@ const fetchSubjectDailyAttendance = async (
   const uid = userKey(authContext);
   const cacheScope = `subject-daily:${semesterId}:${subjectCode}`;
 
-  const cached = cache.get(uid, cacheScope, freshness(forceRefresh));
-  if (cached) return cached;
+  if (!forceRefresh) {
+    const cached = cache.get(uid, cacheScope);
+    if (cached) return cached;
+  }
 
   const attendanceMeta = meta || (await fetchAttendanceMeta(relaySession, authContext));
   const semesterRow = attendanceMeta.semesters.find(
@@ -389,17 +389,16 @@ const fetchSubjectDailyAttendance = async (
     })
     .catch((e) => {
       console.error('PORTAL API ERROR:', e.message);
-      return { error: true, httpStatus: e.details?.httpStatus };
+      return { error: true };
     });
 
   const result = {
     studentAttdsummarylist: data?.studentAttdsummarylist || [],
   };
 
-  // Cache the portal's answer even when it has no daily records (it replies 400 or
-  // 404), so each page load doesn't re-ask. Auth failures, timeouts and 5xx stay uncached.
-  const portalAnswered = !data?.error || [400, 404].includes(data.httpStatus);
-  if (portalAnswered) cache.set(uid, cacheScope, result, COUNTS_CACHE_TTL_MS);
+  if (result.studentAttdsummarylist.length) {
+    cache.set(uid, cacheScope, result, COUNTS_CACHE_TTL_MS);
+  }
 
   return result;
 };

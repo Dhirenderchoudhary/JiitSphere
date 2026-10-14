@@ -1589,9 +1589,7 @@ const buildAuthContextFromRelaySession = (relaySession) => {
     name: regdata?.name || null,
     enrollmentno: regdata?.enrollmentno || null,
     userid: regdata?.userid || null,
-    // The portal's Google login returns no memberid; it knows the student from the
-    // token. Undefined (not null) keeps studentid out of the payloads entirely.
-    memberid: regdata?.memberid || undefined,
+    memberid: regdata?.memberid || null,
     membertype: regdata?.membertype || null,
   };
 };
@@ -3060,13 +3058,6 @@ const shouldRefreshRealtime = (req) => {
   return env.portalRealtimeDefault;
 };
 
-// The dashboard asks for a refresh on every load. Data synced within the sync
-// interval (sign-in counts) is fresh enough; only older data goes back to the portal.
-const wantsFreshData = (req, session) =>
-  shouldRefreshRealtime(req) &&
-  Date.now() - Number(session?.dataset?.lastRealtimeSyncAt || 0) >=
-    env.portalRealtimeMinSyncIntervalMs;
-
 const hasRenderableGradesDataset = (dataset = {}) => {
   const hasSemesters = Array.isArray(dataset?.semesters) && dataset.semesters.length > 0;
   const hasSummaries = Array.isArray(dataset?.grades) && dataset.grades.length > 0;
@@ -3074,7 +3065,8 @@ const hasRenderableGradesDataset = (dataset = {}) => {
   return hasSemesters || hasSummaries || hasGradeCards;
 };
 
-const refreshDatasetRealtime = async (session, req) => {
+const refreshDatasetRealtime = async (session, req, options = {}) => {
+  const { bypassThrottle = false } = options;
   if (String(session?.dataset?.mode || '').toLowerCase() === 'public-demo') return false;
   if (!shouldRefreshRealtime(req)) return false;
 
@@ -3082,7 +3074,7 @@ const refreshDatasetRealtime = async (session, req) => {
   const now = Date.now();
   const lastSyncAt = Number(session?.dataset?.lastRealtimeSyncAt || 0);
   const minInterval = Number(env.portalRealtimeMinSyncIntervalMs || 0);
-  if (minInterval > 0 && now - lastSyncAt < minInterval) {
+  if (!bypassThrottle && minInterval > 0 && now - lastSyncAt < minInterval) {
     return false;
   }
 
@@ -3246,22 +3238,6 @@ const getAttendanceMeta = async (req, res) => {
   const session = await ensureSession(req, res);
   if (!session) return undefined;
 
-  // Sign-in just loaded the semesters; while they are fresh, skip the portal.
-  if (!wantsFreshData(req, session) && session.dataset.semesters?.length) {
-    return res.status(200).json({
-      success: true,
-      data: {
-        semesters: session.dataset.semesters,
-        latest_semester: session.dataset.semesters[0],
-        latest_header: {
-          generatedBy: 'session-cache',
-          realData: session.dataset.realData,
-          message: 'Live portal data via attendance service.',
-        },
-      },
-    });
-  }
-
   const { relaySessionId } = session.dataset;
   const ownerId = ownerKey(req);
   const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
@@ -3270,7 +3246,7 @@ const getAttendanceMeta = async (req, res) => {
   // If we have a live relay session, fetch fresh meta from portal
   if (relaySession && authContext?.instituteid) {
     try {
-      const forceRefresh = wantsFreshData(req, session);
+      const forceRefresh = parseBooleanLike(req.query?.refresh, false);
       const meta = await attendanceService.fetchAttendanceMeta(relaySession, authContext, {
         forceRefresh,
       });
@@ -3329,7 +3305,7 @@ const hydrateAttendanceForSemester = async (session, req, sem) => {
   const ownerId = ownerKey(req);
   const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
   const authContext = buildAuthContextFromRelaySession(relaySession);
-  if (!(relaySession && authContext?.instituteid)) {
+  if (!(relaySession && authContext?.instituteid && authContext?.memberid)) {
     return null;
   }
 
@@ -3642,6 +3618,7 @@ const resolveSubjectDailyPayload = async (session, req, sem, subject) => {
     const hasFetchContext =
       relaySession &&
       authContext?.instituteid &&
+      authContext?.memberid &&
       semesterRow?.registration_code &&
       (subjectContext?.subjectid || subjectContext?.subjectcode);
 
@@ -3701,44 +3678,6 @@ const resolveSubjectDailyPayload = async (session, req, sem, subject) => {
   }
 };
 
-// Sign-in stores the same portal answers the attendance service builds its meta
-// from, so passing this saves the service a round trip before each call. The
-// latest header's stynumber is what the portal expects; without headers, let the
-// service fetch its own meta.
-const attendanceMetaFromDataset = (dataset) => {
-  const semesters = dataset?.semesters || [];
-  const headers = dataset?.attendanceHeaders || [];
-  const latestStynumber = headers[0]?.stynumber || headers[0]?.sty_number;
-  if (!semesters.length || !latestStynumber) return null;
-  return { semesters, headers, latestStynumber };
-};
-
-// Enough to fetch a usual semester's subjects in one portal round trip.
-const SUBJECT_DAILY_CONCURRENCY = 6;
-
-// One loader for a subject's daily attendance, shared by the post-login warm-up,
-// the counts route and the subject route, so all three read the same cache.
-const loadSubjectDaily = async (session, req, sem, subjectCode) => {
-  const { relaySessionId } = session.dataset;
-  const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerKey(req)) : null;
-  const authContext = buildAuthContextFromRelaySession(relaySession);
-  if (relaySession && authContext?.instituteid) {
-    const rows = session.dataset.attendanceData?.[sem]?.studentattendancelist;
-    return attendanceService.fetchSubjectDailyAttendance(
-      relaySession,
-      authContext,
-      sem,
-      subjectCode,
-      {
-        meta: attendanceMetaFromDataset(session.dataset),
-        // Stored rows are the portal's raw shape; the service expects normalized ones.
-        attendanceRows: rows?.length ? rows.map(attendanceService.normalizeAttendanceRow) : null,
-      }
-    );
-  }
-  return resolveSubjectDailyPayload(session, req, sem, subjectCode);
-};
-
 const warmSubjectDailyCountsForSemester = async (session, req, sem) => {
   const ownerId = ownerKey(req);
   const warmKey = `${ownerId}:${sem}`;
@@ -3756,10 +3695,10 @@ const warmSubjectDailyCountsForSemester = async (session, req, sem) => {
       .filter((row) => String(row?.subjectcode || '').trim())
       .filter((row) => Number(row?.totalclasses || 0) <= 0);
 
-    await mapWithConcurrency(pending, SUBJECT_DAILY_CONCURRENCY, async (row) => {
-      const subjectCode = String(row?.subjectcode || row?.individualsubjectcode || '').trim();
+    await mapWithConcurrency(pending, 4, async (row) => {
+      const subjectCode = row?.subjectcode || row?.individualsubjectcode || row?.subjectdesc;
       try {
-        await loadSubjectDaily(session, req, sem, subjectCode);
+        await resolveSubjectDailyPayload(session, req, sem, subjectCode);
       } catch (_error) {
         return false;
       }
@@ -3780,7 +3719,7 @@ const getAttendance = async (req, res) => {
   if (!session) return undefined;
 
   const sem = req.query.semester || session.dataset.semesters[0]?.registration_id;
-  const forceRefresh = wantsFreshData(req, session);
+  const forceRefresh = parseBooleanLike(req.query?.refresh, false);
 
   // Check session cache first (fast path)
   if (!forceRefresh) {
@@ -3804,7 +3743,6 @@ const getAttendance = async (req, res) => {
     try {
       const result = await attendanceService.fetchAttendance(relaySession, authContext, sem, {
         forceRefresh,
-        meta: attendanceMetaFromDataset(session.dataset),
       });
       if (result.studentattendancelist.length) {
         // Update session cache
@@ -3866,9 +3804,25 @@ const getAttendanceCounts = async (req, res) => {
     pendingRows.push({ subjectCode });
   }
 
-  await mapWithConcurrency(pendingRows, SUBJECT_DAILY_CONCURRENCY, async ({ subjectCode }) => {
+  await mapWithConcurrency(pendingRows, 4, async ({ subjectCode }) => {
     try {
-      const payload = await loadSubjectDaily(session, req, sem, subjectCode);
+      const { relaySessionId } = session.dataset;
+      const ownerId = ownerKey(req);
+      const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
+      const authContext = buildAuthContextFromRelaySession(relaySession);
+
+      let payload = null;
+      if (relaySession && authContext?.instituteid) {
+        payload = await attendanceService.fetchSubjectDailyAttendance(
+          relaySession,
+          authContext,
+          sem,
+          subjectCode
+        );
+      } else {
+        payload = await resolveSubjectDailyPayload(session, req, sem, subjectCode);
+      }
+
       const summary = computeDailyCountSummary(payload?.studentAttdsummarylist || []);
       counts[subjectCode] = {
         attended: summary.attended,
@@ -4486,12 +4440,13 @@ const getGrades = async (req, res) => {
   if (!session) return undefined;
 
   const shouldRealtime = shouldRefreshRealtime(req);
+  const forceRealtime = parseBooleanLike(req?.query?.refresh, false);
   const hasCached = hasRenderableGradesDataset(session?.dataset);
 
   if (shouldRealtime && hasCached) {
-    refreshDatasetRealtime(session, req).catch(() => null);
+    refreshDatasetRealtime(session, req, { bypassThrottle: forceRealtime }).catch(() => null);
   } else {
-    await refreshDatasetRealtime(session, req);
+    await refreshDatasetRealtime(session, req, { bypassThrottle: forceRealtime });
   }
 
   return res.status(200).json({
@@ -4648,7 +4603,7 @@ const getExams = async (req, res) => {
   const session = await ensureSession(req, res);
   if (!session) return undefined;
 
-  const forceRefresh = wantsFreshData(req, session);
+  const forceRefresh = shouldRefreshRealtime(req);
   const cached = Array.isArray(session.dataset.exams) ? session.dataset.exams : [];
 
   if (!forceRefresh && cached.length) {
@@ -4762,7 +4717,7 @@ const getFees = async (req, res) => {
   if (!session) return undefined;
 
   const debugMode = String(req.query?.debug || '').trim() === '1';
-  const forceRefresh = wantsFreshData(req, session);
+  const forceRefresh = shouldRefreshRealtime(req);
   const debugAttempts = [];
 
   if (!forceRefresh && Array.isArray(session.dataset.fees) && session.dataset.fees.length) {
