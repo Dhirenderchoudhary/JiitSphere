@@ -48,7 +48,13 @@ export default function InstallAppButton({ className = '' }) {
 
   const handleInstall = async () => {
     if (deferredPrompt) {
-      deferredPrompt.prompt();
+      try {
+        // The phone install banner holds the same event and may have used it.
+        await deferredPrompt.prompt();
+      } catch {
+        setDeferredPrompt(null);
+        return;
+      }
       const choice = await deferredPrompt.userChoice;
       if (choice?.outcome === 'accepted') {
         setDeferredPrompt(null);
