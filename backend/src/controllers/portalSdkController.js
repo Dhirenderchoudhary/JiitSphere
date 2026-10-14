@@ -1589,7 +1589,9 @@ const buildAuthContextFromRelaySession = (relaySession) => {
     name: regdata?.name || null,
     enrollmentno: regdata?.enrollmentno || null,
     userid: regdata?.userid || null,
-    memberid: regdata?.memberid || null,
+    // The portal's Google login returns no memberid; it knows the student from the
+    // token. Undefined (not null) keeps studentid out of the payloads entirely.
+    memberid: regdata?.memberid || undefined,
     membertype: regdata?.membertype || null,
   };
 };
@@ -3305,7 +3307,7 @@ const hydrateAttendanceForSemester = async (session, req, sem) => {
   const ownerId = ownerKey(req);
   const relaySession = relaySessionId ? ensureOwnedSession(relaySessionId, ownerId) : null;
   const authContext = buildAuthContextFromRelaySession(relaySession);
-  if (!(relaySession && authContext?.instituteid && authContext?.memberid)) {
+  if (!(relaySession && authContext?.instituteid)) {
     return null;
   }
 
@@ -3618,7 +3620,6 @@ const resolveSubjectDailyPayload = async (session, req, sem, subject) => {
     const hasFetchContext =
       relaySession &&
       authContext?.instituteid &&
-      authContext?.memberid &&
       semesterRow?.registration_code &&
       (subjectContext?.subjectid || subjectContext?.subjectcode);
 
