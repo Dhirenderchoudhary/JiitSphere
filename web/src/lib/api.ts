@@ -265,14 +265,6 @@ export const fetchMaterialById = async (id: string) => {
   return backendJsonRequest(`/materials/${id}`);
 };
 
-export const loginUser = async (payload: JsonObject) => {
-  return portalJsonRequest('/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-};
-
 export const loginPortalWithGoogle = async (response: JsonObject) => {
   return portalJsonRequest('/auth/portal-google', {
     method: 'POST',
@@ -325,37 +317,6 @@ export const fetchStudyAnalytics = async () => {
   const data = await parseJson<{ message?: string } & JsonObject>(response);
   if (!response.ok) throw new Error(data.message || 'Failed to fetch study analytics');
   return data;
-};
-
-export const startPortalRelaySession = async (token: string) => {
-  return portalJsonRequest('/portal/relay/start', {
-    method: 'POST',
-    headers: authHeader(token),
-  });
-};
-
-export const fetchPortalRelayCaptcha = async (token: string, payload: JsonObject = {}) => {
-  return portalJsonRequest('/portal/relay/captcha', {
-    method: 'POST',
-    headers: authHeader(token),
-    body: JSON.stringify(payload),
-  });
-};
-
-export const tryPortalRelayLogin = async (token: string, payload: JsonObject) => {
-  return portalJsonRequest('/portal/relay/try-login', {
-    method: 'POST',
-    headers: authHeader(token),
-    body: JSON.stringify(payload),
-  });
-};
-
-export const portalRelayRequest = async (token: string, payload: JsonObject) => {
-  return portalJsonRequest('/portal/relay/request', {
-    method: 'POST',
-    headers: authHeader(token),
-    body: JSON.stringify(payload),
-  });
 };
 
 export const portalSdkLogin = async (token: string, payload: JsonObject) => {

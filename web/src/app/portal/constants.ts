@@ -22,16 +22,8 @@ export const AUTO_REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const envFlag = (value: string | undefined, fallback = 'false') =>
   String(value || fallback).toLowerCase() === 'true';
 
-export const ALLOW_UNVERIFIED_PORTAL_LOGIN = envFlag(
-  process.env.NEXT_PUBLIC_ALLOW_UNVERIFIED_PORTAL_LOGIN,
-  'false'
-);
 export const SHOW_PORTAL_DIAGNOSTICS = envFlag(
   process.env.NEXT_PUBLIC_SHOW_PORTAL_DIAGNOSTICS,
-  'false'
-);
-export const SHOW_PORTAL_LOGIN_DIAGNOSTICS = envFlag(
-  process.env.NEXT_PUBLIC_SHOW_PORTAL_LOGIN_DIAGNOSTICS,
   'false'
 );
 export const SHOW_TECHNICAL_DETAILS = envFlag(

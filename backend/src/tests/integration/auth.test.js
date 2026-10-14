@@ -34,6 +34,15 @@ describe('Auth Integration Tests', () => {
 
       expect(res.status).toBe(403);
     });
+
+    it('no longer hands out a portal session for any enrollment number and password', async () => {
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ userId: '9921103001', password: 'anything', portalMode: true });
+
+      expect(res.status).toBe(403);
+      expect(res.body.data).toBeUndefined();
+    });
   });
 
   describe('POST /api/v1/auth/demo-login', () => {

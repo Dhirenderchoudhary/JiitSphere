@@ -75,16 +75,13 @@ const issuePortalLogin = (userId, name) => {
     env.authSecret
   );
 
-  // Creating the relay session is pure in-memory work, so hand it back with
-  // the token. The client used to spend a second full round trip on
-  // /portal/relay/start just to receive this UUID.
   const relaySessionId = createRelaySession(user.userId);
 
-  return { token, user, relaySessionId, relayBaseUrl: env.portalRelayBaseUrl };
+  return { token, user, relaySessionId };
 };
 
 const login = async (req, res) => {
-  const { userId, email, password, portalMode = false } = req.body || {};
+  const { userId, email, password } = req.body || {};
   const normalizedIdentifier = String(userId || email || '')
     .trim()
     .toLowerCase();
@@ -96,18 +93,6 @@ const login = async (req, res) => {
 
   if (normalizedIdentifier.length > 120 || normalizedPassword.length > 512) {
     return res.status(400).json({ success: false, message: 'Invalid credential payload' });
-  }
-
-  if (portalMode) {
-    if (!/^[a-z0-9._@-]{4,120}$/i.test(normalizedIdentifier)) {
-      return res.status(400).json({ success: false, message: 'Invalid user ID format' });
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: 'Portal pre-auth successful',
-      data: issuePortalLogin(normalizedIdentifier, makeDisplayName(normalizedIdentifier)),
-    });
   }
 
   if (!env.userAllowAll && !allowedUsers[normalizedIdentifier]) {
