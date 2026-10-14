@@ -15,10 +15,11 @@ the portal at any other time are ignored.
 
 1. Open `chrome://extensions` and turn on **Developer mode**.
 2. Click **Load unpacked** and pick this `extension` folder.
-3. Open JiitSphere at `http://localhost:3000/login` or `https://jiitsphere.com/login`.
+3. Open `https://jiitsphere.com/login`.
 
-To support another JiitSphere domain, add it to the third `matches` list in
-`manifest.json`.
+To try it against a local site, add `"http://localhost/*"` to the third
+`matches` list in `manifest.json` while testing. Keep it out of the store build:
+any page on localhost could then ask for the student's portal session.
 
 ## Publish to the Chrome Web Store
 

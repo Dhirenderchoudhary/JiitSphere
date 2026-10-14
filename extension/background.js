@@ -13,7 +13,14 @@ chrome.runtime.onMessage.addListener((message, sender) => {
 
 async function openPortal(siteTab) {
   const old = await getPending();
-  if (old) chrome.tabs.remove(old.portalTabId).catch(() => {});
+  if (old) {
+    // Forget it before closing its tab, or onRemoved would cancel the new request.
+    await setPending(null);
+    await chrome.tabs.remove(old.portalTabId).catch(() => {});
+    if (old.siteTabId !== siteTab.id) {
+      chrome.tabs.sendMessage(old.siteTabId, { kind: 'cancelled' }).catch(() => {});
+    }
+  }
 
   const portalTab = await chrome.tabs.create({ url: PORTAL_URL, openerTabId: siteTab.id });
   await setPending({ siteTabId: siteTab.id, siteWindowId: siteTab.windowId, portalTabId: portalTab.id });

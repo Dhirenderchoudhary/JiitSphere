@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const env = require('../config/env');
 const { sign } = require('../utils/token');
 const { createRelaySession, ensureOwnedSession } = require('../services/portalRelayService');
+const { PortalClient } = require('../services/portalClient');
 const { getSnapshot } = require('../services/requestAnalyticsStore');
 
 const allowedUsers = env.userAllowedIdentifiers.reduce((acc, identifier) => {
@@ -205,14 +206,35 @@ const demoLogin = (req, res) => {
     .json({ success: true, message: 'Demo login successful', data: { token, user } });
 };
 
+const collectValues = (node, out = new Set()) => {
+  if (node && typeof node === 'object') Object.values(node).forEach((v) => collectValues(v, out));
+  else if (node !== null && node !== undefined) out.add(String(node).trim().toLowerCase());
+  return out;
+};
+
+// The captured response is only a claim. Sessions are keyed by student, so
+// trusting it would let anyone post a junk token with someone else's enrollment
+// number and replace their session. The portal's own record for the token must
+// name the same student.
+const portalConfirmsStudent = async (portalToken, instituteId, userId) => {
+  const client = new PortalClient(
+    { cookies: {} },
+    { token: portalToken, instituteid: instituteId }
+  );
+  const info = await client.post(
+    '/StudentPortalAPI/studentpersinfo/getstudent-personalinformation',
+    { clientid: 'SOAU', instituteid: instituteId },
+    { encrypted: false }
+  );
+  return collectValues(info).has(userId);
+};
+
 /**
  * Takes the portal's own Google sign-in response, captured on the real portal
  * page by the JiitSphere extension. Google only issues tokens for the college
  * client ID on the portal's origin, so the browser has to sign in there.
- * A forged response gets nowhere: without a live portal token
- * /portal/sdk/login loads no real data, and the login page rejects that.
  */
-const portalGoogleLogin = (req, res) => {
+const portalGoogleLogin = async (req, res) => {
   const response = req.body?.response;
   const portalToken = String(response?.token || '').trim();
   const instituteId = String(response?.value || '').trim();
@@ -229,6 +251,24 @@ const portalGoogleLogin = (req, res) => {
     return res
       .status(400)
       .json({ success: false, message: 'The portal did not return a usable sign-in' });
+  }
+
+  let confirmed;
+  try {
+    confirmed = await portalConfirmsStudent(portalToken, instituteId, userId);
+  } catch (err) {
+    const status = err.details?.httpStatus;
+    if (status && status < 500) confirmed = false;
+    else {
+      return res
+        .status(502)
+        .json({ success: false, message: 'Could not reach the portal to confirm your sign-in' });
+    }
+  }
+  if (!confirmed) {
+    return res
+      .status(401)
+      .json({ success: false, message: 'The portal did not confirm this sign-in' });
   }
 
   const name = String(response.name || '').trim() || makeDisplayName(userId);

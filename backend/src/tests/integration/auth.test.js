@@ -55,12 +55,25 @@ describe('Auth Integration Tests', () => {
       clientid: 'JAYPEE',
       enrollmentno: '9921103001',
       userid: '9921103001',
-      memberid: 'MEM1',
       membertype: 'S',
       name: 'A Student',
     };
 
-    it('signs the student in from the captured portal response', async () => {
+    // The portal's personal-information record for whoever owns the token.
+    const portalRecordFor = (enrollment) =>
+      new Response(
+        JSON.stringify({
+          status: { responseStatus: 'Success' },
+          response: { generalinformation: { registrationno: enrollment } },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+
+    afterEach(() => jest.restoreAllMocks());
+
+    it('signs the student in once the portal confirms the token is theirs', async () => {
+      jest.spyOn(global, 'fetch').mockResolvedValue(portalRecordFor('9921103001'));
+
       const res = await request(app)
         .post('/api/v1/auth/portal-google')
         .send({ response: portalResponse });
@@ -78,6 +91,40 @@ describe('Auth Integration Tests', () => {
         .get('/api/v1/auth/me')
         .set('Authorization', `Bearer ${res.body.data.token}`);
       expect(me.body.data.user.userId).toBe('9921103001');
+    });
+
+    it("rejects a real token used with another student's enrollment number", async () => {
+      jest.spyOn(global, 'fetch').mockResolvedValue(portalRecordFor('9921103999'));
+
+      const res = await request(app)
+        .post('/api/v1/auth/portal-google')
+        .send({ response: portalResponse });
+
+      expect(res.status).toBe(401);
+    });
+
+    it('rejects a token the portal does not accept', async () => {
+      jest
+        .spyOn(global, 'fetch')
+        .mockResolvedValue(
+          new Response('{}', { status: 401, headers: { 'Content-Type': 'application/json' } })
+        );
+
+      const res = await request(app)
+        .post('/api/v1/auth/portal-google')
+        .send({ response: { ...portalResponse, token: 'junk' } });
+
+      expect(res.status).toBe(401);
+    });
+
+    it('says so when the portal cannot be reached', async () => {
+      jest.spyOn(global, 'fetch').mockRejectedValue(new TypeError('fetch failed'));
+
+      const res = await request(app)
+        .post('/api/v1/auth/portal-google')
+        .send({ response: portalResponse });
+
+      expect(res.status).toBe(502);
     });
 
     it('rejects a response without a portal token', async () => {

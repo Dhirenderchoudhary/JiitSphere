@@ -129,10 +129,12 @@ class PortalClient {
   async post(path, payload, opts = {}) {
     const { encrypted = true, timeout = DEFAULT_TIMEOUT_MS } = opts;
 
-    const safeUserId = String(
-      this.auth.userid || this.auth.clientid || this.auth.memberid || 'anon'
-    );
-    const dedupKey = `POST:${safeUserId}:${path}:${payloadHash(payload)}`;
+    // Key on the token, not the claimed identity: requests merged across two
+    // tokens would hand one caller the other's portal data.
+    const caller = this.auth.token
+      ? payloadHash(this.auth.token)
+      : String(this.auth.userid || this.auth.clientid || this.auth.memberid || 'anon');
+    const dedupKey = `POST:${caller}:${path}:${payloadHash(payload)}`;
     const existing = inFlightCache.get(dedupKey);
     if (existing) return existing;
 
