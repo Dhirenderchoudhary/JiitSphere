@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { Download, Share, SquarePlus, X } from 'lucide-react';
 import { Button } from 'components/ui/button';
 
@@ -27,6 +28,7 @@ const dismissedRecently = () => {
 };
 
 export default function InstallAppBanner() {
+  const pathname = usePathname();
   const [platform, setPlatform] = useState(null);
   const [installPrompt, setInstallPrompt] = useState(null);
 
@@ -62,7 +64,14 @@ export default function InstallAppBanner() {
   };
 
   const install = async () => {
-    installPrompt.prompt();
+    try {
+      // The navbar install button holds the same event; if it already used the
+      // prompt, a second prompt() throws.
+      await installPrompt.prompt();
+    } catch {
+      setInstallPrompt(null);
+      return;
+    }
     const { outcome } = await installPrompt.userChoice;
     setInstallPrompt(null);
     if (outcome === 'accepted') setPlatform(null);
@@ -85,9 +94,14 @@ export default function InstallAppBanner() {
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+    // The portal pins its tab bar to the bottom of phone screens; sit above it.
+    <div
+      className={`fixed inset-x-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
+        pathname?.startsWith('/portal') ? 'bottom-24' : 'bottom-0'
+      }`}
+    >
       <div
-        role="dialog"
+        role="region"
         aria-label="Install JiitSphere"
         className="mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-border bg-card/95 p-3 shadow-2xl backdrop-blur"
       >
