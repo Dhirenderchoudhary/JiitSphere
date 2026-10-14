@@ -18,7 +18,8 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
-    "test:ci": "NODE_OPTIONS=--experimental-vm-modules jest --ci --coverage --runInBand"
+    "test:ci": "NODE_OPTIONS=--experimental-vm-modules jest --ci --coverage --runInBand",
+    "bench:portal": "node src/scripts/benchPortalLoading.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1113.0",
