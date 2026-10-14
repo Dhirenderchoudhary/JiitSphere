@@ -18,7 +18,8 @@
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:ci": "jest --ci --coverage --runInBand"
+    "test:ci": "jest --ci --coverage --runInBand",
+    "bench:portal": "node src/scripts/benchPortalLoading.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1113.0",

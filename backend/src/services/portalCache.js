@@ -27,7 +27,9 @@ const cacheKey = (userId, scope) => `${userId}::${scope}`;
  * @param {string} scope
  * @returns {*|null}
  */
-const get = (userId, scope) => {
+// maxAgeMs lets a caller that wants fresher data than the TTL skip an entry
+// without evicting it for everyone else.
+const get = (userId, scope, { maxAgeMs } = {}) => {
   const key = cacheKey(userId, scope);
   const entry = store.get(key);
   if (!entry) return null;
@@ -35,6 +37,7 @@ const get = (userId, scope) => {
     store.delete(key);
     return null;
   }
+  if (maxAgeMs !== undefined && Date.now() - entry.storedAt > maxAgeMs) return null;
   return entry.value;
 };
 
@@ -47,7 +50,7 @@ const get = (userId, scope) => {
  */
 const set = (userId, scope, value, ttlMs = DEFAULT_TTL_MS) => {
   const key = cacheKey(userId, scope);
-  store.set(key, { value, expiresAt: Date.now() + ttlMs });
+  store.set(key, { value, storedAt: Date.now(), expiresAt: Date.now() + ttlMs });
 };
 
 /**
