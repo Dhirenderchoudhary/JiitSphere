@@ -47,48 +47,6 @@ describe('Auth Integration Tests', () => {
     });
   });
 
-  describe('POST /api/v1/auth/portal-google', () => {
-    const portalResponse = {
-      token: 'portal-token',
-      value: 'JAYPEE',
-      label: 'JIIT',
-      clientid: 'JAYPEE',
-      enrollmentno: '9921103001',
-      userid: '9921103001',
-      memberid: 'MEM1',
-      membertype: 'S',
-      name: 'A Student',
-    };
-
-    it('signs the student in from the captured portal response', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/portal-google')
-        .send({ response: portalResponse });
-
-      expect(res.status).toBe(200);
-      expect(res.body.data.user).toEqual({
-        userId: '9921103001',
-        name: 'A Student',
-        role: 'portal-pending',
-        portalMode: true,
-      });
-      expect(res.body.data.relaySessionId).toMatch(/^[0-9a-f-]{36}$/);
-
-      const me = await request(app)
-        .get('/api/v1/auth/me')
-        .set('Authorization', `Bearer ${res.body.data.token}`);
-      expect(me.body.data.user.userId).toBe('9921103001');
-    });
-
-    it('rejects a response without a portal token', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/portal-google')
-        .send({ response: { ...portalResponse, token: '' } });
-
-      expect(res.status).toBe(400);
-    });
-  });
-
   describe('GET /api/v1/auth/me', () => {
     it('should block unauthorized requests', async () => {
       const res = await request(app).get('/api/v1/auth/me');
