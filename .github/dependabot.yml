@@ -40,6 +40,14 @@ updates:
       # both have to be migrated by hand, so it is not a bump.
       - dependency-name: "tailwindcss"
         update-types: ["version-update:semver-major"]
+      # ESLint 9+ drops the .eslintrc files both packages use, and
+      # eslint-config-next 15+ targets Next 15+. Migrate them with Next.
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint-config-next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
