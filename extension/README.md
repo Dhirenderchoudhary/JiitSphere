@@ -26,5 +26,8 @@ any page on localhost could then ask for the student's portal session.
 Bump `version` in `manifest.json`, then build the upload zip from this folder:
 
 ```sh
-zip -r ../jiitsphere-connect.zip . -x README.md
+zip -r ../jiitsphere-connect.zip . -x README.md 'store-listing/*'
 ```
+
+The listing's icon, screenshots and promo tiles are in `store-listing/`. They are
+uploaded in the developer console, not shipped inside the extension.
