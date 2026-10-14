@@ -389,16 +389,17 @@ const fetchSubjectDailyAttendance = async (
     })
     .catch((e) => {
       console.error('PORTAL API ERROR:', e.message);
-      return { error: true };
+      return { error: true, httpStatus: e.details?.httpStatus };
     });
 
   const result = {
     studentAttdsummarylist: data?.studentAttdsummarylist || [],
   };
 
-  if (result.studentAttdsummarylist.length) {
-    cache.set(uid, cacheScope, result, COUNTS_CACHE_TTL_MS);
-  }
+  // Cache the portal's answer even when it has no daily records (it replies 400 or
+  // 404), so each page load doesn't re-ask. Auth failures, timeouts and 5xx stay uncached.
+  const portalAnswered = !data?.error || [400, 404].includes(data.httpStatus);
+  if (portalAnswered) cache.set(uid, cacheScope, result, COUNTS_CACHE_TTL_MS);
 
   return result;
 };
