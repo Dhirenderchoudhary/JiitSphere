@@ -252,18 +252,25 @@ class PortalClient {
       });
 
       if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        const errMsg = String(errData?.status?.errors || errData?.message || '');
         // If encrypted request got a 400 due to JSON parse error, retry with plain JSON
         if (encrypted && response.status >= 400 && response.status < 500) {
-          const errData = await response.json().catch(() => null);
-          const errMsg = String(errData?.status?.errors || errData?.message || '').toLowerCase();
-          if (errMsg.includes('json parse error') || errMsg.includes('unrecognized token')) {
+          const lowered = errMsg.toLowerCase();
+          if (lowered.includes('json parse error') || lowered.includes('unrecognized token')) {
             // Retry with plain JSON (not encrypted)
             return this._postOnce(path, payload, false, timeout);
           }
         }
-        throw new PortalError('FETCH_ERROR', `POST ${path} returned HTTP ${response.status}`, {
-          httpStatus: response.status,
-        });
+        const reason = errMsg ? `: ${errMsg.slice(0, 200)}` : '';
+        throw new PortalError(
+          'FETCH_ERROR',
+          `POST ${path} returned HTTP ${response.status}${reason}`,
+          {
+            httpStatus: response.status,
+            portalStatus: errData?.status,
+          }
+        );
       }
 
       const data = await response.json();
