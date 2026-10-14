@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const env = require('../config/env');
 const { sign } = require('../utils/token');
-const { createRelaySession, ensureOwnedSession } = require('../services/portalRelayService');
+const { createRelaySession } = require('../services/portalRelayService');
 const { getSnapshot } = require('../services/requestAnalyticsStore');
 
 const allowedUsers = env.userAllowedIdentifiers.reduce((acc, identifier) => {
@@ -60,28 +60,6 @@ const normalizeDemoUser = (user = {}) => {
   };
 };
 
-const issuePortalLogin = (userId, name) => {
-  const user = { userId, name, role: 'portal-pending', portalMode: true };
-
-  const token = sign(
-    {
-      ...user,
-      scope: ['portal:relay', 'portal:sdk-login'],
-      // iat lets /auth/me slide the window for users who keep coming back.
-      iat: Date.now(),
-      exp: Date.now() + env.portalTokenMaxAgeMs,
-    },
-    env.authSecret
-  );
-
-  // Creating the relay session is pure in-memory work, so hand it back with
-  // the token. The client used to spend a second full round trip on
-  // /portal/relay/start just to receive this UUID.
-  const relaySessionId = createRelaySession(user.userId);
-
-  return { token, user, relaySessionId, relayBaseUrl: env.portalRelayBaseUrl };
-};
-
 const login = async (req, res) => {
   const { userId, email, password, portalMode = false } = req.body || {};
   const normalizedIdentifier = String(userId || email || '')
@@ -102,10 +80,33 @@ const login = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid user ID format' });
     }
 
+    const user = {
+      userId: normalizedIdentifier,
+      name: makeDisplayName(normalizedIdentifier),
+      role: 'portal-pending',
+      portalMode: true,
+    };
+
+    const token = sign(
+      {
+        ...user,
+        scope: ['portal:relay', 'portal:sdk-login'],
+        // iat lets /auth/me slide the window for users who keep coming back.
+        iat: Date.now(),
+        exp: Date.now() + env.portalTokenMaxAgeMs,
+      },
+      env.authSecret
+    );
+
+    // Creating the relay session is pure in-memory work, so hand it back with
+    // the token. The client used to spend a second full round trip on
+    // /portal/relay/start just to receive this UUID.
+    const relaySessionId = createRelaySession(user.userId);
+
     return res.status(200).json({
       success: true,
       message: 'Portal pre-auth successful',
-      data: issuePortalLogin(normalizedIdentifier, makeDisplayName(normalizedIdentifier)),
+      data: { token, user, relaySessionId, relayBaseUrl: env.portalRelayBaseUrl },
     });
   }
 
@@ -205,56 +206,6 @@ const demoLogin = (req, res) => {
     .json({ success: true, message: 'Demo login successful', data: { token, user } });
 };
 
-/**
- * Takes the portal's own Google sign-in response, captured on the real portal
- * page by the JiitSphere extension. Google only issues tokens for the college
- * client ID on the portal's origin, so the browser has to sign in there.
- * A forged response gets nowhere: without a live portal token
- * /portal/sdk/login loads no real data, and the login page rejects that.
- */
-const portalGoogleLogin = (req, res) => {
-  const response = req.body?.response;
-  const portalToken = String(response?.token || '').trim();
-  const instituteId = String(response?.value || '').trim();
-  const userId = String(response?.enrollmentno || response?.userid || '')
-    .trim()
-    .toLowerCase();
-
-  if (
-    !portalToken ||
-    portalToken.length > 4096 ||
-    !instituteId ||
-    !/^[a-z0-9._@-]{4,120}$/i.test(userId)
-  ) {
-    return res
-      .status(400)
-      .json({ success: false, message: 'The portal did not return a usable sign-in' });
-  }
-
-  const name = String(response.name || '').trim() || makeDisplayName(userId);
-  const portalLogin = issuePortalLogin(userId, name);
-  const session = ensureOwnedSession(portalLogin.relaySessionId, userId);
-  session.authContext = {
-    regdata: {
-      token: portalToken,
-      clientid: response.clientid || null,
-      instituteid: instituteId,
-      institutelist: [{ value: instituteId, label: response.label || '' }],
-      name,
-      enrollmentno: response.enrollmentno || null,
-      userid: response.userid || null,
-      memberid: response.memberid || null,
-      membertype: response.membertype || 'S',
-    },
-    tokenDate: new Date().toString(),
-    verifiedAt: Date.now(),
-  };
-
-  return res
-    .status(200)
-    .json({ success: true, message: 'Portal Google sign-in successful', data: portalLogin });
-};
-
 const analytics = (req, res) => {
   if (req.user?.role !== 'admin') {
     return res.status(403).json({ success: false, message: 'Admin access required for analytics' });
@@ -266,7 +217,6 @@ const analytics = (req, res) => {
 module.exports = {
   login,
   demoLogin,
-  portalGoogleLogin,
   me,
   analytics,
 };
