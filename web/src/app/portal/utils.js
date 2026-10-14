@@ -560,3 +560,68 @@ export const attendanceGuidanceClass = (text = '') => {
   if (low.startsWith('need attend')) return 'border-rose-200 bg-rose-50 text-rose-700';
   return 'border-slate-200 dark:border-slate-700 bg-slate-50 text-slate-600 dark:text-slate-300';
 };
+
+export const extractRelayMessage = (payload) => {
+  if (!payload) return '';
+  if (typeof payload === 'string') return payload;
+  return (
+    payload?.status?.errors ||
+    payload?.errors ||
+    payload?.message ||
+    payload?.status?.identifier ||
+    ''
+  );
+};
+
+export const relayAttemptLooksAuthenticated = (attempt) => {
+  const payload = attempt?.response;
+  if (!payload || typeof payload !== 'object') return false;
+
+  const endpoint = String(attempt?.endpoint || '').toLowerCase();
+  const responseStatus = String(
+    payload?.status?.responseStatus || payload?.responseStatus || ''
+  ).toLowerCase();
+  const hasAuthArtifacts = Boolean(
+    payload?.response?.token ||
+    payload?.response?.jwt ||
+    payload?.response?.regdata?.token ||
+    payload?.response?.studentDetails ||
+    payload?.response?.studentProfile ||
+    payload?.response?.enrollmentno
+  );
+
+  const message = extractRelayMessage(payload);
+  const hasFailureSignal = /invalid|captcha|fail|error|incorrect|unauthor/i.test(String(message));
+
+  if (endpoint.includes('generatewebtoken')) {
+    return (responseStatus === 'success' || responseStatus === 'ok') && !hasFailureSignal;
+  }
+
+  return (
+    (responseStatus === 'success' || responseStatus === 'ok') &&
+    hasAuthArtifacts &&
+    !hasFailureSignal
+  );
+};
+
+export const relayNeedsEncryptedPayload = (attempts = []) => {
+  if (!attempts.length) return false;
+  const alreadyTriedEncryptedFlow = attempts.some((attempt) => {
+    const endpoint = String(attempt?.endpoint || '').toLowerCase();
+    const contentType = String(attempt?.contentType || '').toLowerCase();
+    return (
+      endpoint.includes('generatewebtoken') ||
+      (endpoint.includes('pretoken-check') && contentType.includes('text/plain'))
+    );
+  });
+
+  if (alreadyTriedEncryptedFlow) {
+    return false;
+  }
+
+  return attempts.every((attempt) => {
+    const payload = attempt?.response;
+    if (typeof payload !== 'string') return false;
+    return attempt?.status === 200 && payload.trim() === '';
+  });
+};

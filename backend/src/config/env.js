@@ -75,7 +75,7 @@ const rawConfig = {
   maxUploadSizeMb: Number(process.env.MAX_UPLOAD_SIZE_MB || 200),
   portalRealtimeDefault: parseBool(process.env.PORTAL_REALTIME_DEFAULT, false),
   portalRealtimeMinSyncIntervalMs: Number(
-    process.env.PORTAL_REALTIME_MIN_SYNC_INTERVAL_MS || 120000
+    process.env.PORTAL_REALTIME_MIN_SYNC_INTERVAL_MS || 30000
   ),
   portalBootstrapAttendanceSemesters: Number(
     process.env.PORTAL_BOOTSTRAP_ATTENDANCE_SEMESTERS || 1
