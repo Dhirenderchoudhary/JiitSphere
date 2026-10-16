@@ -3,6 +3,14 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
+  // Trim heavy icon/chart/motion barrels into per-file imports.
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'framer-motion', 'recharts', 'sonner'],
+  },
+  compiler: {
+    // Strip console.* in production — less JS to parse + run.
+    removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn'] } : false,
+  },
   eslint: {
     // Warning: This allows production builds to successfully complete even if
     // your project has ESLint errors. We handle linting in our CI workflow instead.

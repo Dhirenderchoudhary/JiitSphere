@@ -556,6 +556,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
                   alt={user.name || 'User'}
                   width={22}
                   height={22}
+                  sizes="22px"
                   className="rounded-full"
                 />
               )}
@@ -921,7 +922,7 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
                         {visibleItems.map((item) => (
                           <div
                             key={item._id}
-                            className="group rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md"
+                            className="cv-auto group rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary hover:shadow-md"
                           >
                             <div className="mb-3">
                               <h4 className="line-clamp-2 text-sm font-bold leading-snug">

@@ -8,7 +8,6 @@ import {
   fetchPortalSubjectAttendance,
   SessionExpiredError,
 } from 'lib/api';
-import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from 'lib/utils';
 import {
   Clock,
@@ -57,7 +56,7 @@ function SegmentedArch({ pct }) {
           const y2 = center - radius * Math.sin(theta);
 
           return (
-            <motion.line
+            <line
               key={i}
               x1={x1}
               y1={y1}
@@ -66,9 +65,6 @@ function SegmentedArch({ pct }) {
               stroke={activePctHit ? activeColor : inactiveColor}
               strokeWidth="8"
               strokeLinecap="round"
-              initial={{ opacity: 0, pathLength: 0 }}
-              animate={{ opacity: 1, pathLength: 1 }}
-              transition={{ delay: i * 0.02, duration: 0.3 }}
             />
           );
         })}
@@ -564,12 +560,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
   );
 
   const performanceCard = (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="bg-card border border-border shadow-sm rounded-2xl p-4 sm:p-5 shrink-0 flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-stretch"
-    >
+    <div className="bg-card border border-border shadow-sm rounded-2xl p-4 sm:p-5 shrink-0 flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-stretch">
       {/* Performance Ratio Chart */}
       <div className="flex flex-col items-center justify-center shrink-0 min-w-[200px]">
         <div className="w-full flex items-center justify-between mb-1">
@@ -697,7 +688,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
           </span>
         </div>
       ) : null}
-    </motion.div>
+    </div>
   );
 
   const sessionTimeline = (
@@ -736,13 +727,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
               </thead>
               <tbody>
                 {historyDetail.rows.map((row, i) => (
-                  <motion.tr
-                    key={i}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.02 }}
-                    className="border-b border-border/50 cursor-default"
-                  >
+                  <tr key={i} className="border-b border-border/50 cursor-default cv-auto">
                     <td className="px-4 py-3.5 font-bold text-foreground w-[160px]">
                       {row.datetime || '-'}
                     </td>
@@ -764,7 +749,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                         {row.present === 'Present' ? 'Present' : 'Absent'}
                       </span>
                     </td>
-                  </motion.tr>
+                  </tr>
                 ))}
               </tbody>
             </table>
@@ -806,7 +791,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                 <button
                   key={code}
                   onClick={() => selectSubject(row)}
-                  className="text-left rounded-xl border border-border/50 bg-muted/10 hover:bg-muted/30 hover:border-primary/20 transition-all p-4 space-y-2.5"
+                  className="cv-auto text-left rounded-xl border border-border/50 bg-muted/10 hover:bg-muted/30 hover:border-primary/20 transition-colors p-4 space-y-2.5"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-xs font-bold text-foreground leading-snug line-clamp-2">
@@ -823,10 +808,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                   </div>
                   <div className="w-full h-1.5 rounded-full bg-border/40 overflow-hidden">
                     <div
-                      className={cn(
-                        'h-full rounded-full transition-all duration-500',
-                        safe ? 'bg-emerald-500' : 'bg-rose-500'
-                      )}
+                      className={cn('h-full rounded-full', safe ? 'bg-emerald-500' : 'bg-rose-500')}
                       style={{ width: `${Math.min(pct, 100)}%` }}
                     />
                   </div>

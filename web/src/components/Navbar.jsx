@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
@@ -15,19 +15,28 @@ const navLinks = [
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const rafId = useRef(0);
 
   useEffect(() => {
-    const handleScroll = () => {
-      cancelAnimationFrame(rafId.current);
-      rafId.current = requestAnimationFrame(() => {
-        setScrolled(window.scrollY > 10);
+    let ticking = false;
+    const update = () => {
+      ticking = false;
+      // Only setState on crossings to avoid re-render on every scroll frame.
+      setScrolled((prev) => {
+        const next = window.scrollY > 10;
+        return prev === next ? prev : next;
       });
     };
+    const handleScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(update);
+      }
+    };
+    // Check initial position once (deep links) without adding cost per frame.
+    update();
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      cancelAnimationFrame(rafId.current);
     };
   }, []);
 
@@ -47,10 +56,10 @@ export default function Navbar() {
     <>
       <nav
         className={cn(
-          'fixed top-0 left-0 right-0 z-50 transition-all duration-300 px-4 sm:px-6 py-3.5 sm:py-4 md:px-12',
+          'fixed top-0 left-0 right-0 z-50 transition-colors duration-200 px-4 sm:px-6 py-3.5 sm:py-4 md:px-12',
           scrolled
-            ? 'backdrop-blur-md bg-background/85 border-b border-border/40 py-2.5 sm:py-3 shadow-[0_8px_30px_-22px_rgba(0,0,0,0.35)]'
-            : 'bg-transparent py-4 sm:py-6'
+            ? 'bg-background border-b border-border/40 py-2.5 sm:py-3 shadow-[0_8px_30px_-22px_rgba(0,0,0,0.35)]'
+            : 'bg-transparent py-4 sm:py-6 border-b border-transparent'
         )}
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -98,7 +107,7 @@ export default function Navbar() {
             <button
               type="button"
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="md:hidden flex items-center justify-center size-10 rounded-xl border border-border/40 bg-card/50 backdrop-blur-sm touch-manipulation"
+              className="md:hidden flex items-center justify-center size-10 rounded-xl border border-border/40 bg-card touch-manipulation"
               aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileOpen}
             >
@@ -108,20 +117,17 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile menu overlay */}
+      {/* Mobile menu overlay — CSS-only fade/slide, no backdrop-blur (GPU killer on scroll) */}
       <div
         className={cn(
-          'fixed inset-0 z-40 md:hidden transition-all duration-300 ease-out',
+          'fixed inset-0 z-40 md:hidden transition-opacity duration-200',
           mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         )}
       >
-        <div
-          className="absolute inset-0 bg-background/95 backdrop-blur-xl"
-          onClick={() => setMobileOpen(false)}
-        />
+        <div className="absolute inset-0 bg-background" onClick={() => setMobileOpen(false)} />
         <div
           className={cn(
-            'relative flex flex-col items-center justify-center min-h-screen gap-8 px-6 transition-transform duration-300 ease-out',
+            'relative flex flex-col items-center justify-center min-h-screen gap-8 px-6 transition-transform duration-200',
             mobileOpen ? 'translate-y-0' : '-translate-y-4'
           )}
         >

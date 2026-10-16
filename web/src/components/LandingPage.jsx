@@ -334,11 +334,7 @@ export default function LandingPage() {
                       </span>
                       <div className="relative flex items-center justify-center">
                         <div className="size-1.5 rounded-full bg-red-500 relative z-10" />
-                        <motion.div
-                          animate={{ scale: [1, 2.5], opacity: [0.5, 0] }}
-                          transition={{ repeat: Infinity, duration: 2, ease: 'easeOut' }}
-                          className="absolute size-4 rounded-full border border-red-500/50"
-                        />
+                        <div className="absolute size-4 rounded-full border border-red-500/50 animate-ping" />
                       </div>
                     </div>
                     <div className="p-3 space-y-2">
@@ -474,59 +470,29 @@ export default function LandingPage() {
                 className="bento-card group p-8 flex flex-col justify-between spotlight-card"
               >
                 <div className="flex-1 flex flex-col items-center justify-center pt-4 relative">
-                  {/* Morphing Container (Stable Geometry) */}
-                  <motion.div
-                    layout
-                    variants={{
-                      hover: {
-                        width: '100%',
-                        height: '140px',
-                        borderRadius: '0px',
-                        backgroundColor: 'hsl(var(--card))',
-                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                        transition: { type: 'spring', stiffness: 200, damping: 35 },
-                      },
-                    }}
-                    initial={{
-                      width: '160px',
-                      height: '38px',
-                      borderRadius: '0px',
-                      backgroundColor: 'hsl(var(--secondary))',
-                    }}
-                    className="relative border border-border flex flex-col overflow-hidden shadow-sm"
-                  >
+                  {/* Static container — the old `layout` morph animated width/height
+                      on every hover (layout thrash). Opacity-only reveal instead. */}
+                  <div className="relative border border-border flex flex-col overflow-hidden shadow-sm w-[160px] h-[38px] group-hover:w-full group-hover:h-[140px] group-hover:bg-card group-hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] transition-all duration-300">
                     {/* Pre-filled Subject ID (Glides smoothly from center) */}
-                    <motion.div layout className="flex-1 flex flex-col h-full">
-                      <motion.div
-                        layout
+                    <div className="flex-1 flex flex-col h-full">
+                      <div
                         className={cn(
                           'flex h-full',
                           'group-hover:justify-between group-hover:p-4 justify-center items-center group-hover:items-start'
                         )}
                       >
-                        <motion.div
-                          layout
-                          className="text-[10px] font-black text-primary tracking-tighter"
-                        >
+                        <div className="text-[10px] font-black text-primary tracking-tighter">
                           15B17CI311
-                        </motion.div>
+                        </div>
 
-                        <motion.div
-                          variants={{ hover: { opacity: 1, x: 0 } }}
-                          initial={{ opacity: 0, x: 10 }}
-                          className="hidden group-hover:block"
-                        >
+                        <div className="hidden group-hover:block">
                           <Badge variant="secondary" className="text-[7px] px-1.5 py-0 font-bold">
                             4 CREDITS
                           </Badge>
-                        </motion.div>
-                      </motion.div>
+                        </div>
+                      </div>
 
-                      <motion.div
-                        variants={{ hover: { opacity: 1, y: 0, transition: { delay: 0.1 } } }}
-                        initial={{ opacity: 0, y: 10 }}
-                        className="px-4 pb-4 space-y-3 -mt-6 hidden group-hover:block"
-                      >
+                      <div className="px-4 pb-4 space-y-3 -mt-6 hidden group-hover:block">
                         <div className="space-y-1">
                           <div className="text-[11px] font-bold text-foreground">
                             Data Structures
@@ -536,26 +502,17 @@ export default function LandingPage() {
                           </div>
                         </div>
 
-                        <motion.div
-                          variants={{
-                            hover: { opacity: 1, scaleX: 1, transition: { delay: 0.2 } },
-                          }}
-                          initial={{ opacity: 0, scaleX: 0 }}
-                          className="h-1 w-full bg-muted rounded-full overflow-hidden origin-left"
-                        >
+                        <div className="h-1 w-full bg-muted rounded-full overflow-hidden origin-left">
                           <div className="h-full w-[85%] bg-primary" />
-                        </motion.div>
-                      </motion.div>
-                    </motion.div>
+                        </div>
+                      </div>
+                    </div>
 
                     {/* Search Icon (Absolute Overlay for Pill State) */}
-                    <motion.div
-                      variants={{ hover: { opacity: 0, scale: 0.5 } }}
-                      className="absolute right-4 top-3 group-hover:hidden"
-                    >
+                    <div className="absolute right-4 top-3 group-hover:hidden">
                       <Search className="size-3 text-muted-foreground/40" />
-                    </motion.div>
-                  </motion.div>
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <h4 className="text-lg font-bold tracking-tight font-[var(--font-instrument-sans)]">
@@ -578,7 +535,7 @@ export default function LandingPage() {
                     <motion.div
                       variants={{ hover: { y: -10, opacity: 1, scale: 1.05 } }}
                       transition={{ type: 'spring', stiffness: 200, damping: 25 }}
-                      className="relative w-72 h-44 bg-card/40 border-[4px] border-border rounded-xl shadow-2xl flex flex-col overflow-hidden z-0 backdrop-blur-sm"
+                      className="relative w-72 h-44 bg-card border-[4px] border-border rounded-xl shadow-2xl flex flex-col overflow-hidden z-0"
                     >
                       <div className="h-4 bg-muted/50 border-b border-border flex items-center px-2 gap-1">
                         <div className="size-1 rounded-full bg-red-400" />
@@ -602,7 +559,7 @@ export default function LandingPage() {
                     <motion.div
                       variants={{ hover: { x: -40, y: 15, rotate: -2, scale: 1.05 } }}
                       transition={{ type: 'spring', stiffness: 250, damping: 25, delay: 0.05 }}
-                      className="absolute bottom-4 left-1/4 w-32 h-44 bg-card border-[3px] border-border rounded-2xl shadow-xl z-20 backdrop-blur-md overflow-hidden"
+                      className="absolute bottom-4 left-1/4 w-32 h-44 bg-card border-[3px] border-border rounded-2xl shadow-xl z-20 overflow-hidden"
                     >
                       <div className="h-full p-2 flex flex-col gap-2">
                         <div className="h-1 w-8 bg-muted rounded-full mx-auto" />
@@ -616,7 +573,7 @@ export default function LandingPage() {
                     <motion.div
                       variants={{ hover: { x: 45, y: 25, rotate: 3, scale: 1.1 } }}
                       transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.1 }}
-                      className="absolute bottom-2 right-1/4 w-20 h-40 bg-card border-[3px] border-border rounded-2xl shadow-2xl z-30 backdrop-blur-md overflow-hidden"
+                      className="absolute bottom-2 right-1/4 w-20 h-40 bg-card border-[3px] border-border rounded-2xl shadow-2xl z-30 overflow-hidden"
                     >
                       <div className="h-full p-2 flex flex-col gap-2">
                         <div className="h-0.5 w-6 bg-muted rounded-full mx-auto mb-1" />
@@ -628,12 +585,8 @@ export default function LandingPage() {
                       </div>
                     </motion.div>
 
-                    {/* Sync Glow */}
-                    <motion.div
-                      animate={{ opacity: [0, 0.5, 0] }}
-                      transition={{ repeat: Infinity, duration: 4 }}
-                      className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-primary/10 to-transparent blur-3xl -z-10"
-                    />
+                    {/* Sync Glow — static gradient (was an infinite opacity loop) */}
+                    <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-primary/10 to-transparent blur-3xl -z-10" />
                   </div>
                 </div>
                 <div className="space-y-1 relative z-40">
@@ -676,7 +629,7 @@ function SmartAlertsElite() {
               },
             }}
             initial={{ opacity: 0.3, rotate: 2 }}
-            className="absolute inset-x-0 top-4 h-[52px] rounded-xl border border-amber-500/15 bg-card/60 backdrop-blur-sm shadow-sm p-3 flex items-center gap-3"
+            className="absolute inset-x-0 top-4 h-[52px] rounded-xl border border-amber-500/15 bg-card shadow-sm p-3 flex items-center gap-3"
           >
             <div className="shrink-0 size-7 rounded-lg bg-amber-500/10 flex items-center justify-center">
               <Wallet className="h-3.5 w-3.5 text-amber-500" />
@@ -704,7 +657,7 @@ function SmartAlertsElite() {
               },
             }}
             initial={{ opacity: 0.5, rotate: -1 }}
-            className="absolute inset-x-0 top-4 h-[52px] rounded-xl border border-blue-500/15 bg-card/70 backdrop-blur-sm shadow-md p-3 flex items-center gap-3 z-10"
+            className="absolute inset-x-0 top-4 h-[52px] rounded-xl border border-blue-500/15 bg-card shadow-md p-3 flex items-center gap-3 z-10"
           >
             <div className="shrink-0 size-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
               <Bell className="h-3.5 w-3.5 text-blue-500" />
@@ -731,7 +684,7 @@ function SmartAlertsElite() {
                 transition: { type: 'spring', stiffness: 350, damping: 25, delay: 0.06 },
               },
             }}
-            className="absolute inset-x-0 top-4 rounded-xl border border-red-500/20 bg-card shadow-[0_8px_30px_-8px_rgba(239,68,68,0.15)] backdrop-blur-md p-3.5 z-20 overflow-hidden"
+            className="absolute inset-x-0 top-4 rounded-xl border border-red-500/20 bg-card shadow-[0_8px_30px_-8px_rgba(239,68,68,0.15)] p-3.5 z-20 overflow-hidden"
           >
             <div className="flex items-center gap-3">
               <div className="shrink-0 size-8 rounded-lg bg-red-500/10 flex items-center justify-center">

@@ -1,25 +1,26 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import dynamic from 'next/dynamic';
 import { Shield, LogOut, RefreshCw, AlertCircle } from 'lucide-react';
 import { Button } from 'components/ui/button';
 import { Card, CardContent } from 'components/ui/card';
 import { Input } from 'components/ui/input';
-
-const AreaChart = dynamic(() => import('recharts').then((m) => m.AreaChart), { ssr: false });
-const Area = dynamic(() => import('recharts').then((m) => m.Area), { ssr: false });
-const LineChart = dynamic(() => import('recharts').then((m) => m.LineChart), { ssr: false });
-const Line = dynamic(() => import('recharts').then((m) => m.Line), { ssr: false });
-const PieChart = dynamic(() => import('recharts').then((m) => m.PieChart), { ssr: false });
-const Pie = dynamic(() => import('recharts').then((m) => m.Pie), { ssr: false });
-const Cell = dynamic(() => import('recharts').then((m) => m.Cell), { ssr: false });
-const XAxis = dynamic(() => import('recharts').then((m) => m.XAxis), { ssr: false });
-const YAxis = dynamic(() => import('recharts').then((m) => m.YAxis), { ssr: false });
-const Tooltip = dynamic(() => import('recharts').then((m) => m.Tooltip), { ssr: false });
-const ResponsiveContainer = dynamic(() => import('recharts').then((m) => m.ResponsiveContainer), {
-  ssr: false,
-});
+// Single static import: the old 11x dynamic(()=>import('recharts')) fanned out
+// 11 chunks that each pulled the full ~350KB lib. One import lets the bundler
+// share a single chunk (further trimmed by optimizePackageImports).
+import {
+  AreaChart,
+  Area,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 
 const fmt = (n) => Number(n || 0).toLocaleString();
 
@@ -47,7 +48,7 @@ function aggregate(days, count) {
 /* ───────── STAT CARD ───────── */
 function StatCard({ title, value, accent }) {
   return (
-    <div className="spotlight-card rounded-2xl border border-border bg-card/95 p-5 backdrop-blur">
+    <div className="rounded-2xl border border-border bg-card p-5">
       <p className="text-sm font-medium text-muted-foreground">{title}</p>
       <p className={`mt-1 text-3xl font-extrabold ${accent || 'text-primary'}`}>{value}</p>
     </div>
@@ -57,7 +58,7 @@ function StatCard({ title, value, accent }) {
 /* ───────── CHART CARD ───────── */
 function ChartCard({ title, subtitle, children }) {
   return (
-    <div className="rounded-2xl border border-border bg-card/95 p-5 backdrop-blur">
+    <div className="rounded-2xl border border-border bg-card p-5">
       <h3 className="text-lg font-bold">{title}</h3>
       {subtitle && <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>}
       <div className="mt-4">{children}</div>
@@ -216,8 +217,19 @@ function Dashboard({ token, onLogout }) {
 
   useEffect(() => {
     fetchData();
-    const t = setInterval(fetchData, 30000);
-    return () => clearInterval(t);
+    // Poll only while tab is visible — background polling burned CPU/battery
+    // and hammered the API for a page nobody was looking at.
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') fetchData();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    const t = setInterval(() => {
+      if (document.visibilityState === 'visible') fetchData();
+    }, 60000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      clearInterval(t);
+    };
   }, [fetchData]);
 
   if (loading)
@@ -271,7 +283,7 @@ function Dashboard({ token, onLogout }) {
   return (
     <main className="page-shell min-h-screen py-5 sm:py-6">
       {/* Header */}
-      <header className="sticky top-0 z-30 mb-5 rounded-2xl border border-border bg-card/90 backdrop-blur">
+      <header className="sticky top-0 z-30 mb-5 rounded-2xl border border-border bg-card">
         <div className="flex items-center justify-between px-4 py-3 sm:px-5">
           <div className="flex items-center gap-3">
             <button
@@ -336,10 +348,7 @@ function Dashboard({ token, onLogout }) {
             { label: 'Study Material (all-time)', val: pvSection.studyMaterial || 0 },
             { label: 'Materials Uploaded', val: materials.total || 0 },
           ].map((s) => (
-            <div
-              key={s.label}
-              className="rounded-2xl border border-border bg-card/95 px-4 py-3 backdrop-blur"
-            >
+            <div key={s.label} className="rounded-2xl border border-border bg-card px-4 py-3">
               <p className="text-xs text-muted-foreground">{s.label}</p>
               <p className="text-xl font-bold">{fmt(s.val)}</p>
             </div>

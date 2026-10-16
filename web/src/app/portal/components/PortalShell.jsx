@@ -7,7 +7,6 @@ import { LogOut, RefreshCw, BarChart2, Menu, ChevronDown } from 'lucide-react';
 import TopPanelTools from 'components/TopPanelTools';
 import { Button } from 'components/ui/button';
 import { fetchMe, fetchPortalSdkSession, SessionExpiredError } from 'lib/api';
-import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from 'lib/utils';
 import {
   tabs,
@@ -27,13 +26,32 @@ const tabLoadingState = (
 
 const AttendanceView = dynamic(() => import('./AttendanceView'), {
   loading: () => tabLoadingState,
+  ssr: false,
 });
-const GradesView = dynamic(() => import('./GradesView'), { loading: () => tabLoadingState });
-const ExamsView = dynamic(() => import('./ExamsView'), { loading: () => tabLoadingState });
-const SubjectsView = dynamic(() => import('./SubjectsView'), { loading: () => tabLoadingState });
-const FeesView = dynamic(() => import('./FeesView'), { loading: () => tabLoadingState });
-const ProfileView = dynamic(() => import('./ProfileView'), { loading: () => tabLoadingState });
-const AnalyticsView = dynamic(() => import('./AnalyticsView'), { loading: () => tabLoadingState });
+const GradesView = dynamic(() => import('./GradesView'), {
+  loading: () => tabLoadingState,
+  ssr: false,
+});
+const ExamsView = dynamic(() => import('./ExamsView'), {
+  loading: () => tabLoadingState,
+  ssr: false,
+});
+const SubjectsView = dynamic(() => import('./SubjectsView'), {
+  loading: () => tabLoadingState,
+  ssr: false,
+});
+const FeesView = dynamic(() => import('./FeesView'), {
+  loading: () => tabLoadingState,
+  ssr: false,
+});
+const ProfileView = dynamic(() => import('./ProfileView'), {
+  loading: () => tabLoadingState,
+  ssr: false,
+});
+const AnalyticsView = dynamic(() => import('./AnalyticsView'), {
+  loading: () => tabLoadingState,
+  ssr: false,
+});
 
 const formatAgo = (ms) => {
   const sec = Math.floor(ms / 1000);
@@ -282,12 +300,7 @@ export default function PortalShell({ token, onLogout }) {
                     <Icon className={cn('w-4 h-4', active ? 'opacity-100' : 'opacity-60')} />
                     {tab.label}
                     {active && (
-                      <motion.div
-                        layoutId="active-sidebar-tab"
-                        className="absolute left-0 top-[15%] bottom-[15%] w-1 bg-primary rounded-r-full"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                      />
+                      <div className="absolute left-0 top-[15%] bottom-[15%] w-1 bg-primary rounded-r-full" />
                     )}
                   </button>
                 );
@@ -363,23 +376,22 @@ export default function PortalShell({ token, onLogout }) {
                 <ChevronDown className="size-[3.5] text-muted-foreground opacity-70" />
               </button>
 
-              <AnimatePresence>
+              {/* CSS-only dropdown: opacity/transform, no JS animation lib */}
+              <div
+                className={cn(
+                  'lg:hidden transition-opacity duration-150',
+                  mobileMenuOpen
+                    ? 'opacity-100 pointer-events-auto'
+                    : 'opacity-0 pointer-events-none'
+                )}
+              >
                 {mobileMenuOpen && (
                   <>
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="fixed inset-0 z-40 bg-background/50 backdrop-blur-sm lg:hidden"
+                    <div
+                      className="fixed inset-0 z-40 bg-background/60 lg:hidden"
                       onClick={() => setMobileMenuOpen(false)}
                     />
-                    <motion.div
-                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute top-12 left-0 w-64 bg-card border border-border shadow-2xl rounded-2xl z-50 overflow-hidden flex flex-col p-2 space-y-1 lg:hidden origin-top-left"
-                    >
+                    <div className="absolute top-12 left-0 w-64 bg-card border border-border shadow-2xl rounded-2xl z-50 overflow-hidden flex flex-col p-2 space-y-1 lg:hidden origin-top-left">
                       {displayedTabs.map((t) => {
                         const TIcon = t.icon;
                         const isActive = t.id === activeTab;
@@ -402,10 +414,10 @@ export default function PortalShell({ token, onLogout }) {
                           </button>
                         );
                       })}
-                    </motion.div>
+                    </div>
                   </>
                 )}
-              </AnimatePresence>
+              </div>
             </div>
           </div>
 
@@ -443,7 +455,7 @@ export default function PortalShell({ token, onLogout }) {
       </main>
 
       {/* Mobile Bottom Navigation Fallback (Visible only < lg screens) */}
-      <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 flex w-[min(96vw,420px)] justify-between items-center bg-card/90 backdrop-blur-xl border border-border shadow-2xl rounded-2xl z-50 p-1.5 gap-1 portal-bottom-nav">
+      <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 flex w-[min(96vw,420px)] justify-between items-center bg-card border border-border shadow-2xl rounded-2xl z-50 p-1.5 gap-1 portal-bottom-nav">
         {displayedTabs.slice(0, 5).map((tab) => {
           const Icon = tab.icon;
           const active = tab.id === activeTab;

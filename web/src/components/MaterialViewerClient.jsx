@@ -50,6 +50,17 @@ export default function MaterialViewerClient({
     return () => clearTimeout(timer);
   }, [loading, embeddedUrl]);
 
+  // Preconnect to Google Docs viewer only when an office doc actually needs it
+  // (was a global dns-prefetch on every page before).
+  useEffect(() => {
+    if (viewerStrategy !== 'office') return undefined;
+    const link = document.createElement('link');
+    link.rel = 'dns-prefetch';
+    link.href = 'https://docs.google.com';
+    document.head.appendChild(link);
+    return () => link.remove();
+  }, [viewerStrategy]);
+
   const handleLoad = () => {
     setLoading(false);
     setError(false);
@@ -142,8 +153,9 @@ export default function MaterialViewerClient({
             alt={title}
             onLoad={handleLoad}
             onError={handleError}
-            style={{ opacity: loading ? 0 : 1 }}
+            style={{ opacity: loading ? 0 : 1, contentVisibility: 'auto' }}
             loading="eager"
+            fetchPriority="high"
             decoding="async"
           />
         )}
