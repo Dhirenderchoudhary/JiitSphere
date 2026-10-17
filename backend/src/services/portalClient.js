@@ -17,7 +17,9 @@ const env = require('../config/env');
 
 const PORTAL_TIME_ZONE = 'Asia/Kolkata';
 const DEFAULT_TIMEOUT_MS = 4000;
-const MAX_RETRIES = 1;
+// The portal answers some requests with a 500 or times out, then succeeds a
+// moment later. One retry turns that blip into data instead of an empty page.
+const MAX_ATTEMPTS = 2;
 const BACKOFF_BASE_MS = 250;
 
 // ── Structured Error ───────────────────────────────────────────────────────
@@ -195,11 +197,11 @@ class PortalClient {
     }
   }
 
-  /** Internal: POST with up to MAX_RETRIES retries on transient failures */
+  /** Internal: POST, retrying transient failures up to MAX_ATTEMPTS in total */
   async _postWithRetry(path, payload, encrypted, timeout) {
     let lastErr = null;
 
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       if (attempt > 0) {
         await sleep(BACKOFF_BASE_MS * 2 ** (attempt - 1));
       }
