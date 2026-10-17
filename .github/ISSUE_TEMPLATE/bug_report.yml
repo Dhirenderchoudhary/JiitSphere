@@ -1,0 +1,41 @@
+name: Bug report
+description: Something on jiitsphere.com, the API or the extension does not work
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open jiitsphere.com/portal
+        2. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - Study material
+        - Portal dashboard
+        - Signing in
+        - Phone linking
+        - Chrome extension
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and browser
+      placeholder: e.g. iPhone 15, Safari / Windows, Chrome 141
+  - type: markdown
+    attributes:
+      value: Do not paste tokens, passwords or personal details. Report security problems privately, see SECURITY.md.

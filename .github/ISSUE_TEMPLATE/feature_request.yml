@@ -1,0 +1,17 @@
+name: Feature request
+description: Suggest something that would help JIIT students
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve
+      description: Who runs into it, and when.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you would like
+    validations:
+      required: true
