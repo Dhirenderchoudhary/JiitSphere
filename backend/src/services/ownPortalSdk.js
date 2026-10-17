@@ -89,7 +89,10 @@ const getSessionByOwner = (ownerId) => {
   return session;
 };
 
+const forgetSession = (ownerId) => sessionsByOwner.delete(ownerId);
+
 module.exports = {
   createOrUpdateSession,
   getSessionByOwner,
+  forgetSession,
 };

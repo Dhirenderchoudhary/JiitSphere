@@ -3,6 +3,7 @@ const env = require('../config/env');
 const { sign } = require('../utils/token');
 const { createRelaySession, ensureOwnedSession } = require('../services/portalRelayService');
 const { PortalClient } = require('../services/portalClient');
+const { savePortalSession } = require('../services/portalSessionStore');
 const { getSnapshot } = require('../services/requestAnalyticsStore');
 
 const allowedUsers = env.userAllowedIdentifiers.reduce((acc, identifier) => {
@@ -280,6 +281,7 @@ const portalGoogleLogin = async (req, res) => {
     tokenDate: new Date().toString(),
     verifiedAt: Date.now(),
   };
+  await savePortalSession(userId, portalLogin.relaySessionId, session.authContext);
 
   return res
     .status(200)

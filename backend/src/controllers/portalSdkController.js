@@ -1,6 +1,11 @@
 const { createOrUpdateSession, getSessionByOwner } = require('../services/ownPortalSdk');
 const env = require('../config/env');
-const { ensureOwnedSession, buildCookieHeader } = require('../services/portalRelayService');
+const {
+  ensureOwnedSession,
+  buildCookieHeader,
+  restoreRelaySession,
+} = require('../services/portalRelayService');
+const { loadPortalSession } = require('../services/portalSessionStore');
 const { encryptPortalPayload } = require('../utils/portalCrypto');
 const { buildPublicDemoDataset } = require('../services/demoPortalDataset');
 const { PortalClient, PortalError } = require('../services/portalClient');
@@ -3025,6 +3030,32 @@ const bootstrapDatasetFromPortal = async (relaySession, authContext, options = {
  */
 const sdkLoginInFlightByOwner = new Map();
 
+// Sessions live in memory, so a restart drops them. The portal sign-in itself is
+// saved, so rebuild the session from it and reload the student's data. A
+// sign-in the portal no longer accepts restores nothing, and the student signs
+// in again.
+const restoreSession = (owner) => {
+  const restore = (async () => {
+    const saved = await loadPortalSession(owner);
+    if (!saved) return null;
+    const relaySession = restoreRelaySession(saved.relaySessionId, owner, saved.authContext);
+    const authContext = buildAuthContextFromRelaySession(relaySession);
+    if (!authContext?.instituteid) return null;
+    const dataset = await bootstrapDatasetFromPortal(relaySession, authContext, {
+      includeExamHydration: false,
+    });
+    if (!dataset?.realData) return null;
+    return createOrUpdateSession({
+      ownerId: owner,
+      userId: owner,
+      relaySessionId: saved.relaySessionId,
+      dataset: { ...dataset, lastRealtimeSyncAt: Date.now() },
+    });
+  })();
+  sdkLoginInFlightByOwner.set(owner, restore);
+  return restore.finally(() => sdkLoginInFlightByOwner.delete(owner));
+};
+
 const ensureSession = async (req, res) => {
   const owner = ownerKey(req);
   let session = getSessionByOwner(owner);
@@ -3034,6 +3065,10 @@ const ensureSession = async (req, res) => {
   if (!session && sdkLoginInFlightByOwner.has(owner)) {
     await sdkLoginInFlightByOwner.get(owner).catch(() => null);
     session = getSessionByOwner(owner);
+  }
+
+  if (!session) {
+    session = await restoreSession(owner).catch(() => null);
   }
 
   if (!session) {
