@@ -1,6 +1,7 @@
 const app = require('./app');
 const connectDb = require('./config/db');
 const env = require('./config/env');
+const { startKeepAwake } = require('./services/keepAwake');
 
 let server;
 let shuttingDown = false;
@@ -56,6 +57,7 @@ const startServer = async () => {
 
     server.keepAliveTimeout = env.serverKeepAliveTimeoutMs;
     server.headersTimeout = env.serverHeadersTimeoutMs;
+    startKeepAwake();
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
