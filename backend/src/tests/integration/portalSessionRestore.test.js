@@ -13,15 +13,13 @@ const portalReply = (response) =>
   });
 
 const portalAcceptsToken = () =>
-  jest
-    .spyOn(global, 'fetch')
-    .mockImplementation(async (url) =>
-      String(url).includes('getstudent-personalinformation')
-        ? portalReply({
-            generalinformation: { registrationno: ENROLLMENT, studentname: 'A Student' },
-          })
-        : portalReply({})
-    );
+  jest.spyOn(global, 'fetch').mockImplementation(async (url) =>
+    String(url).includes('getstudent-personalinformation')
+      ? portalReply({
+          generalinformation: { registrationno: ENROLLMENT, studentname: 'A Student' },
+        })
+      : portalReply({})
+  );
 
 const signIn = async () => {
   const google = await request(app)
