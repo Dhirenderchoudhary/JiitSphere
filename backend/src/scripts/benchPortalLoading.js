@@ -86,6 +86,24 @@ const RESPONSES = {
     }),
   getregistrationList: () => ok({ registrations: SEMS }),
   getstudentinfo: () => ok({ studentinfo: { studentname: 'A Student', enrollmentno: ENR } }),
+  'getsemestercode-withstudentexamevents': () =>
+    ok({ semesterCodeinfo: { semestercode: [SEMS[0]] } }),
+  getstudentexamevents: () =>
+    ok({
+      eventcode: {
+        examevent: [{ exameventid: 'E1', exameventcode: 'T1', exameventdesc: 'T1 2026' }],
+      },
+    }),
+  'getstudent-examschedule': () =>
+    ok({
+      subjectinfo: SUBJECTS.slice(0, 2).map((sub, i) => ({
+        subjectcode: sub.subjectcode,
+        subjectdesc: sub.subjectdesc,
+        datetime: `2${i}/10/2026`,
+        datetimeupto: '10:00 AM - 11:30 AM',
+        roomcode: `G${i}`,
+      })),
+    }),
   checkIfstudentmasterexist: () =>
     ok({ studentlov: { stynumber: '7', programid: 'P1', branchid: 'B1' } }),
 };
