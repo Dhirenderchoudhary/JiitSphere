@@ -3061,11 +3061,21 @@ const shouldRefreshRealtime = (req) => {
 };
 
 // The dashboard asks for a refresh on every load. Data synced within the sync
-// interval (sign-in counts) is fresh enough; only older data goes back to the portal.
-const wantsFreshData = (req, session) =>
-  shouldRefreshRealtime(req) &&
-  Date.now() - Number(session?.dataset?.lastRealtimeSyncAt || 0) >=
-    env.portalRealtimeMinSyncIntervalMs;
+// interval (sign-in counts, as does the resource's own last fetch) is fresh
+// enough; only older data goes back to the portal.
+const wantsFreshData = (req, session, resource) => {
+  const fetchedAt = Math.max(
+    Number(session?.dataset?.lastRealtimeSyncAt || 0),
+    Number(session?.dataset?.fetchedAt?.[resource] || 0)
+  );
+  return (
+    shouldRefreshRealtime(req) && Date.now() - fetchedAt >= env.portalRealtimeMinSyncIntervalMs
+  );
+};
+
+const markFetched = (session, resource) => {
+  session.dataset.fetchedAt = { ...session.dataset.fetchedAt, [resource]: Date.now() };
+};
 
 const hasRenderableGradesDataset = (dataset = {}) => {
   const hasSemesters = Array.isArray(dataset?.semesters) && dataset.semesters.length > 0;
@@ -4648,7 +4658,7 @@ const getExams = async (req, res) => {
   const session = await ensureSession(req, res);
   if (!session) return undefined;
 
-  const forceRefresh = wantsFreshData(req, session);
+  const forceRefresh = wantsFreshData(req, session, 'exams');
   const cached = Array.isArray(session.dataset.exams) ? session.dataset.exams : [];
 
   if (!forceRefresh && cached.length) {
@@ -4656,6 +4666,7 @@ const getExams = async (req, res) => {
   }
 
   const refreshed = await getExamsOnDemand(session, req);
+  if (refreshed) markFetched(session, 'exams');
   return res.status(200).json({ success: true, data: refreshed || cached || [] });
 };
 
@@ -4762,7 +4773,7 @@ const getFees = async (req, res) => {
   if (!session) return undefined;
 
   const debugMode = String(req.query?.debug || '').trim() === '1';
-  const forceRefresh = wantsFreshData(req, session);
+  const forceRefresh = wantsFreshData(req, session, 'fees');
   const debugAttempts = [];
 
   if (!forceRefresh && Array.isArray(session.dataset.fees) && session.dataset.fees.length) {
@@ -4871,6 +4882,7 @@ const getFees = async (req, res) => {
       if (mergedRows.length) {
         session.dataset.fees = mergedRows;
         session.dataset.realData = true;
+        markFetched(session, 'fees');
         return res.status(200).json(
           debugMode
             ? {

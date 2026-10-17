@@ -112,6 +112,26 @@ describe('Auth Integration Tests', () => {
       expect(res.status).toBe(401);
     });
 
+    it('ignores the enrollment number when it only appears outside the identity fields', async () => {
+      jest.spyOn(global, 'fetch').mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            status: { responseStatus: 'Success' },
+            response: {
+              generalinformation: { registrationno: '9921103999', parenttelephoneno: '9921103001' },
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      );
+
+      const res = await request(app)
+        .post('/api/v1/auth/portal-google')
+        .send({ response: portalResponse });
+
+      expect(res.status).toBe(401);
+    });
+
     it('rejects a token the portal does not accept', async () => {
       jest
         .spyOn(global, 'fetch')

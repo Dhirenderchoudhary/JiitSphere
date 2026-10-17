@@ -64,10 +64,18 @@ export default function LoginView({ onAuth }) {
     }
   };
 
+  // One exchange at a time: a repeated login message would mint a second token
+  // whose response could land after, and overwrite, the first.
+  const exchanging = useRef(false);
   const onExtensionMessage = useRef(null);
   onExtensionMessage.current = (data) => {
     if (data.jiitsphere === 'here') setRoute('extension');
-    if (data.jiitsphere === 'login' && data.login) finishPortalGoogleLogin(data.login);
+    if (data.jiitsphere === 'login' && data.login && !exchanging.current) {
+      exchanging.current = true;
+      finishPortalGoogleLogin(data.login).finally(() => {
+        exchanging.current = false;
+      });
+    }
     if (data.jiitsphere === 'cancelled') {
       setWaitingOnPortal(false);
       setError('The portal tab was closed before sign-in finished.');

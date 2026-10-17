@@ -191,12 +191,6 @@ const demoLogin = (req, res) => {
     .json({ success: true, message: 'Demo login successful', data: { token, user } });
 };
 
-const collectValues = (node, out = new Set()) => {
-  if (node && typeof node === 'object') Object.values(node).forEach((v) => collectValues(v, out));
-  else if (node !== null && node !== undefined) out.add(String(node).trim().toLowerCase());
-  return out;
-};
-
 // The captured response is only a claim. Sessions are keyed by student, so
 // trusting it would let anyone post a junk token with someone else's enrollment
 // number and replace their session. The portal's own record for the token must
@@ -211,7 +205,14 @@ const portalConfirmsStudent = async (portalToken, instituteId, userId) => {
     { clientid: 'SOAU', instituteid: instituteId },
     { encrypted: false }
   );
-  return collectValues(info).has(userId);
+  // The fields the portal's own profile page shows as the student's identity.
+  const student = info?.generalinformation || {};
+  return [student.enrollmentno, student.registrationno].some(
+    (id) =>
+      String(id ?? '')
+        .trim()
+        .toLowerCase() === userId
+  );
 };
 
 /**
@@ -259,6 +260,11 @@ const portalGoogleLogin = async (req, res) => {
   const name = String(response.name || '').trim() || makeDisplayName(userId);
   const portalLogin = issuePortalLogin(userId, name);
   const session = ensureOwnedSession(portalLogin.relaySessionId, userId);
+  if (!session) {
+    return res
+      .status(503)
+      .json({ success: false, message: 'Sign-in is busy right now. Try again in a moment.' });
+  }
   session.authContext = {
     regdata: {
       token: portalToken,

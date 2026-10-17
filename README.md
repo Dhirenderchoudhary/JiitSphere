@@ -105,7 +105,9 @@ bare `--` would be read as the prefix.
 
 ## Deploying
 
-Merging to `main` deploys the site on Vercel and the API on Render.
+Merging to `main` deploys the site on Vercel and the API on Render. The
+**Deploy JiitSphere** workflow also still triggers a Render deploy for the site
+from before it moved to Vercel; jiitsphere.com itself is served by Vercel.
 
 If a bad backend deploy reaches production, roll it back from GitHub: open
 Actions, choose **Deploy JiitSphere**, click **Run workflow**, and enter the ID of

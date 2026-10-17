@@ -6,9 +6,20 @@ const getPending = async () => (await chrome.storage.session.get('pending')).pen
 const setPending = (pending) =>
   pending ? chrome.storage.session.set({ pending }) : chrome.storage.session.remove('pending');
 
+// A failed tab or storage call would otherwise leave the JiitSphere page waiting.
+const cancelOnFailure = (siteTabId) => () =>
+  chrome.tabs.sendMessage(siteTabId, { kind: 'cancelled' }).catch(() => {});
+
 chrome.runtime.onMessage.addListener((message, sender) => {
-  if (message.kind === 'connect' && sender.tab) openPortal(sender.tab);
-  if (message.kind === 'portal-login' && sender.tab) deliver(sender.tab.id, message.login);
+  if (message.kind === 'connect' && sender.tab) {
+    openPortal(sender.tab).catch(cancelOnFailure(sender.tab.id));
+  }
+  if (message.kind === 'portal-login' && sender.tab) {
+    deliver(sender.tab.id, message.login).catch(async () => {
+      const pending = await getPending().catch(() => null);
+      if (pending) cancelOnFailure(pending.siteTabId)();
+    });
+  }
 });
 
 async function openPortal(siteTab) {

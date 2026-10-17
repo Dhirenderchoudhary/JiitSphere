@@ -3,8 +3,8 @@
 These are the images uploaded to the JiitSphere Connect listing in the Chrome
 Web Store developer console. They are not part of the extension package.
 
-The store rejects images with an alpha channel, so every screenshot and promo
-tile is a 24-bit PNG.
+Screenshots and promo tiles must not have an alpha channel, so each is a 24-bit
+PNG. The 128 x 128 icons keep their transparent padding, which the store asks for.
 
 | File | Size | Used for |
 |---|---|---|

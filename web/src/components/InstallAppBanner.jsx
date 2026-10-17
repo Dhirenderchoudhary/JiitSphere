@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Download, Share, SquarePlus, X } from 'lucide-react';
 import { Button } from 'components/ui/button';
+import { INSTALL_PROMPT_USED } from './InstallAppButton';
 
 const DISMISS_KEY = 'jiitsphere-install-dismissed-at';
 const DISMISS_FOR_MS = 14 * 24 * 60 * 60 * 1000;
@@ -44,11 +45,15 @@ export default function InstallAppBanner() {
     };
     const onInstalled = () => setPlatform(null);
 
+    const onPromptUsed = () => setInstallPrompt(null);
+
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
     window.addEventListener('appinstalled', onInstalled);
+    window.addEventListener(INSTALL_PROMPT_USED, onPromptUsed);
     return () => {
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
       window.removeEventListener('appinstalled', onInstalled);
+      window.removeEventListener(INSTALL_PROMPT_USED, onPromptUsed);
     };
   }, []);
 
@@ -64,9 +69,8 @@ export default function InstallAppBanner() {
   };
 
   const install = async () => {
+    window.dispatchEvent(new Event(INSTALL_PROMPT_USED));
     try {
-      // The navbar install button holds the same event; if it already used the
-      // prompt, a second prompt() throws.
       await installPrompt.prompt();
     } catch {
       setInstallPrompt(null);

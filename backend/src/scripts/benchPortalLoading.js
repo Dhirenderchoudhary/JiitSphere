@@ -90,6 +90,9 @@ const RESPONSES = {
     ok({ studentlov: { stynumber: '7', programid: 'P1', branchid: 'B1' } }),
 };
 const portalLog = [];
+// Endpoints answered with an empty success because the fake portal has no
+// realistic reply for them; timings that depend on them are less trustworthy.
+const unmodelled = new Set();
 let inFlight = 0;
 let peak = 0;
 const portal = http.createServer((req, res) => {
@@ -105,6 +108,7 @@ const portal = http.createServer((req, res) => {
     setTimeout(() => {
       inFlight--;
       const fn = RESPONSES[ep];
+      if (!fn) unmodelled.add(ep);
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify(fn ? fn(decrypt(raw || '{}')) : ok({})));
     }, LAT);
@@ -119,6 +123,7 @@ const portal = http.createServer((req, res) => {
     const t0 = Date.now();
     const r = await fn();
     const ms = Date.now() - t0;
+    if (r.status >= 400) throw new Error(`${name} returned HTTP ${r.status}`);
     const calls = portalLog.slice(from).map((h) => h.ep);
     results.push({ name, ms, status: r.status, portalCalls: calls.length, endpoints: calls });
     console.log(
@@ -198,6 +203,7 @@ const portal = http.createServer((req, res) => {
     totalSequentialMs: total,
     totalPortalCalls: totalCalls,
     peakConcurrentPortalCalls: peak,
+    unmodelledEndpoints: [...unmodelled].sort(),
   };
   console.log('\nSUMMARY', JSON.stringify(summary));
   fs.writeFileSync(
