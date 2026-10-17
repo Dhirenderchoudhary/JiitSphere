@@ -82,6 +82,24 @@ describe('portal sessions across a backend restart', () => {
     expect(res.status).toBe(404);
   });
 
+  it('signs the student out once the portal rejects their sign-in', async () => {
+    portalAcceptsToken();
+    const { token } = await signIn();
+    const auth = { Authorization: `Bearer ${token}` };
+
+    jest.restoreAllMocks();
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(
+        new Response('{}', { status: 401, headers: { 'Content-Type': 'application/json' } })
+      );
+    await request(app).get('/api/v1/portal/sdk/exams').set(auth);
+    const res = await request(app).get('/api/v1/portal/sdk/session').set(auth);
+
+    expect(res.status).toBe(404);
+    expect(await PortalSession.findById(ENROLLMENT).lean()).toBeNull();
+  });
+
   it('never stores the portal token in plain text', async () => {
     portalAcceptsToken();
     await signIn();

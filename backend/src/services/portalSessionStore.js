@@ -56,4 +56,13 @@ const loadPortalSession = async (ownerId) => {
   }
 };
 
-module.exports = { savePortalSession, loadPortalSession };
+const deletePortalSession = async (ownerId) => {
+  if (!dbReady()) return;
+  try {
+    await PortalSession.deleteOne({ _id: ownerId });
+  } catch (err) {
+    console.error('Could not delete portal session:', err.message);
+  }
+};
+
+module.exports = { savePortalSession, loadPortalSession, deletePortalSession };

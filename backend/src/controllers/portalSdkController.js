@@ -1,11 +1,16 @@
-const { createOrUpdateSession, getSessionByOwner } = require('../services/ownPortalSdk');
+const {
+  createOrUpdateSession,
+  getSessionByOwner,
+  forgetSession,
+} = require('../services/ownPortalSdk');
 const env = require('../config/env');
 const {
   ensureOwnedSession,
   buildCookieHeader,
   restoreRelaySession,
+  forgetRelaySession,
 } = require('../services/portalRelayService');
-const { loadPortalSession } = require('../services/portalSessionStore');
+const { loadPortalSession, deletePortalSession } = require('../services/portalSessionStore');
 const { encryptPortalPayload } = require('../utils/portalCrypto');
 const { buildPublicDemoDataset } = require('../services/demoPortalDataset');
 const { PortalClient, PortalError } = require('../services/portalClient');
@@ -3067,7 +3072,15 @@ const ensureSession = async (req, res) => {
     session = getSessionByOwner(owner);
   }
 
-  if (!session) {
+  // Stale data looks like current data, so a session whose portal sign-in the
+  // portal has rejected is dropped and the student is asked to sign in again.
+  const relayId = session?.dataset?.relaySessionId;
+  if (relayId && ensureOwnedSession(relayId, owner)?.signInRejected) {
+    forgetSession(owner);
+    forgetRelaySession(relayId);
+    await deletePortalSession(owner);
+    session = null;
+  } else if (!session) {
     session = await restoreSession(owner).catch(() => null);
   }
 
