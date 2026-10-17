@@ -19,8 +19,12 @@ subjects, fees and your profile. It all comes from the official JIIT web portal.
 only, and Google only allows that on the portal's own page. The JiitSphere
 Connect extension for Chrome and Edge opens the portal, lets you sign in there
 as usual, and hands the session back to JiitSphere. Phones can't run
-extensions, so portal data needs a computer; everything else works on a phone.
-Try Demo shows the dashboard with sample data and no account.
+extensions, so a phone is linked instead: on a signed-in computer, **Use on
+phone** shows a QR code, and scanning it (or typing its code at
+jiitsphere.com/link) signs the phone in to the same session. A student stays
+signed in for up to 30 days; when the portal's own sign-in expires, the backend
+renews it the way the portal does. Try Demo shows the dashboard with sample data
+and no account.
 
 **Install as an app.** On Android and iPhone the site offers to install itself to
 the home screen and then opens full screen.
@@ -33,9 +37,13 @@ the home screen and then opens full screen.
 | `backend/` | Express API: study material, portal sessions, admin | Render |
 | `extension/` | JiitSphere Connect, a Manifest V3 Chrome extension | Chrome Web Store |
 
+Each folder has its own README: [backend](backend/README.md),
+[web](web/README.md) and [extension](extension/README.md).
+
 Study material metadata lives in MongoDB. The files are on Cloudflare R2 behind
 `files.jiitsphere.com`; the backend talks to R2 through its S3-compatible API.
-Portal sessions are kept in memory on the backend and expire on their own.
+Portal sessions are kept in memory on the backend for speed and saved,
+encrypted, in MongoDB, so a restart does not sign anyone out.
 
 ## Running it locally
 
@@ -115,6 +123,12 @@ the last good deploy from the Render dashboard (it looks like `dep-...`).
 
 The Chrome extension is published separately. Its README covers building the
 upload and the store listing.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setting up, the checks a pull request
+has to pass, and how to write commits. Report security problems privately, as
+described in [SECURITY.md](SECURITY.md), not in a public issue.
 
 ## License
 
