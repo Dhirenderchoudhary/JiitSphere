@@ -41,7 +41,12 @@ export default function LoginView({ onAuth }) {
     setLoading(true);
     setError('');
     try {
-      const auth = await loginPortalWithGoogle(portalLogin);
+      // The portal records when the student signed in, in the browser's own
+      // format, and asks for it again when renewing the sign-in.
+      const auth = await loginPortalWithGoogle({
+        ...portalLogin,
+        tokendate: new Date().toString(),
+      });
       const { token: activeToken, relaySessionId, user } = auth?.data || {};
       // sdk/login swallows portal errors, so realData is the only sign the
       // portal token actually works.

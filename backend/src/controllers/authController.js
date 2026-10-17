@@ -280,8 +280,10 @@ const portalGoogleLogin = async (req, res) => {
       userid: response.userid || null,
       memberid: response.memberid || null,
       membertype: response.membertype || 'S',
+      // What the portal's refreshTokenRequest identifies the sign-in by.
+      username: String(response.Username || response.enrollmentno || '').slice(0, 120) || null,
     },
-    tokenDate: new Date().toString(),
+    tokenDate: String(response.tokendate || '').slice(0, 120) || new Date().toString(),
     verifiedAt: Date.now(),
   };
   await savePortalSession(userId, portalLogin.relaySessionId, session.authContext);

@@ -65,4 +65,23 @@ const deletePortalSession = async (ownerId) => {
   }
 };
 
-module.exports = { savePortalSession, loadPortalSession, deletePortalSession };
+// A renewed sign-in starts a fresh window, so a student who keeps using the app
+// is never asked to sign in again while the portal keeps renewing.
+const extendPortalSession = async (ownerId) => {
+  if (!dbReady()) return;
+  try {
+    await PortalSession.updateOne(
+      { _id: ownerId },
+      { expiresAt: new Date(Date.now() + env.portalTokenMaxAgeMs) }
+    );
+  } catch (err) {
+    console.error('Could not extend portal session:', err.message);
+  }
+};
+
+module.exports = {
+  savePortalSession,
+  loadPortalSession,
+  deletePortalSession,
+  extendPortalSession,
+};

@@ -11,6 +11,7 @@
 const crypto = require('crypto');
 const { encryptPortalPayload, generatePortalLocalName } = require('../utils/portalCrypto');
 const { ensureOwnedSession, buildCookieHeader } = require('./portalRelayService');
+const { extendPortalSession } = require('./portalSessionStore');
 const env = require('../config/env');
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -20,6 +21,8 @@ const DEFAULT_TIMEOUT_MS = 4000;
 // The portal answers some requests with a 500 or times out, then succeeds a
 // moment later. One retry turns that blip into data instead of an empty page.
 const MAX_ATTEMPTS = 2;
+// How the portal says it no longer accepts the sign-in.
+const SIGN_IN_REJECTED = new Set([401, 403]);
 const BACKOFF_BASE_MS = 250;
 
 // ── Structured Error ───────────────────────────────────────────────────────
@@ -140,7 +143,7 @@ class PortalClient {
     const existing = inFlightCache.get(dedupKey);
     if (existing) return existing;
 
-    const promise = this._postWithRetry(path, payload, encrypted, timeout);
+    const promise = this._postSignedIn(path, payload, encrypted, timeout);
     inFlightCache.set(dedupKey, promise);
 
     try {
@@ -194,6 +197,75 @@ class PortalClient {
       });
     } finally {
       clearTimeout(timer);
+    }
+  }
+
+  /** Internal: POST, renewing the portal sign-in once if the portal rejects it */
+  async _postSignedIn(path, payload, encrypted, timeout) {
+    try {
+      return await this._postWithRetry(path, payload, encrypted, timeout);
+    } catch (err) {
+      if (!SIGN_IN_REJECTED.has(err.details?.httpStatus)) throw err;
+      if (!(await this._renewSignIn())) throw err;
+      try {
+        return await this._postWithRetry(path, payload, encrypted, timeout);
+      } catch (retryErr) {
+        if (SIGN_IN_REJECTED.has(retryErr.details?.httpStatus)) this._markRejected();
+        throw retryErr;
+      }
+    }
+  }
+
+  _signInAgeHours() {
+    const signedInAt = Number(this.relaySession.authContext?.verifiedAt || 0);
+    return signedInAt ? ((Date.now() - signedInAt) / 3600000).toFixed(1) : '?';
+  }
+
+  // ensureSession signs the student out on their next request, so stale data is
+  // never shown as current. The log records how long the portal's sign-in lasted.
+  _markRejected() {
+    if (this.relaySession.signInRejected) return;
+    this.relaySession.signInRejected = true;
+    console.warn(`Portal sign-in rejected ${this._signInAgeHours()} h after it was made`);
+  }
+
+  // The portal's own app answers a 401 by asking /token/refreshTokenRequest to
+  // extend the sign-in, then repeating the request. Do the same, one renewal at a
+  // time per session however many requests failed together.
+  _renewSignIn() {
+    const session = this.relaySession;
+    if (session.signInRejected) return Promise.resolve(false);
+    if (!session.renewing) {
+      session.renewing = this._requestRenewal()
+        .then((renewed) => {
+          if (renewed) {
+            console.log(`Portal sign-in renewed ${this._signInAgeHours()} h after it was made`);
+            extendPortalSession(session.ownerId).catch(() => null);
+          } else this._markRejected();
+          return renewed;
+        })
+        .finally(() => {
+          session.renewing = null;
+        });
+    }
+    return session.renewing;
+  }
+
+  async _requestRenewal() {
+    const context = this.relaySession.authContext || {};
+    const username = context.regdata?.username || context.regdata?.enrollmentno;
+    if (!username) return false;
+    try {
+      const response = await fetch(toPortalUrl('/StudentPortalAPI/token/refreshTokenRequest'), {
+        method: 'POST',
+        headers: this._headers('application/json'),
+        body: JSON.stringify({ username, tokendate: context.tokenDate }),
+        signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+      });
+      const data = await response.json();
+      return data?.response?.msg === 'Success';
+    } catch {
+      return false;
     }
   }
 
@@ -264,20 +336,6 @@ class PortalClient {
           if (lowered.includes('json parse error') || lowered.includes('unrecognized token')) {
             // Retry with plain JSON (not encrypted)
             return this._postOnce(path, payload, false, timeout);
-          }
-        }
-        if (
-          (response.status === 401 || response.status === 403) &&
-          !this.relaySession.signInRejected
-        ) {
-          // The portal no longer accepts this student's sign-in. ensureSession
-          // drops the session on the next request; the log records how long the
-          // portal's sign-in lasted.
-          this.relaySession.signInRejected = true;
-          const signedInAt = Number(this.relaySession.authContext?.verifiedAt || 0);
-          if (signedInAt) {
-            const hours = ((Date.now() - signedInAt) / 3600000).toFixed(1);
-            console.warn(`Portal sign-in rejected ${hours} h after it was made`);
           }
         }
         const reason = errMsg ? `: ${errMsg.slice(0, 200)}` : '';

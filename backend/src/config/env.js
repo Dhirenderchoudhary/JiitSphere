@@ -81,14 +81,14 @@ const rawConfig = {
     process.env.PORTAL_BOOTSTRAP_ATTENDANCE_SEMESTERS || 1
   ),
   portalRequestTimeoutMs: Number(process.env.PORTAL_REQUEST_TIMEOUT || 12000),
-  portalTokenMaxAgeMs: Number(process.env.PORTAL_TOKEN_MAX_AGE || 1000 * 60 * 60 * 24 * 7),
+  portalTokenMaxAgeMs: Number(process.env.PORTAL_TOKEN_MAX_AGE || 1000 * 60 * 60 * 24 * 30),
   /**
    * Idle TTL for the server-side portal SDK and relay sessions. This must not
    * be shorter than portalTokenMaxAgeMs: when it lapses first, the user still
    * holds a valid token but every portal request 404s, which the app surfaces
    * as being signed out.
    */
-  sessionMaxAgeMs: Number(process.env.SESSION_MAX_AGE || 1000 * 60 * 60 * 24 * 7),
+  sessionMaxAgeMs: Number(process.env.SESSION_MAX_AGE || 1000 * 60 * 60 * 24 * 30),
   /** Re-issue a portal token once it is older than this. */
   sessionRefreshAfterMs: Number(process.env.SESSION_REFRESH_AFTER || 1000 * 60 * 60 * 24),
   sessionCleanupIntervalMs: Number(process.env.SESSION_CLEANUP_INTERVAL || 15 * 60 * 1000),
