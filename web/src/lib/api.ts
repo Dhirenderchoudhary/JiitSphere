@@ -238,6 +238,11 @@ const sdkGet = async <T = JsonObject>(
       );
       if (response.status === 401) throw new SessionExpiredError();
       const data = await parseJson<T & { message?: string }>(response);
+      // Portal sessions live in the backend's memory, so a restart loses them
+      // while the browser's token still looks valid. Sign in again.
+      if (response.status === 404 && /portal session not found/i.test(data.message || '')) {
+        throw new SessionExpiredError();
+      }
       if (!response.ok) throw new Error(data.message || 'SDK request failed');
       return data;
     } finally {

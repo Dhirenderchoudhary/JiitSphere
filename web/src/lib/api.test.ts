@@ -1,4 +1,4 @@
-import { fetchMaterials, materialAccessUrl } from './api';
+import { fetchMaterials, fetchPortalProfile, materialAccessUrl, SessionExpiredError } from './api';
 
 describe('Frontend API wrapper', () => {
   let originalFetch;
@@ -54,6 +54,34 @@ describe('Frontend API wrapper', () => {
       });
 
       await expect(fetchMaterials({})).rejects.toThrow('Server error');
+    });
+  });
+
+  describe('portal data requests', () => {
+    const reply = (status, body) => ({
+      ok: status < 400,
+      status,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => body,
+    });
+
+    it('asks for a new sign-in when the backend has lost the portal session', async () => {
+      global.fetch.mockResolvedValueOnce(
+        reply(404, {
+          success: false,
+          message: 'Portal session not found. Please login to portal SDK first.',
+        })
+      );
+
+      await expect(fetchPortalProfile('token-a', false)).rejects.toBeInstanceOf(
+        SessionExpiredError
+      );
+    });
+
+    it('reports other failures as ordinary errors', async () => {
+      global.fetch.mockResolvedValueOnce(reply(404, { success: false, message: 'Not found' }));
+
+      await expect(fetchPortalProfile('token-b', false)).rejects.toThrow('Not found');
     });
   });
 });
