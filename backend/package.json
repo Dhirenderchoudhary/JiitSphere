@@ -22,19 +22,19 @@
     "bench:portal": "node src/scripts/benchPortalLoading.js"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1113.0",
-    "compression": "^1.8.1",
+    "@aws-sdk/client-s3": "^3.1151.0",
+    "compression": "^1.8.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^5.2.1",
+    "express": "^5.3.0",
     "express-rate-limit": "^7.5.1",
-    "helmet": "^8.0.0",
-    "mongoose": "^9.9.3",
-    "morgan": "^1.11.0",
-    "multer": "^2.0.2",
+    "helmet": "^8.3.0",
+    "mongoose": "^9.11.2",
+    "morgan": "^1.12.1",
+    "multer": "^2.4.0",
     "node-cache": "^5.1.2",
     "pdf-parse": "^2.4.5",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "eslint": "^8.57.1",
