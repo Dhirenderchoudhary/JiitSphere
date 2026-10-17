@@ -3213,6 +3213,11 @@ const loginSdk = async (req, res) => {
   if (latestSemesterId) {
     warmSubjectDailyCountsForSemester(session, req, latestSemesterId).catch(() => null);
   }
+  // Exams are not part of the sign-in load; fetch them now so the Exams tab
+  // does not wait on the portal.
+  getExamsOnDemand(session, req)
+    .then((rows) => rows && markFetched(session, 'exams'))
+    .catch(() => null);
 
   return res.status(200).json({
     success: true,
