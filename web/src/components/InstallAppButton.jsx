@@ -8,6 +8,10 @@ const isIosUserAgent = (userAgent = '') => /iphone|ipad|ipod/i.test(userAgent);
 const isSafariBrowser = (userAgent = '') =>
   /safari/i.test(userAgent) && !/crios|fxios|edgios|android/i.test(userAgent);
 
+// The browser's install prompt can be shown once. The navbar button and the
+// phone banner both hold it, so whichever uses it tells the other to let go.
+export const INSTALL_PROMPT_USED = 'jiitsphere-install-prompt-used';
+
 export default function InstallAppButton({ className = '' }) {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [hintOpen, setHintOpen] = useState(false);
@@ -36,11 +40,15 @@ export default function InstallAppButton({ className = '' }) {
       setIsStandalone(true);
     };
 
+    const onPromptUsed = () => setDeferredPrompt(null);
+
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
     window.addEventListener('appinstalled', onInstalled);
+    window.addEventListener(INSTALL_PROMPT_USED, onPromptUsed);
     return () => {
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
       window.removeEventListener('appinstalled', onInstalled);
+      window.removeEventListener(INSTALL_PROMPT_USED, onPromptUsed);
     };
   }, []);
 
@@ -48,7 +56,13 @@ export default function InstallAppButton({ className = '' }) {
 
   const handleInstall = async () => {
     if (deferredPrompt) {
-      deferredPrompt.prompt();
+      window.dispatchEvent(new Event(INSTALL_PROMPT_USED));
+      try {
+        await deferredPrompt.prompt();
+      } catch {
+        setDeferredPrompt(null);
+        return;
+      }
       const choice = await deferredPrompt.userChoice;
       if (choice?.outcome === 'accepted') {
         setDeferredPrompt(null);
