@@ -14,6 +14,7 @@ import {
   fetchPortalSubjects,
 } from 'lib/api';
 import { TOKEN_KEY, LAST_PORTAL_USER_ID, PORTAL_VERIFIED_KEY } from '../constants';
+import saveSignedInSession from '../saveSignedInSession';
 
 const EXTENSION_URL =
   'https://chromewebstore.google.com/detail/jiitsphere-connect/eccflpifjeiapgoimdmnkfiafbchkfgo';
@@ -26,7 +27,7 @@ const ROUTE_HINTS = {
   'needs-extension':
     'The JIIT portal signs students in with Google only. Add JiitSphere Connect to Chrome or Edge, then reload this page.',
   phone:
-    'The JIIT portal signs students in with Google only, which needs JiitSphere Connect on a computer with Chrome or Edge.',
+    'The JIIT portal signs students in with Google only, so sign in once on a computer with JiitSphere Connect, then choose Use on phone there to link this phone.',
 };
 
 export default function LoginView({ onAuth }) {
@@ -47,13 +48,7 @@ export default function LoginView({ onAuth }) {
       const sdk = await portalSdkLogin(activeToken, { userId: user.userId, relaySessionId });
       if (!sdk?.data?.realData) throw new Error('Portal returned no data');
 
-      window.localStorage.setItem(TOKEN_KEY, activeToken);
-      window.localStorage.setItem(LAST_PORTAL_USER_ID, user.userId);
-      window.localStorage.setItem(PORTAL_VERIFIED_KEY, 'true');
-      window.localStorage.setItem('jaypee_buddy_identity_mode', 'portal');
-      window.localStorage.removeItem('jaypee_buddy_cached_photo');
-      window.localStorage.removeItem('jaypee_buddy_cached_profile_name');
-      window.dispatchEvent(new Event('jaypee-buddy-identity-updated'));
+      saveSignedInSession(activeToken, user.userId);
       onAuth(activeToken);
     } catch (_err) {
       setError(
@@ -184,6 +179,14 @@ export default function LoginView({ onAuth }) {
                   className={cn(buttonVariants(), 'w-full h-12 rounded-xl font-bold text-sm')}
                 >
                   Add JiitSphere Connect to Chrome
+                </a>
+              ) : null}
+              {route === 'phone' ? (
+                <a
+                  href="/link"
+                  className={cn(buttonVariants(), 'w-full h-12 rounded-xl font-bold text-sm')}
+                >
+                  Link this phone
                 </a>
               ) : null}
               {hint ? (

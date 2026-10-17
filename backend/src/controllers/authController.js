@@ -1,9 +1,11 @@
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 const env = require('../config/env');
 const { sign } = require('../utils/token');
 const { createRelaySession, ensureOwnedSession } = require('../services/portalRelayService');
 const { PortalClient } = require('../services/portalClient');
-const { savePortalSession } = require('../services/portalSessionStore');
+const { savePortalSession, loadPortalSession } = require('../services/portalSessionStore');
+const LinkCode = require('../models/LinkCode');
 const { getSnapshot } = require('../services/requestAnalyticsStore');
 
 const allowedUsers = env.userAllowedIdentifiers.reduce((acc, identifier) => {
@@ -62,10 +64,8 @@ const normalizeDemoUser = (user = {}) => {
   };
 };
 
-const issuePortalLogin = (userId, name) => {
-  const user = { userId, name, role: 'portal-pending', portalMode: true };
-
-  const token = sign(
+const signPortalToken = (user) =>
+  sign(
     {
       ...user,
       scope: ['portal:relay', 'portal:sdk-login'],
@@ -76,6 +76,9 @@ const issuePortalLogin = (userId, name) => {
     env.authSecret
   );
 
+const issuePortalLogin = (userId, name) => {
+  const user = { userId, name, role: 'portal-pending', portalMode: true };
+  const token = signPortalToken(user);
   const relaySessionId = createRelaySession(user.userId);
 
   return { token, user, relaySessionId };
@@ -296,10 +299,78 @@ const analytics = (req, res) => {
   return res.status(200).json({ success: true, data: getSnapshot() });
 };
 
+// No 0/O or 1/I, so a code typed by hand is not misread.
+const LINK_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const LINK_CODE_TTL_MS = 2 * 60 * 1000;
+
+const hashLinkCode = (code) =>
+  crypto.createHash('sha256').update(String(code).trim().toUpperCase()).digest('hex');
+
+const newLinkCode = () =>
+  Array.from(crypto.randomBytes(8), (byte) => LINK_CODE_ALPHABET[byte % 32]).join('');
+
+const dbUnavailable = (res) =>
+  res
+    .status(503)
+    .json({ success: false, message: 'Phone sign-in is unavailable right now. Try again soon.' });
+
+// A computer signed in to the portal asks for a short-lived code to show as a QR
+// code. The phone that scans it signs in to the same saved portal session.
+const createLinkCode = async (req, res) => {
+  if (!req.user?.portalMode) {
+    return res
+      .status(403)
+      .json({ success: false, message: 'Sign in to the portal with Google first' });
+  }
+  if (mongoose.connection.readyState !== 1) return dbUnavailable(res);
+
+  const ownerId = req.user.userId;
+  if (!(await loadPortalSession(ownerId))) {
+    return res
+      .status(409)
+      .json({ success: false, message: 'Your portal session has ended. Sign in again first.' });
+  }
+
+  const code = newLinkCode();
+  const expiresAt = new Date(Date.now() + LINK_CODE_TTL_MS);
+  await LinkCode.create({ _id: hashLinkCode(code), ownerId, expiresAt });
+  return res.status(201).json({ success: true, data: { code, expiresAt } });
+};
+
+const redeemLinkCode = async (req, res) => {
+  const code = String(req.body?.code || '').trim();
+  if (!/^[A-Za-z0-9]{8}$/.test(code)) {
+    return res.status(400).json({ success: false, message: 'Enter the 8-character code' });
+  }
+  if (mongoose.connection.readyState !== 1) return dbUnavailable(res);
+
+  // Deleting on read makes the code single-use even if two phones race for it.
+  const link = await LinkCode.findOneAndDelete({
+    _id: hashLinkCode(code),
+    expiresAt: { $gt: new Date() },
+  }).lean();
+  const saved = link && (await loadPortalSession(link.ownerId));
+  if (!saved) {
+    return res
+      .status(400)
+      .json({ success: false, message: 'That code has expired or was already used' });
+  }
+
+  const user = {
+    userId: link.ownerId,
+    name: saved.authContext?.regdata?.name || makeDisplayName(link.ownerId),
+    role: 'portal-pending',
+    portalMode: true,
+  };
+  return res.status(200).json({ success: true, data: { token: signPortalToken(user), user } });
+};
+
 module.exports = {
   login,
   demoLogin,
   portalGoogleLogin,
+  createLinkCode,
+  redeemLinkCode,
   me,
   analytics,
 };
