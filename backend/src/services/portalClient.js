@@ -266,6 +266,20 @@ class PortalClient {
             return this._postOnce(path, payload, false, timeout);
           }
         }
+        if (
+          (response.status === 401 || response.status === 403) &&
+          !this.relaySession.signInRejected
+        ) {
+          // The portal no longer accepts this student's sign-in. ensureSession
+          // drops the session on the next request; the log records how long the
+          // portal's sign-in lasted.
+          this.relaySession.signInRejected = true;
+          const signedInAt = Number(this.relaySession.authContext?.verifiedAt || 0);
+          if (signedInAt) {
+            const hours = ((Date.now() - signedInAt) / 3600000).toFixed(1);
+            console.warn(`Portal sign-in rejected ${hours} h after it was made`);
+          }
+        }
         const reason = errMsg ? `: ${errMsg.slice(0, 200)}` : '';
         throw new PortalError(
           'FETCH_ERROR',
