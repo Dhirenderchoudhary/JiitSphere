@@ -278,6 +278,19 @@ export const loginPortalWithGoogle = async (response: JsonObject) => {
   });
 };
 
+// Codes are single-use, so these never retry: a retried redeem would find the
+// code already spent by the first attempt.
+export const createPhoneLinkCode = async (token: string) =>
+  portalJsonRequest('/auth/link-code', { method: 'POST', headers: authHeader(token), retries: 0 });
+
+export const redeemPhoneLinkCode = async (code: string) =>
+  portalJsonRequest('/auth/link-code/redeem', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+    retries: 0,
+  });
+
 export const loginPortalDemo = async () => {
   return portalJsonRequest('/auth/demo-login', {
     method: 'POST',

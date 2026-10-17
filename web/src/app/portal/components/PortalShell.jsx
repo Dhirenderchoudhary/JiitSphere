@@ -17,6 +17,7 @@ import {
   AUTO_REFRESH_INTERVAL_MS,
 } from '../constants';
 import HydrationStatusPanel from './HydrationStatusPanel';
+import PhoneLinkButton from './PhoneLinkButton';
 
 const tabLoadingState = (
   <div className="flex min-h-[400px] w-full items-center justify-center p-6 text-sm text-muted-foreground font-mono uppercase tracking-widest">
@@ -426,6 +427,7 @@ export default function PortalShell({ token, onLogout }) {
               Synced {agoLabel}
             </span>
             <div className="h-5 w-px bg-border/50 mx-1 hidden sm:block" />
+            <PhoneLinkButton token={token} />
             <TopPanelTools />
             <Button
               variant="secondary"
