@@ -1,0 +1,20 @@
+name: Keep backend awake
+
+# Render's free plan sleeps the backend after 15 idle minutes. Waking it takes
+# about 20 seconds and drops every portal session, which are kept in memory.
+# Pinging only from 06:30 to 01:20 IST keeps it to roughly 590 of the 750 free
+# instance hours a month, which the workspace's other free services share.
+on:
+  schedule:
+    - cron: '*/10 1-19 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping /health
+        run: curl --fail --silent --show-error --max-time 60 https://jiitsphere.onrender.com/health
