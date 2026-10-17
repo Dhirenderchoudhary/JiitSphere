@@ -68,8 +68,26 @@ const ensureOwnedSession = (sessionId, ownerId) => {
 
 const buildCookieHeader = (session) => toCookieHeader(session.cookies);
 
+// Puts a saved session back under its original id after a restart, so tokens
+// and SDK sessions that refer to that id keep working.
+const restoreRelaySession = (sessionId, ownerId, authContext) => {
+  const session = {
+    ownerId,
+    cookies: {},
+    authContext,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+  relaySessions.set(sessionId, session);
+  return session;
+};
+
+const forgetRelaySession = (sessionId) => relaySessions.delete(sessionId);
+
 module.exports = {
   createRelaySession,
   ensureOwnedSession,
   buildCookieHeader,
+  restoreRelaySession,
+  forgetRelaySession,
 };
