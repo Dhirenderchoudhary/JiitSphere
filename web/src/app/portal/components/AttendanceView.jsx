@@ -350,6 +350,10 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
     [targetAttendancePct]
   );
 
+  // Counts still loading is "computing"; loaded and still empty means the portal
+  // has no classes marked for this semester yet.
+  const countsPending = Object.values(subjectCounts).some((c) => c?.loading);
+
   const aggregateMetrics = useMemo(() => {
     if (!attendance.length) return null;
     let tC = 0;
@@ -570,13 +574,15 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
         </div>
         {aggregateMetrics || isDetailView ? (
           <SegmentedArch pct={layoutPct} />
-        ) : attendance.length > 0 ? (
+        ) : attendance.length > 0 && countsPending ? (
           <div className="h-[120px] flex items-center justify-center text-xs font-mono uppercase tracking-widest text-muted-foreground animate-pulse">
             Computing metrics...
           </div>
         ) : (
-          <div className="h-[120px] flex items-center justify-center text-xs font-medium text-muted-foreground">
-            No attendance data yet
+          <div className="h-[120px] flex items-center justify-center text-center text-xs font-medium text-muted-foreground">
+            {attendance.length > 0
+              ? 'No classes recorded for this semester yet'
+              : 'No attendance data yet'}
           </div>
         )}
       </div>
@@ -681,7 +687,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
             )}
           </div>
         </div>
-      ) : attendance.length > 0 ? (
+      ) : attendance.length > 0 && countsPending ? (
         <div className="flex-1 flex items-center justify-center border-t border-border/40 pt-4 md:border-t-0 md:pt-0 md:border-l md:border-border md:pl-6">
           <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground animate-pulse">
             Syncing class counts...
