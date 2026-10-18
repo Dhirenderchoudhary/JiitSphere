@@ -401,22 +401,27 @@ const fetchSubjectDailyAttendance = async (
   return result;
 };
 
-/**
- * Compute attended/total counts from daily attendance rows.
- */
+const presenceOf = (value) => {
+  const text = String(value || '')
+    .trim()
+    .toLowerCase();
+  if (text === 'p' || text === '1' || text.startsWith('present')) return 'present';
+  if (text === 'a' || text === '0' || text.startsWith('absent')) return 'absent';
+  return null;
+};
+
+// Matches the portal's own percentage: every class marked present counts as attended,
+// but extra classes are left out of the total, so attending extras can make up for
+// missed regular classes. Like the portal, the result never goes above 100%.
 const computeCountsFromDaily = (dailyRows = []) => {
-  let attended = 0;
-  let total = 0;
-  for (const row of dailyRows) {
-    total += 1;
-    const present = String(row.present || row.Present || '')
-      .trim()
-      .toLowerCase();
-    if (present === 'present' || present === 'p' || present === '1') {
-      attended += 1;
-    }
-  }
-  return { attended, total };
+  const marked = (Array.isArray(dailyRows) ? dailyRows : []).filter((row) =>
+    presenceOf(row?.present ?? row?.Present)
+  );
+  const attended = marked.filter(
+    (row) => presenceOf(row?.present ?? row?.Present) === 'present'
+  ).length;
+  const total = marked.filter((row) => !/^extra/i.test(String(row?.classtype || '').trim())).length;
+  return { attended: Math.min(attended, total), total };
 };
 
 /**

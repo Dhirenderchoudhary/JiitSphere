@@ -3458,43 +3458,6 @@ const mapWithConcurrency = async (items = [], concurrency = 1, mapper) => {
   return results;
 };
 
-const computeDailyCountSummary = (rows = []) => {
-  const list = Array.isArray(rows) ? rows : [];
-  const toPresence = (value) => {
-    const compact = String(value || '')
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '');
-    if (!compact) return 'unknown';
-    if (
-      compact === 'present' ||
-      compact === 'p' ||
-      compact === '1' ||
-      compact.startsWith('present') ||
-      compact.includes('attended')
-    ) {
-      return 'present';
-    }
-    if (
-      compact === 'absent' ||
-      compact === 'a' ||
-      compact === '0' ||
-      compact.startsWith('absent') ||
-      compact.includes('missed')
-    ) {
-      return 'absent';
-    }
-    return 'unknown';
-  };
-
-  const normalized = list
-    .map((entry) => toPresence(entry?.present))
-    .filter((value) => value === 'present' || value === 'absent');
-  const total = normalized.length;
-  const attended = normalized.filter((value) => value === 'present').length;
-  return { attended, total };
-};
-
 const findSubjectAttendanceRow = (attendanceRows = [], subject = '') => {
   const target = String(subject || '')
     .trim()
@@ -3932,7 +3895,9 @@ const getAttendanceCounts = async (req, res) => {
   await mapWithConcurrency(pendingRows, SUBJECT_DAILY_CONCURRENCY, async ({ subjectCode }) => {
     try {
       const payload = await loadSubjectDaily(session, req, sem, subjectCode);
-      const summary = computeDailyCountSummary(payload?.studentAttdsummarylist || []);
+      const summary = attendanceService.computeCountsFromDaily(
+        payload?.studentAttdsummarylist || []
+      );
       counts[subjectCode] = {
         attended: summary.attended,
         total: summary.total,
