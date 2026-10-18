@@ -172,6 +172,54 @@ const shouldTryPortalPhotoProxy = (src) => {
   return false;
 };
 
+const hasValue = (value) => value !== undefined && value !== null && String(value).trim() !== '';
+const normalizeKey = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+
+// Portal payloads spell the same field differently between years, so try exact keys
+// case-insensitively first, then any key containing one of the fragments.
+const findRawProfileValue = (profile, keys = [], contains = []) => {
+  const entries = Object.entries(profile || {});
+  const byLowerKey = new Map(entries.map(([key, value]) => [key.toLowerCase(), value]));
+  const exact = keys.map((key) => byLowerKey.get(String(key).toLowerCase())).find(hasValue);
+  if (exact !== undefined) return exact;
+
+  const fragments = contains.map(normalizeKey).filter(Boolean);
+  const match = entries.find(
+    ([key, value]) =>
+      hasValue(value) && fragments.some((fragment) => normalizeKey(key).includes(fragment))
+  );
+  return match ? match[1] : null;
+};
+
+const findProfilePhotoRaw = (profile) =>
+  findRawProfileValue(
+    profile,
+    [
+      'studentphoto',
+      'studentimage',
+      'profilephoto',
+      'photobase64',
+      'photo',
+      'studentphotourl',
+      'profileimgurl',
+      'profileimageurl',
+      'imageurl',
+      'photourl',
+    ],
+    [
+      'student photo',
+      'profile photo',
+      'photo base64',
+      'image base64',
+      'profile image',
+      'image url',
+      'photo url',
+    ]
+  );
+
 export default function ProfileView({ token, onExpired }) {
   const [profile, setProfile] = useState(null);
   const [message, setMessage] = useState('');
@@ -183,61 +231,7 @@ export default function ProfileView({ token, onExpired }) {
 
   const hasPhotoInPayload = (payload) => {
     if (!payload || typeof payload !== 'object') return false;
-
-    const keyMap = Object.keys(payload || {}).reduce((acc, key) => {
-      acc[String(key).toLowerCase()] = key;
-      return acc;
-    }, {});
-
-    const keyNorm = (value) =>
-      String(value || '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '');
-    const findRawValue = (keys = [], contains = []) => {
-      for (const key of keys) {
-        const resolved = keyMap[String(key).toLowerCase()] || key;
-        const raw = payload?.[resolved];
-        if (raw !== undefined && raw !== null && String(raw).trim() !== '') return raw;
-      }
-      const normalizedTokens = contains.flatMap((fragment) => {
-        const normalized = keyNorm(fragment);
-        return normalized ? [normalized] : [];
-      });
-      for (const [rawKey, rawValue] of Object.entries(payload || {})) {
-        if (rawValue === undefined || rawValue === null || String(rawValue).trim() === '') continue;
-        const normalizedKey = keyNorm(rawKey);
-        if (normalizedTokens.some((fragment) => normalizedKey.includes(fragment))) {
-          return rawValue;
-        }
-      }
-      return null;
-    };
-
-    const rawPhoto = findRawValue(
-      [
-        'studentphoto',
-        'studentimage',
-        'profilephoto',
-        'photobase64',
-        'photo',
-        'studentphotourl',
-        'profileimgurl',
-        'profileimageurl',
-        'imageurl',
-        'photourl',
-      ],
-      [
-        'student photo',
-        'profile photo',
-        'photo base64',
-        'image base64',
-        'profile image',
-        'image url',
-        'photo url',
-      ]
-    );
-
-    return Boolean(normalizePhotoSrc(rawPhoto));
+    return Boolean(normalizePhotoSrc(findProfilePhotoRaw(payload)));
   };
 
   useEffect(() => {
@@ -348,46 +342,7 @@ export default function ProfileView({ token, onExpired }) {
       return '';
     };
 
-    const findRawValue = (keys = [], contains = []) => {
-      for (const key of keys) {
-        const resolved = keyMap[String(key).toLowerCase()] || key;
-        const raw = profile?.[resolved];
-        if (raw !== undefined && raw !== null && String(raw).trim() !== '') return raw;
-      }
-      const normalizedTokens = contains.map((fragment) => keyNorm(fragment)).filter(Boolean);
-      for (const [rawKey, rawValue] of Object.entries(profile || {})) {
-        if (rawValue === undefined || rawValue === null || String(rawValue).trim() === '') continue;
-        const normalizedKey = keyNorm(rawKey);
-        if (normalizedTokens.some((fragment) => normalizedKey.includes(fragment))) {
-          return rawValue;
-        }
-      }
-      return null;
-    };
-
-    const rawPhoto = findRawValue(
-      [
-        'studentphoto',
-        'studentimage',
-        'profilephoto',
-        'photobase64',
-        'photo',
-        'studentphotourl',
-        'profileimgurl',
-        'profileimageurl',
-        'imageurl',
-        'photourl',
-      ],
-      [
-        'student photo',
-        'profile photo',
-        'photo base64',
-        'image base64',
-        'profile image',
-        'image url',
-        'photo url',
-      ]
-    );
+    const rawPhoto = findProfilePhotoRaw(profile);
     const rawName = findValue(['studentname', 'name', 'student_name'], ['student name', 'name']);
 
     const src = normalizePhotoSrc(rawPhoto);
@@ -436,57 +391,7 @@ export default function ProfileView({ token, onExpired }) {
       if (!profile || profile?.realData === false) return;
       setPhotoLoadFailed(false);
 
-      const keyMap = Object.keys(profile || {}).reduce((acc, key) => {
-        acc[String(key).toLowerCase()] = key;
-        return acc;
-      }, {});
-
-      const keyNorm = (value) =>
-        String(value || '')
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, '');
-      const findRawProfileValue = (keys = [], contains = []) => {
-        for (const key of keys) {
-          const resolved = keyMap[String(key).toLowerCase()] || key;
-          const raw = profile?.[resolved];
-          if (raw !== undefined && raw !== null && String(raw).trim() !== '') return raw;
-        }
-
-        const normalizedTokens = contains.map((fragment) => keyNorm(fragment)).filter(Boolean);
-        for (const [rawKey, rawValue] of Object.entries(profile || {})) {
-          if (rawValue === undefined || rawValue === null || String(rawValue).trim() === '')
-            continue;
-          const normalizedKey = keyNorm(rawKey);
-          if (normalizedTokens.some((fragment) => normalizedKey.includes(fragment))) {
-            return rawValue;
-          }
-        }
-        return null;
-      };
-
-      const rawPhoto = findRawProfileValue(
-        [
-          'studentphoto',
-          'studentimage',
-          'profilephoto',
-          'photobase64',
-          'photo',
-          'studentphotourl',
-          'profileimgurl',
-          'profileimageurl',
-          'imageurl',
-          'photourl',
-        ],
-        [
-          'student photo',
-          'profile photo',
-          'photo base64',
-          'image base64',
-          'profile image',
-          'image url',
-          'photo url',
-        ]
-      );
+      const rawPhoto = findProfilePhotoRaw(profile);
 
       const normalizedSrc = normalizePhotoSrc(rawPhoto);
       const rawExtracted = extractPhotoText(rawPhoto);
@@ -563,39 +468,7 @@ export default function ProfileView({ token, onExpired }) {
     return '';
   };
 
-  const findRawProfileValue = (keys = [], contains = []) => {
-    for (const key of keys) {
-      const resolved = keyMap[String(key).toLowerCase()] || key;
-      const raw = profile?.[resolved];
-      if (raw !== undefined && raw !== null && String(raw).trim() !== '') return raw;
-    }
-
-    const normalizedTokens = contains.map((fragment) => keyNorm(fragment)).filter(Boolean);
-    for (const [rawKey, rawValue] of Object.entries(profile || {})) {
-      if (rawValue === undefined || rawValue === null || String(rawValue).trim() === '') continue;
-      const normalizedKey = keyNorm(rawKey);
-      if (normalizedTokens.some((fragment) => normalizedKey.includes(fragment))) {
-        return rawValue;
-      }
-    }
-    return null;
-  };
-
-  const profilePhotoRaw = findRawProfileValue(
-    [
-      'studentphoto',
-      'studentimage',
-      'profilephoto',
-      'photobase64',
-      'photo',
-      'studentphotourl',
-      'profileimgurl',
-      'profileimageurl',
-      'imageurl',
-      'photourl',
-    ],
-    ['student photo', 'profile photo', 'photo base64', 'image base64', 'profile image', 'image url']
-  );
+  const profilePhotoRaw = findProfilePhotoRaw(profile);
 
   const profilePhotoSrc = normalizePhotoSrc(profilePhotoRaw);
   const safeProfilePhotoSrc = needsPortalPhotoProxy(profilePhotoSrc) ? '' : profilePhotoSrc;
@@ -896,7 +769,6 @@ export default function ProfileView({ token, onExpired }) {
           {/* Advanced Corporate Security ID Interface */}
           <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm p-6 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8 group">
             {/* Subtle Security Bloom Background Pattern */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-[1500ms]" />
 
             <div className="relative shrink-0">
               <div className="w-28 h-28 sm:size-32 rounded-2xl overflow-hidden border border-border shadow-sm relative z-10 bg-muted">
@@ -926,25 +798,24 @@ export default function ProfileView({ token, onExpired }) {
             <div className="text-center sm:text-left flex-1 min-w-0 z-10 w-full mt-2 sm:mt-0">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-2">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80 mb-1.5">
-                    Corporate Access Identity
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                    Student profile
                   </p>
                   <h3 className="text-2xl sm:text-3xl font-black tracking-tighter text-foreground truncate">
                     {profileName || 'Student'}
                   </h3>
                 </div>
                 <div className="hidden sm:flex flex-col items-end">
-                  <div className="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-sm">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />{' '}
-                    Validated
+                  <div className="px-3 py-1.5 rounded-full border border-emerald-500/20 text-emerald-500 text-xs font-semibold flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Signed in
                   </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 mt-5 sm:mt-6 border-t border-border/50 pt-5">
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                    Enrollment ID
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Enrollment number
                   </span>
                   <span className="text-sm font-mono font-semibold text-foreground truncate">
                     {(profile.enrollmentno && String(profile.enrollmentno).length > 4
@@ -953,11 +824,9 @@ export default function ProfileView({ token, onExpired }) {
                   </span>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                    Classification
-                  </span>
+                  <span className="text-xs font-medium text-muted-foreground">Branch</span>
                   <span className="text-sm font-bold text-foreground truncate">
-                    {branchDisplay || programDisplay || 'Verified Entity'}
+                    {branchDisplay || programDisplay || 'Not available'}
                   </span>
                 </div>
               </div>

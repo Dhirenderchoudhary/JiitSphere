@@ -107,7 +107,7 @@ export default function InstallAppBanner() {
       <div
         role="region"
         aria-label="Install JiitSphere"
-        className="mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-border bg-card/95 p-3 shadow-2xl backdrop-blur"
+        className="mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-lg"
       >
         <img src="/icon-192.png" alt="" className="size-11 shrink-0 rounded-xl" />
         <div className="min-w-0 flex-1">

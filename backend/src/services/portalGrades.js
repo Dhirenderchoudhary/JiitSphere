@@ -59,7 +59,6 @@ const sortSemestersChronological = (semesters) =>
  * @returns {Promise<Array>} semesterList from the API
  */
 const fetchOfficialSgpaCgpa = async (client) => {
-  // Step 1: Get current semester number
   const masterCheck = await client.post(
     '/StudentPortalAPI/studentsgpacgpa/checkIfstudentmasterexist',
     {
@@ -79,7 +78,6 @@ const fetchOfficialSgpaCgpa = async (client) => {
     );
   }
 
-  // Step 2: Get all semester SGPA/CGPA data
   const sgpaData = await client.post('/StudentPortalAPI/studentsgpacgpa/getallsemesterdata', {
     instituteid: client.auth.instituteid,
     studentid: client.auth.memberid,
@@ -107,7 +105,7 @@ const fetchOfficialSgpaCgpa = async (client) => {
  * @returns {Promise<{ semesters: Array, gradeCards: Object }>}
  */
 const fetchGradeCards = async (client) => {
-  // Step 1: Get student info (needed for programid, branchid)
+  // programid and branchid come from the student info
   const studentInfo = await client
     .post('/StudentPortalAPI/studentgradecard/getstudentinfo', {
       instituteid: client.auth.instituteid,
@@ -121,7 +119,6 @@ const fetchGradeCards = async (client) => {
     return { semesters: [], gradeCards: {} };
   }
 
-  // Step 2: Get semester registration list
   const regList = await client
     .post('/StudentPortalAPI/studentgradecard/getregistrationList', {
       instituteid: client.auth.instituteid,
@@ -143,7 +140,6 @@ const fetchGradeCards = async (client) => {
     }))
     .filter((s) => s.registration_id && s.registration_code);
 
-  // Step 3: Fetch grade cards for all semesters in parallel
   const gradeCards = {};
   const results = await Promise.all(
     semesters.map((sem) =>

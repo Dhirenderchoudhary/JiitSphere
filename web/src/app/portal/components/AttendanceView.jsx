@@ -80,15 +80,11 @@ function SegmentedArch({ pct }) {
 
       <div className="w-full flex items-center justify-between mt-4 px-2">
         <div className="flex flex-col">
-          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-            Average
-          </span>
+          <span className="text-xs font-bold text-muted-foreground">Average</span>
           <span className="text-sm font-bold text-foreground">{pct.toFixed(1)}%</span>
         </div>
         <div className="flex flex-col items-end">
-          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-            Status Lock
-          </span>
+          <span className="text-xs font-bold text-muted-foreground">Status Lock</span>
           <span className="text-sm font-bold text-foreground">{safe ? 'Secure' : 'Alert'}</span>
         </div>
       </div>
@@ -408,7 +404,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
       <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar mt-6 w-full">
         <div className="px-6 py-2 mb-2 space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-[0.2em]">
+            <span className="text-xs font-semibold text-muted-foreground/60">
               Attendance Roster
             </span>
             <div className="relative flex items-center bg-card border border-border shadow-sm rounded-lg overflow-hidden transition-colors hover:bg-muted shrink-0">
@@ -492,7 +488,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                 </div>
 
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-[9px] font-mono tracking-wider opacity-60 bg-foreground/5 px-1.5 py-0.5 rounded uppercase">
+                  <span className="text-xs font-mono opacity-60 bg-foreground/5 px-1.5 py-0.5 rounded">
                     {subjectCode}
                   </span>
                   <span className="text-[10px] font-bold text-muted-foreground">
@@ -568,14 +564,12 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
       {/* Performance Ratio Chart */}
       <div className="flex flex-col items-center justify-center shrink-0 min-w-[200px]">
         <div className="w-full flex items-center justify-between mb-1">
-          <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            Performance Ratio
-          </h3>
+          <h3 className="text-xs font-bold text-muted-foreground">Performance Ratio</h3>
         </div>
         {aggregateMetrics || isDetailView ? (
           <SegmentedArch pct={layoutPct} />
         ) : attendance.length > 0 && countsPending ? (
-          <div className="h-[120px] flex items-center justify-center text-xs font-mono uppercase tracking-widest text-muted-foreground animate-pulse">
+          <div className="h-[120px] flex items-center justify-center text-xs text-muted-foreground animate-pulse">
             Computing metrics...
           </div>
         ) : (
@@ -594,7 +588,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
           <div className="flex-1 flex flex-col justify-center h-full">
             <div className="flex items-center gap-1.5 text-muted-foreground mb-1.5">
               <FolderOpen className="w-3.5 h-3.5" />
-              <h3 className="text-[10px] font-bold uppercase tracking-wider">Status</h3>
+              <h3 className="text-xs font-bold">Status</h3>
               {layoutSafe ? (
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 ml-auto hidden sm:block" />
               ) : (
@@ -620,9 +614,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
           <div className="flex-1 flex flex-col justify-center h-full">
             <div className="flex items-center gap-1.5 text-muted-foreground mb-1.5">
               <Activity className="w-3.5 h-3.5" />
-              <h3 className="text-[10px] font-bold uppercase tracking-wider">
-                {isDetailView ? 'Volume' : 'Overview'}
-              </h3>
+              <h3 className="text-xs font-bold">{isDetailView ? 'Volume' : 'Overview'}</h3>
             </div>
             {aggregateMetrics?.fallback ? (
               <>
@@ -634,7 +626,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                     subjects
                   </span>
                 </div>
-                <span className="text-[9px] font-bold text-muted-foreground uppercase">
+                <span className="text-xs font-bold text-muted-foreground">
                   Avg {Math.round(aggregateMetrics.pct)}%
                 </span>
               </>
@@ -657,7 +649,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                     <div className="h-6 w-16 bg-muted animate-pulse rounded" />
                   )}
                 </div>
-                <div className="flex flex-col sm:flex-row gap-1 sm:gap-3 text-[9px] font-bold text-muted-foreground uppercase leading-tight">
+                <div className="flex flex-col sm:flex-row gap-1 sm:gap-3 text-xs font-bold text-muted-foreground leading-tight">
                   <span>
                     Lec{' '}
                     {isDetailView && (
@@ -689,7 +681,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
         </div>
       ) : attendance.length > 0 && countsPending ? (
         <div className="flex-1 flex items-center justify-center border-t border-border/40 pt-4 md:border-t-0 md:pt-0 md:border-l md:border-border md:pl-6">
-          <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground animate-pulse">
+          <span className="text-xs text-muted-foreground animate-pulse">
             Syncing class counts...
           </span>
         </div>
@@ -718,12 +710,12 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
       <div className="flex-1 overflow-auto custom-scrollbar p-0 sm:p-6 relative">
         {isDetailView ? (
           historyDetail?.loading ? (
-            <div className="flex items-center justify-center h-full text-xs font-mono uppercase tracking-widest text-muted-foreground">
+            <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
               Fetching records...
             </div>
           ) : historyDetail?.rows?.length > 0 ? (
             <table className="w-full text-sm text-left">
-              <thead className="text-[10px] text-muted-foreground uppercase bg-muted/20 border-b border-border">
+              <thead className="text-xs text-muted-foreground bg-muted/20 border-b border-border">
                 <tr>
                   <th className="px-4 py-3 font-bold rounded-l-lg">Date / Time</th>
                   <th className="px-4 py-3 font-bold">Type</th>
@@ -746,7 +738,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                     <td className="px-4 py-3.5 text-right w-[120px]">
                       <span
                         className={cn(
-                          'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border shadow-sm',
+                          'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border shadow-sm',
                           row.present === 'Present'
                             ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                             : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
@@ -819,9 +811,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                     />
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-mono tracking-wider text-muted-foreground/60 uppercase">
-                      {code}
-                    </span>
+                    <span className="text-xs font-mono text-muted-foreground/60">{code}</span>
                     <span className="text-[10px] font-bold text-muted-foreground">
                       {countState && !countState.loading
                         ? `${countState.attended} / ${countState.total}`
@@ -951,7 +941,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                 </div>
 
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-[9px] font-mono tracking-wider opacity-60 bg-foreground/5 px-1.5 py-0.5 rounded uppercase">
+                  <span className="text-xs font-mono opacity-60 bg-foreground/5 px-1.5 py-0.5 rounded">
                     {subjectCode}
                   </span>
                   <span className="text-[10px] font-bold text-muted-foreground">

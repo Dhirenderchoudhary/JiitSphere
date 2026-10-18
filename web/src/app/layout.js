@@ -79,17 +79,14 @@ export const viewport = {
   ],
 };
 
-const themeScript = `(function(){try{var r=document.documentElement;r.classList.add('dark');r.style.setProperty('--primary','45 93% 47%');r.style.setProperty('--primary-foreground','0 0% 0%');r.style.setProperty('--ring','45 93% 47%');}catch(e){}})();`;
-
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
         <link rel="dns-prefetch" href="https://docs.google.com" />
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script
           defer
           src="https://cloud.umami.is/script.js"

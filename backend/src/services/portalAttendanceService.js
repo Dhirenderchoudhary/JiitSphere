@@ -1,4 +1,3 @@
-/* eslint-disable */
 /**
  * portalAttendanceService.js — Clean attendance service layer.
  *
@@ -137,7 +136,6 @@ const fetchAttendanceMeta = async (relaySession, authContext, opts = {}) => {
   const { forceRefresh = false } = opts;
   const uid = userKey(authContext);
 
-  // Check cache
   const cached = cache.get(uid, 'attendance-meta', freshness(forceRefresh));
   if (cached) return cached;
 
@@ -259,7 +257,6 @@ const fetchAttendance = async (relaySession, authContext, semesterId, opts = {})
   const uid = userKey(authContext);
   const cacheScope = `attendance:${semesterId}`;
 
-  // Check cache
   const cached = cache.get(uid, cacheScope, freshness(forceRefresh));
   if (cached) return cached;
 
