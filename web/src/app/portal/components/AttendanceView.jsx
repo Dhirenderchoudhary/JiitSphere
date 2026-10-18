@@ -346,6 +346,18 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
     [targetAttendancePct]
   );
 
+  // Only real counts are shown: the portal's day-by-day records or a total it states
+  // directly. A subject the portal has no class records for shows a dash, not 0 / 0.
+  const countLabel = (countState, row) => {
+    if (countState?.total > 0) return `${countState.attended} / ${countState.total}`;
+    const direct = resolveAttendanceCounts(row, targetAttendancePct, { allowDerived: false });
+    if (direct?.total > 0) return `${direct.attended} / ${direct.total}`;
+    if (!countState || countState.loading) {
+      return <span className="inline-block h-3 w-8 bg-muted animate-pulse rounded" />;
+    }
+    return <span title="The portal has no class records for this subject yet">—</span>;
+  };
+
   // Counts still loading is "computing"; loaded and still empty means the portal
   // has no classes marked for this semester yet.
   const countsPending = Object.values(subjectCounts).some((c) => c?.loading);
@@ -492,16 +504,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                     {subjectCode}
                   </span>
                   <span className="text-[10px] font-bold text-muted-foreground">
-                    {countState && !countState.loading
-                      ? `${countState.attended} / ${countState.total}`
-                      : (() => {
-                          const rc = rowCounts(row);
-                          return rc.total > 0 ? (
-                            `${rc.attended} / ${rc.total}`
-                          ) : (
-                            <div className="h-3 w-8 bg-muted animate-pulse rounded" />
-                          );
-                        })()}
+                    {countLabel(countState, row)}
                   </span>
                 </div>
               </button>
@@ -813,16 +816,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-mono text-muted-foreground/60">{code}</span>
                     <span className="text-[10px] font-bold text-muted-foreground">
-                      {countState && !countState.loading
-                        ? `${countState.attended} / ${countState.total}`
-                        : (() => {
-                            const rc = rowCounts(row);
-                            return rc.total > 0 ? (
-                              `${rc.attended} / ${rc.total}`
-                            ) : (
-                              <div className="h-3 w-8 bg-muted animate-pulse rounded" />
-                            );
-                          })()}
+                      {countLabel(countState, row)}
                     </span>
                   </div>
                 </button>
@@ -945,16 +939,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                     {subjectCode}
                   </span>
                   <span className="text-[10px] font-bold text-muted-foreground">
-                    {countState && !countState.loading
-                      ? `${countState.attended} / ${countState.total}`
-                      : (() => {
-                          const rc = rowCounts(row);
-                          return rc.total > 0 ? (
-                            `${rc.attended} / ${rc.total}`
-                          ) : (
-                            <div className="h-3 w-8 bg-muted animate-pulse rounded" />
-                          );
-                        })()}
+                    {countLabel(countState, row)}
                   </span>
                 </div>
               </button>
