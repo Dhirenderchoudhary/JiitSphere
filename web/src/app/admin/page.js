@@ -238,7 +238,11 @@ export default function AdminPage() {
       .then((d) => {
         if (d.data?.subjects) setSubjects(d.data.subjects);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error('Admin: could not load subject list', err);
+        setMessage('Could not load the subject list. Type the subject name instead.');
+        setMessageType('error');
+      });
   }, [authed]);
 
   const handleLogout = async () => {

@@ -50,7 +50,7 @@ export default function PhoneLinkButton({ token }) {
         <div
           role="region"
           aria-label="Link a phone"
-          className="absolute right-0 top-11 z-50 w-72 rounded-2xl border border-border bg-card p-4 shadow-2xl"
+          className="absolute right-0 top-11 z-50 w-72 rounded-2xl border border-border bg-card p-4 shadow-lg"
         >
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm font-semibold text-foreground">Use JiitSphere on your phone</p>

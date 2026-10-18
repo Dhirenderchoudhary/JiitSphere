@@ -28,7 +28,8 @@ export default function PageTracker() {
         headers: { 'Content-Type': 'application/json' },
         body,
         keepalive: true,
-      }).catch(() => {});
+        // Page-view analytics must never affect the page, so a failed beacon is only logged.
+      }).catch((err) => console.debug('Page view tracking failed', err?.message));
     }
   }, [pathname]);
 

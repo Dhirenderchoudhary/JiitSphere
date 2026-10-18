@@ -15,6 +15,7 @@ const label = process.argv[3] || `portal-loading-${LAT}ms`;
 const PORT = 46000 + Math.floor(Math.random() * 900);
 Object.assign(process.env, {
   NODE_ENV: 'test',
+  // fixmyslop-ignore[sec/hardcoded-credential] throwaway value for a local benchmark server, never a deployed secret
   AUTH_SECRET: 'test-secret-that-is-long-enough-for-zod',
   ADMIN_API_KEY: 'k',
   USER_PASSWORD_HASH: 'x',

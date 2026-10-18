@@ -124,7 +124,13 @@ export default function Navbar() {
           mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         )}
       >
-        <div className="absolute inset-0 bg-background" onClick={() => setMobileOpen(false)} />
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label="Close menu"
+          className="absolute inset-0 bg-background cursor-default"
+          onClick={() => setMobileOpen(false)}
+        />
         <div
           className={cn(
             'relative flex flex-col items-center justify-center min-h-screen gap-8 px-6 transition-transform duration-200',

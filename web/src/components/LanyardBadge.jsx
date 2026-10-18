@@ -16,6 +16,21 @@ import {
 import { MeshLineGeometry, MeshLineMaterial } from 'meshline';
 import * as THREE from 'three';
 
+// The badge is drawn on a canvas and in WebGL, where CSS variables don't reach,
+// so its neutrals live here instead of being scattered through the drawing code.
+const BADGE = {
+  backdropTop: '#0a0a0a',
+  backdropBottom: '#050505',
+  card: '#111111',
+  cardEdge: '#1a1a1a',
+  rule: '#222222',
+  line: '#333333',
+  label: '#666666',
+  name: '#ffffff',
+  clip: '#888888',
+  ring: '#999999',
+};
+
 extend({ MeshLineGeometry, MeshLineMaterial });
 
 /**
@@ -29,11 +44,11 @@ function createLanyardTexture() {
   const ctx = canvas.getContext('2d');
 
   // Dark base
-  ctx.fillStyle = '#111111';
+  ctx.fillStyle = BADGE.card;
   ctx.fillRect(0, 0, 64, 512);
 
   // Subtle woven lines
-  ctx.strokeStyle = '#1a1a1a';
+  ctx.strokeStyle = BADGE.cardEdge;
   ctx.lineWidth = 1;
   for (let i = 0; i < 512; i += 4) {
     ctx.beginPath();
@@ -43,7 +58,7 @@ function createLanyardTexture() {
   }
 
   // Brand stripe down the center
-  ctx.fillStyle = '#222222';
+  ctx.fillStyle = BADGE.rule;
   ctx.fillRect(24, 0, 16, 512);
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -80,24 +95,24 @@ function createCardTexture(name, enrollment, photoImg) {
 
   // Card background - near black with subtle gradient
   const grad = ctx.createLinearGradient(0, 0, 0, h);
-  grad.addColorStop(0, '#0a0a0a');
-  grad.addColorStop(1, '#050505');
+  grad.addColorStop(0, BADGE.backdropTop);
+  grad.addColorStop(1, BADGE.backdropBottom);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, w, h);
 
   // Top accent line
-  ctx.fillStyle = '#333';
+  ctx.fillStyle = BADGE.line;
   ctx.fillRect(40, 40, w - 80, 1);
 
   // Header text - "JIITSPHERE"
-  ctx.fillStyle = '#555';
+  ctx.fillStyle = BADGE.label;
   ctx.font = '600 14px "Instrument Sans", system-ui, sans-serif';
   ctx.letterSpacing = '8px';
   ctx.textAlign = 'center';
   ctx.fillText('JIITSPHERE', w / 2, 72);
 
   // Subheader
-  ctx.fillStyle = '#333';
+  ctx.fillStyle = BADGE.line;
   ctx.font = '400 10px "Instrument Sans", system-ui, sans-serif';
   ctx.fillText('STUDENT IDENTITY MODULE', w / 2, 92);
 
@@ -106,7 +121,7 @@ function createCardTexture(name, enrollment, photoImg) {
   const py = 120;
   const pw = 260;
   const ph = 320;
-  ctx.fillStyle = '#111';
+  ctx.fillStyle = BADGE.card;
   ctx.fillRect(px, py, pw, ph);
 
   // Draw actual photo if available
@@ -144,28 +159,28 @@ function createCardTexture(name, enrollment, photoImg) {
   }
 
   // Name
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = BADGE.name;
   ctx.font = '700 22px "Instrument Sans", system-ui, sans-serif';
   ctx.textAlign = 'center';
   const displayName = (name || 'STUDENT').toUpperCase();
   ctx.fillText(displayName, w / 2, 490);
 
   // Enrollment
-  ctx.fillStyle = '#666';
+  ctx.fillStyle = BADGE.label;
   ctx.font = '500 14px "Instrument Sans", system-ui, sans-serif';
   ctx.fillText(`ID // ${enrollment || '—'}`, w / 2, 520);
 
   // Separator
-  ctx.fillStyle = '#222';
+  ctx.fillStyle = BADGE.rule;
   ctx.fillRect(160, 545, w - 320, 1);
 
   // Footer
-  ctx.fillStyle = '#333';
+  ctx.fillStyle = BADGE.line;
   ctx.font = '400 10px "Instrument Sans", system-ui, sans-serif';
   ctx.fillText('PORTAL AUTH // IDENTITY-01', w / 2, 575);
 
   // Bottom accent line
-  ctx.fillStyle = '#333';
+  ctx.fillStyle = BADGE.line;
   ctx.fillRect(40, h - 40, w - 80, 1);
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -396,19 +411,19 @@ function LanyardScene({ profileName, enrollment, profilePhotoSrc, isMobile }) {
             {/* Card back */}
             <mesh rotation={[0, Math.PI, 0]} position={[0, 0, -0.005]}>
               <planeGeometry args={[0.72, 1.0]} />
-              <meshStandardMaterial color="#050505" metalness={0.8} roughness={0.2} />
+              <meshStandardMaterial color={BADGE.backdropBottom} metalness={0.8} roughness={0.2} />
             </mesh>
 
             {/* Metal clip at top */}
             <mesh position={[0, 0.52, 0]}>
               <boxGeometry args={[0.12, 0.06, 0.02]} />
-              <meshStandardMaterial color="#888" metalness={1} roughness={0.3} />
+              <meshStandardMaterial color={BADGE.clip} metalness={1} roughness={0.3} />
             </mesh>
 
             {/* Metal clamp ring */}
             <mesh position={[0, 0.56, 0]}>
               <torusGeometry args={[0.03, 0.008, 8, 16]} />
-              <meshStandardMaterial color="#999" metalness={1} roughness={0.2} />
+              <meshStandardMaterial color={BADGE.ring} metalness={1} roughness={0.2} />
             </mesh>
           </group>
         </RigidBody>
