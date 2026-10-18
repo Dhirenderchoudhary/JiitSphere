@@ -54,55 +54,38 @@ const SEM_LABELS = {
   8: 'Sem 8',
 };
 
+// Every resource type shares the theme accent; the icon and name tell them apart.
+const TYPE_STYLE = {
+  bg: 'bg-primary/10',
+  border: 'border-primary/30',
+  text: 'text-foreground',
+  badge: 'bg-primary/15 text-foreground',
+};
+
 const RESOURCE_TYPES = {
   Slides: {
     icon: Layers,
-    gradient: 'from-blue-500 to-blue-600',
-    bg: 'bg-blue-500/8 dark:bg-blue-500/15',
-    border: 'border-blue-500/25 dark:border-blue-400/20',
-    text: 'text-blue-700 dark:text-blue-300',
-    badge: 'bg-blue-500/15 text-blue-700 dark:text-blue-300',
-    cardHover: 'hover:border-blue-400/50',
+    ...TYPE_STYLE,
     description: 'Presentation slides from lectures',
   },
   Lectures: {
     icon: BookOpen,
-    gradient: 'from-violet-500 to-purple-600',
-    bg: 'bg-violet-500/8 dark:bg-violet-500/15',
-    border: 'border-violet-500/25 dark:border-violet-400/20',
-    text: 'text-violet-700 dark:text-violet-300',
-    badge: 'bg-violet-500/15 text-violet-700 dark:text-violet-300',
-    cardHover: 'hover:border-violet-400/50',
+    ...TYPE_STYLE,
     description: 'Detailed lecture notes & recordings',
   },
   Tutorials: {
     icon: PenTool,
-    gradient: 'from-emerald-500 to-green-600',
-    bg: 'bg-emerald-500/8 dark:bg-emerald-500/15',
-    border: 'border-emerald-500/25 dark:border-emerald-400/20',
-    text: 'text-emerald-700 dark:text-emerald-300',
-    badge: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-    cardHover: 'hover:border-emerald-400/50',
+    ...TYPE_STYLE,
     description: 'Practice problems & tutorial sheets',
   },
   PYQs: {
     icon: ClipboardList,
-    gradient: 'from-amber-500 to-orange-600',
-    bg: 'bg-amber-500/8 dark:bg-amber-500/15',
-    border: 'border-amber-500/25 dark:border-amber-400/20',
-    text: 'text-amber-700 dark:text-amber-300',
-    badge: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
-    cardHover: 'hover:border-amber-400/50',
+    ...TYPE_STYLE,
     description: 'Previous year question papers',
   },
   Solutions: {
     icon: StickyNote,
-    gradient: 'from-rose-500 to-pink-600',
-    bg: 'bg-rose-500/8 dark:bg-rose-500/15',
-    border: 'border-rose-500/25 dark:border-rose-400/20',
-    text: 'text-rose-700 dark:text-rose-300',
-    badge: 'bg-rose-500/15 text-rose-700 dark:text-rose-300',
-    cardHover: 'hover:border-rose-400/50',
+    ...TYPE_STYLE,
     description: 'Answer keys & solved papers',
   },
 };
@@ -899,13 +882,10 @@ export default function StudyMaterialClient({ user = null, isGuest = false }) {
 
                   return (
                     <div>
-                      {/* Section header with gradient accent */}
                       <div
                         className={`mb-4 flex items-center gap-3 rounded-xl ${meta.bg} border ${meta.border} px-4 py-3`}
                       >
-                        <div
-                          className={`flex size-9 items-center justify-center rounded-lg bg-gradient-to-br ${meta.gradient} text-white shadow-sm`}
-                        >
+                        <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                           <Icon className="size-[4.5]" />
                         </div>
                         <div>

@@ -20,8 +20,8 @@ import HydrationStatusPanel from './HydrationStatusPanel';
 import PhoneLinkButton from './PhoneLinkButton';
 
 const tabLoadingState = (
-  <div className="flex min-h-[400px] w-full items-center justify-center p-6 text-sm text-muted-foreground font-mono uppercase tracking-widest">
-    <RefreshCw className="size-4 animate-spin mr-2" /> Initializing payload…
+  <div className="flex min-h-[400px] w-full items-center justify-center p-6 text-sm text-muted-foreground">
+    <RefreshCw className="size-4 animate-spin mr-2" /> Loading…
   </div>
 );
 
@@ -278,9 +278,7 @@ export default function PortalShell({ token, onLogout }) {
         ) : (
           <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar mt-6">
             <div className="px-6 py-2 mb-2">
-              <span className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-[0.2em]">
-                Platform Core
-              </span>
+              <span className="text-xs font-medium text-muted-foreground">Menu</span>
             </div>
 
             <nav className="px-4 space-y-1">
@@ -311,10 +309,11 @@ export default function PortalShell({ token, onLogout }) {
         )}
 
         {/* Persistent User Profile Footer */}
-        <div className="p-5 border-t border-border bg-muted/10">
+        <div className="p-5 border-t border-border bg-muted/10 flex items-center gap-1">
           <button
+            type="button"
             onClick={() => setActiveTab('profile')}
-            className="w-full flex items-center gap-3 px-2 py-1.5 cursor-pointer group hover:bg-muted/50 rounded-xl transition-all"
+            className="flex-1 min-w-0 flex items-center gap-3 px-2 py-1.5 cursor-pointer group hover:bg-muted/50 rounded-xl transition-all"
           >
             <div className="size-10 shrink-0 rounded-full bg-secondary border border-border shadow-sm flex items-center justify-center overflow-hidden group-hover:border-primary/20 transition-colors">
               {cachedPhoto ? (
@@ -330,19 +329,17 @@ export default function PortalShell({ token, onLogout }) {
               <span className="text-sm font-bold truncate group-hover:text-primary transition-colors">
                 {displayName}
               </span>
-              <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest truncate">
-                View Profile
-              </span>
+              <span className="text-xs text-muted-foreground truncate">View profile</span>
             </div>
-            <div
-              onClick={(e) => {
-                e.stopPropagation();
-                onLogout();
-              }}
-              className="p-1.5 rounded-md hover:bg-rose-500/10 transition-colors"
-            >
-              <LogOut className="size-4 text-muted-foreground/40 hover:text-rose-500 transition-colors" />
-            </div>
+          </button>
+          <button
+            type="button"
+            onClick={onLogout}
+            aria-label="Sign out"
+            title="Sign out"
+            className="shrink-0 p-2 rounded-md text-muted-foreground/60 hover:bg-rose-500/10 hover:text-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+          >
+            <LogOut className="size-4" />
           </button>
         </div>
       </aside>
@@ -392,7 +389,7 @@ export default function PortalShell({ token, onLogout }) {
                       className="fixed inset-0 z-40 bg-background/60 lg:hidden"
                       onClick={() => setMobileMenuOpen(false)}
                     />
-                    <div className="absolute top-12 left-0 w-64 bg-card border border-border shadow-2xl rounded-2xl z-50 overflow-hidden flex flex-col p-2 space-y-1 lg:hidden origin-top-left">
+                    <div className="absolute top-12 left-0 w-64 bg-card border border-border shadow-lg rounded-2xl z-50 overflow-hidden flex flex-col p-2 space-y-1 lg:hidden origin-top-left">
                       {displayedTabs.map((t) => {
                         const TIcon = t.icon;
                         const isActive = t.id === activeTab;
@@ -423,7 +420,7 @@ export default function PortalShell({ token, onLogout }) {
           </div>
 
           <div className="flex items-center gap-4">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 hidden sm:inline">
+            <span className="text-xs text-muted-foreground hidden sm:inline">
               Synced {agoLabel}
             </span>
             <div className="h-5 w-px bg-border/50 mx-1 hidden sm:block" />
@@ -457,14 +454,17 @@ export default function PortalShell({ token, onLogout }) {
       </main>
 
       {/* Mobile Bottom Navigation Fallback (Visible only < lg screens) */}
-      <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 flex w-[min(96vw,420px)] justify-between items-center bg-card border border-border shadow-2xl rounded-2xl z-50 p-1.5 gap-1 portal-bottom-nav">
+      <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 flex w-[min(96vw,420px)] justify-between items-center bg-card border border-border shadow-lg rounded-2xl z-50 p-1.5 gap-1 portal-bottom-nav">
         {displayedTabs.slice(0, 5).map((tab) => {
           const Icon = tab.icon;
           const active = tab.id === activeTab;
           return (
             <button
               key={tab.id}
+              type="button"
               onClick={() => setActiveTab(tab.id)}
+              aria-label={tab.label}
+              aria-current={active ? 'page' : undefined}
               className={cn(
                 'flex flex-1 flex-col items-center justify-center rounded-xl py-2.5 transition-all relative',
                 active ? 'text-primary bg-primary/5' : 'text-muted-foreground hover:bg-muted/50'
@@ -477,7 +477,10 @@ export default function PortalShell({ token, onLogout }) {
 
         {/* Mobile Profile Navigation Link */}
         <button
+          type="button"
           onClick={() => setActiveTab('profile')}
+          aria-label="Profile"
+          aria-current={activeTab === 'profile' ? 'page' : undefined}
           className={cn(
             'flex flex-1 flex-col items-center justify-center rounded-xl py-2.5 transition-all relative',
             activeTab === 'profile' ? 'bg-primary/5' : 'hover:bg-muted/50'

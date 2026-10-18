@@ -118,11 +118,12 @@ export default function LoginView({ onAuth }) {
 
       await portalSdkLogin(activeToken, { userId: demoUserId });
 
-      // Warm up API cache before navigating
-      fetchPortalSdkSession(activeToken, false).catch(() => {});
-      fetchPortalAttendanceMeta(activeToken).catch(() => {});
-      fetchPortalExams(activeToken, false).catch(() => {});
-      fetchPortalSubjects(activeToken, '', false).catch(() => {});
+      // Prefetch only: each view fetches and shows its own error if this fails.
+      const logWarmupError = (err) => console.debug('Portal prefetch failed', err?.message);
+      fetchPortalSdkSession(activeToken, false).catch(logWarmupError);
+      fetchPortalAttendanceMeta(activeToken).catch(logWarmupError);
+      fetchPortalExams(activeToken, false).catch(logWarmupError);
+      fetchPortalSubjects(activeToken, '', false).catch(logWarmupError);
 
       window.localStorage.setItem(TOKEN_KEY, activeToken);
       window.localStorage.setItem(LAST_PORTAL_USER_ID, demoUserId);
@@ -146,8 +147,6 @@ export default function LoginView({ onAuth }) {
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-12 bg-background relative overflow-hidden">
       {/* Background geometric accents */}
-      <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-primary/5 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-1/4 h-1/4 bg-blue-500/5 blur-[100px] pointer-events-none" />
 
       <div className="w-full max-w-[420px] relative z-10 space-y-8">
         {/* Branding */}

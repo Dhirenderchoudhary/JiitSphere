@@ -34,7 +34,7 @@
     --foreground: 0 0% 100%;
     --card: 0 0% 7%;
     --card-foreground: 0 0% 100%;
-    --primary: 54 100% 58%; /* Buttery Yellow */
+    --primary: 45 93% 47%;
     --primary-foreground: 0 0% 0%;
     --secondary: 0 0% 11%;
     --secondary-foreground: 0 0% 100%;
@@ -44,7 +44,7 @@
     --accent-foreground: 0 0% 0%;
     --border: 0 0% 15%;
     --input: 0 0% 15%;
-    --ring: 54 100% 58%;
+    --ring: 45 93% 47%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
   }
@@ -115,7 +115,7 @@
 }
 
 .bento-card {
-  @apply relative overflow-hidden rounded-3xl border border-border/40 bg-card/40 transition-all duration-300 hover:border-primary/30 hover:shadow-2xl;
+  @apply relative overflow-hidden rounded-3xl border border-border/40 bg-card/40 transition-all duration-300 hover:border-primary/30;
 }
 
 .bento-card:active {

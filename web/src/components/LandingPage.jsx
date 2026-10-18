@@ -52,14 +52,14 @@ export default function LandingPage() {
             <div className="space-y-5 md:space-y-6">
               <h2 className="text-[2.5rem] sm:text-6xl md:text-8xl lg:text-9xl font-bold tracking-tightest leading-[0.96] md:leading-[0.95] text-foreground font-[var(--font-instrument-sans)]">
                 The academic <br />
-                <span className="text-primary font-medium tracking-tight">dashboard</span>
+                dashboard
                 <br />
-                <span className="opacity-90">for JIIT students.</span>
+                for JIIT students.
               </h2>
 
               <p className="max-w-2xl mx-auto text-[15px] sm:text-lg md:text-xl text-muted-foreground leading-relaxed font-medium">
-                Consolidate your attendance, grades, and materials into a high-performance private
-                workspace. Built for the daily workflows of JIIT students.
+                Your attendance, grades, exam schedule and fees from the JIIT portal, plus 1,300+
+                past papers and slides sorted by course.
               </p>
             </div>
           </motion.section>
@@ -81,7 +81,7 @@ export default function LandingPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="size-2 rounded-full bg-green-500" />
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                        <span className="text-[9px] font-bold text-muted-foreground">
                           Live Dashboard
                         </span>
                       </div>
@@ -92,7 +92,7 @@ export default function LandingPage() {
                         <div className="text-lg font-black text-foreground font-[var(--font-instrument-sans)] leading-none">
                           81%
                         </div>
-                        <div className="text-[7px] font-bold text-muted-foreground/50 uppercase mt-1 tracking-wider">
+                        <div className="text-[7px] font-bold text-muted-foreground/50 mt-1">
                           Attend.
                         </div>
                       </div>
@@ -100,7 +100,7 @@ export default function LandingPage() {
                         <div className="text-lg font-black text-foreground font-[var(--font-instrument-sans)] leading-none">
                           8.4
                         </div>
-                        <div className="text-[7px] font-bold text-muted-foreground/50 uppercase mt-1 tracking-wider">
+                        <div className="text-[7px] font-bold text-muted-foreground/50 mt-1">
                           SGPA
                         </div>
                       </div>
@@ -108,7 +108,7 @@ export default function LandingPage() {
                         <div className="text-lg font-black text-primary font-[var(--font-instrument-sans)] leading-none">
                           +2
                         </div>
-                        <div className="text-[7px] font-bold text-muted-foreground/50 uppercase mt-1 tracking-wider">
+                        <div className="text-[7px] font-bold text-muted-foreground/50 mt-1">
                           Safe
                         </div>
                       </div>
@@ -167,9 +167,7 @@ export default function LandingPage() {
                             Data Structures — MST-1
                           </span>
                         </div>
-                        <span className="text-[8px] font-bold text-muted-foreground/40 uppercase">
-                          PDF
-                        </span>
+                        <span className="text-[8px] font-bold text-muted-foreground/40">PDF</span>
                       </div>
                       <div className="space-y-1.5">
                         <div className="h-1.5 w-full bg-muted/40 rounded-full" />
@@ -177,13 +175,13 @@ export default function LandingPage() {
                         <div className="h-1.5 w-[60%] bg-muted/40 rounded-full" />
                       </div>
                       <div className="flex gap-1.5 pt-0.5">
-                        <div className="px-1.5 py-0.5 rounded bg-primary/10 text-[7px] font-bold text-primary uppercase">
+                        <div className="px-1.5 py-0.5 rounded bg-primary/10 text-[7px] font-bold text-primary">
                           PYQ
                         </div>
-                        <div className="px-1.5 py-0.5 rounded bg-muted/50 text-[7px] font-bold text-muted-foreground uppercase">
+                        <div className="px-1.5 py-0.5 rounded bg-muted/50 text-[7px] font-bold text-muted-foreground">
                           CSE
                         </div>
-                        <div className="px-1.5 py-0.5 rounded bg-muted/50 text-[7px] font-bold text-muted-foreground uppercase">
+                        <div className="px-1.5 py-0.5 rounded bg-muted/50 text-[7px] font-bold text-muted-foreground">
                           Sem 3
                         </div>
                       </div>
@@ -242,7 +240,7 @@ export default function LandingPage() {
                       <span className="text-5xl font-black text-primary font-[var(--font-instrument-sans)]">
                         8.41
                       </span>
-                      <span className="text-xs font-bold text-muted-foreground uppercase opacity-40 tracking-widest">
+                      <span className="text-xs font-bold text-muted-foreground opacity-40">
                         SGPA
                       </span>
                     </motion.div>
@@ -250,7 +248,7 @@ export default function LandingPage() {
                       Grade Analytics
                     </h4>
                     <p className="text-xs text-muted-foreground font-medium leading-relaxed max-w-sm">
-                      Visual trends across semesters with high-accuracy GPA prediction engine.
+                      SGPA and CGPA for every semester, with the grade you got in each subject.
                     </p>
                   </div>
                 </div>
@@ -279,7 +277,7 @@ export default function LandingPage() {
                       transition={springConfig}
                       className="absolute inset-0 h-40 w-28 bg-secondary rounded-xl border border-border/80 shadow-md flex items-center justify-center -rotate-6 z-0 group-hover:opacity-60 transition-opacity"
                     >
-                      <div className="text-[8px] font-bold text-muted-foreground/30 uppercase tracking-widest -rotate-90">
+                      <div className="text-[8px] font-bold text-muted-foreground/30 -rotate-90">
                         15B17CI311
                       </div>
                     </motion.div>
@@ -288,11 +286,11 @@ export default function LandingPage() {
                       transition={springConfig}
                       className="absolute inset-0 h-40 w-28 bg-secondary rounded-xl border border-border/80 shadow-md flex items-center justify-center rotate-6 z-10 group-hover:opacity-60 transition-opacity"
                     >
-                      <div className="text-[8px] font-bold text-muted-foreground/30 uppercase tracking-widest rotate-90">
+                      <div className="text-[8px] font-bold text-muted-foreground/30 rotate-90">
                         15B11CI111
                       </div>
                     </motion.div>
-                    <div className="relative h-40 w-28 bg-card rounded-xl border border-border/80 shadow-2xl flex flex-col items-center justify-center p-4 z-20 space-y-3">
+                    <div className="relative h-40 w-28 bg-card rounded-xl border border-border/80 shadow-md flex flex-col items-center justify-center p-4 z-20 space-y-3">
                       <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                         <FileText className="size-5" />
                       </div>
@@ -300,7 +298,7 @@ export default function LandingPage() {
                         <div className="h-1 w-full bg-muted rounded-full" />
                         <div className="h-1 w-[80%] bg-muted rounded-full" />
                       </div>
-                      <div className="text-[8px] font-black text-center text-primary/40 uppercase tracking-tighter pt-2">
+                      <div className="text-[8px] font-semibold text-center text-primary/40 pt-2">
                         Data Structures
                       </div>
                     </div>
@@ -311,8 +309,7 @@ export default function LandingPage() {
                     PYQ Hub
                   </h4>
                   <p className="text-sm text-muted-foreground font-medium leading-relaxed">
-                    Deep repository with 1300+ documents. Indexed by course codes for lightning-fast
-                    retrieval during exams.
+                    1,300+ past papers, slides and solutions, sorted by year and course code.
                   </p>
                 </div>
               </motion.div>
@@ -326,28 +323,23 @@ export default function LandingPage() {
                   <motion.div
                     variants={{ hover: { y: -5 } }}
                     transition={springConfig}
-                    className="w-full max-w-[160px] rounded-xl border border-border shadow-xl bg-card overflow-hidden"
+                    className="w-full max-w-[160px] rounded-xl border border-border shadow-md bg-card overflow-hidden"
                   >
                     <div className="bg-secondary px-3 py-2 border-b border-border flex justify-between items-center">
-                      <span className="text-[9px] font-black uppercase tracking-widest opacity-40">
-                        Datesheet
-                      </span>
+                      <span className="text-[9px] font-semibold opacity-40">Datesheet</span>
                       <div className="relative flex items-center justify-center">
                         <div className="size-1.5 rounded-full bg-red-500 relative z-10" />
-                        <div className="absolute size-4 rounded-full border border-red-500/50 animate-ping" />
                       </div>
                     </div>
                     <div className="p-3 space-y-2">
                       <div className="flex justify-between items-center">
                         <div className="text-[10px] font-bold text-foreground">T1: 15 Sep</div>
-                        <div className="text-[8px] font-medium text-muted-foreground uppercase">
-                          Row A2
-                        </div>
+                        <div className="text-[8px] font-medium text-muted-foreground">Row A2</div>
                       </div>
                       <div className="h-px w-full bg-border/50" />
                       <div className="flex justify-between items-center opacity-40">
                         <div className="text-[10px] font-bold">T2: 22 Oct</div>
-                        <div className="text-[8px] font-medium uppercase">TBA</div>
+                        <div className="text-[8px] font-medium">TBA</div>
                       </div>
                     </div>
                   </motion.div>
@@ -401,9 +393,7 @@ export default function LandingPage() {
                       <div className="text-2xl font-black text-foreground font-[var(--font-instrument-sans)] leading-none">
                         81%
                       </div>
-                      <div className="text-[7px] font-bold text-green-500 uppercase tracking-[0.2em] mt-1">
-                        +2 SAFE
-                      </div>
+                      <div className="text-[7px] font-bold text-green-500 mt-1">+2 SAFE</div>
                     </div>
                   </div>
                 </div>
@@ -441,7 +431,7 @@ export default function LandingPage() {
                             },
                           }}
                           initial={{ scale: 2, opacity: 0, rotate: 0 }}
-                          className="px-2 py-0.5 border-2 border-green-500 text-green-500 text-[10px] font-black rounded-sm uppercase tracking-tighter"
+                          className="px-2 py-0.5 border-2 border-green-500 text-green-500 text-[10px] font-semibold rounded-sm"
                         >
                           PAID
                         </motion.div>
@@ -449,7 +439,7 @@ export default function LandingPage() {
                     </div>
                     <div className="space-y-1">
                       <div className="text-[14px] font-black text-foreground">₹2,10,500</div>
-                      <div className="text-[8px] font-bold text-muted-foreground uppercase opacity-40 tracking-[0.1em]">
+                      <div className="text-[8px] font-bold text-muted-foreground opacity-40">
                         Hostel + Tuition
                       </div>
                     </div>
@@ -535,7 +525,7 @@ export default function LandingPage() {
                     <motion.div
                       variants={{ hover: { y: -10, opacity: 1, scale: 1.05 } }}
                       transition={{ type: 'spring', stiffness: 200, damping: 25 }}
-                      className="relative w-72 h-44 bg-card border-[4px] border-border rounded-xl shadow-2xl flex flex-col overflow-hidden z-0"
+                      className="relative w-72 h-44 bg-card border-[4px] border-border rounded-xl shadow-md flex flex-col overflow-hidden z-0"
                     >
                       <div className="h-4 bg-muted/50 border-b border-border flex items-center px-2 gap-1">
                         <div className="size-1 rounded-full bg-red-400" />
@@ -559,7 +549,7 @@ export default function LandingPage() {
                     <motion.div
                       variants={{ hover: { x: -40, y: 15, rotate: -2, scale: 1.05 } }}
                       transition={{ type: 'spring', stiffness: 250, damping: 25, delay: 0.05 }}
-                      className="absolute bottom-4 left-1/4 w-32 h-44 bg-card border-[3px] border-border rounded-2xl shadow-xl z-20 overflow-hidden"
+                      className="absolute bottom-4 left-1/4 w-32 h-44 bg-card border-[3px] border-border rounded-2xl shadow-md z-20 overflow-hidden"
                     >
                       <div className="h-full p-2 flex flex-col gap-2">
                         <div className="h-1 w-8 bg-muted rounded-full mx-auto" />
@@ -573,7 +563,7 @@ export default function LandingPage() {
                     <motion.div
                       variants={{ hover: { x: 45, y: 25, rotate: 3, scale: 1.1 } }}
                       transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.1 }}
-                      className="absolute bottom-2 right-1/4 w-20 h-40 bg-card border-[3px] border-border rounded-2xl shadow-2xl z-30 overflow-hidden"
+                      className="absolute bottom-2 right-1/4 w-20 h-40 bg-card border-[3px] border-border rounded-2xl shadow-md z-30 overflow-hidden"
                     >
                       <div className="h-full p-2 flex flex-col gap-2">
                         <div className="h-0.5 w-6 bg-muted rounded-full mx-auto mb-1" />
@@ -584,9 +574,6 @@ export default function LandingPage() {
                         <div className="h-1.5 w-[80%] bg-muted/50 rounded-full" />
                       </div>
                     </motion.div>
-
-                    {/* Sync Glow — static gradient (was an infinite opacity loop) */}
-                    <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-primary/10 to-transparent blur-3xl -z-10" />
                   </div>
                 </div>
                 <div className="space-y-1 relative z-40">
@@ -594,9 +581,8 @@ export default function LandingPage() {
                     PWA Ready
                   </h4>
                   <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">
-                    Install as a native-grade app on{' '}
-                    <span className="text-foreground font-bold italic">all your devices</span>.
-                    Cross-platform sync and lightning-fast offline access enabled.
+                    Add JiitSphere to your home screen on Android, iPhone or desktop and open it
+                    like an app.
                   </p>
                 </div>
               </motion.div>
@@ -713,7 +699,7 @@ function SmartAlertsElite() {
                   },
                 }}
                 initial={{ width: '0%' }}
-                className="h-full rounded-full bg-gradient-to-r from-red-500 to-rose-400"
+                className="h-full rounded-full bg-red-500"
               />
             </div>
           </motion.div>
@@ -722,11 +708,10 @@ function SmartAlertsElite() {
 
       <div className="space-y-1">
         <h4 className="text-xl font-bold tracking-tight font-[var(--font-instrument-sans)] flex items-center gap-2">
-          Smart Alerts
-          <div className="size-1.5 rounded-full bg-red-500 animate-pulse" />
+          Attendance warnings
         </h4>
         <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">
-          Real-time attendance warnings and schedule updates.
+          Subjects below 75% attendance show in red, so you see them first.
         </p>
       </div>
     </motion.div>
