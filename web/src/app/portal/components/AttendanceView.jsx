@@ -501,7 +501,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
 
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-xs font-mono opacity-60 bg-foreground/5 px-1.5 py-0.5 rounded">
-                    {subjectCode}
+                    {row.individualsubjectcode || subjectCode}
                   </span>
                   <span className="text-[10px] font-bold text-muted-foreground">
                     {countLabel(countState, row)}
@@ -814,7 +814,9 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
                     />
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono text-muted-foreground/60">{code}</span>
+                    <span className="text-xs font-mono text-muted-foreground/60">
+                      {row.individualsubjectcode || code}
+                    </span>
                     <span className="text-[10px] font-bold text-muted-foreground">
                       {countLabel(countState, row)}
                     </span>
@@ -936,7 +938,7 @@ export default function AttendanceView({ token, onExpired, setCustomSidebar }) {
 
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-xs font-mono opacity-60 bg-foreground/5 px-1.5 py-0.5 rounded">
-                    {subjectCode}
+                    {row.individualsubjectcode || subjectCode}
                   </span>
                   <span className="text-[10px] font-bold text-muted-foreground">
                     {countLabel(countState, row)}

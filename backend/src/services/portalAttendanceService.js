@@ -19,6 +19,7 @@ const env = require('../config/env');
 const META_CACHE_TTL_MS = 10 * 60 * 1000; // 10 min — semesters rarely change
 const ATTEND_CACHE_TTL_MS = 5 * 60 * 1000; // 5 min  — attendance can update
 const COUNTS_CACHE_TTL_MS = 5 * 60 * 1000;
+const SUBJECT_DAILY_TIMEOUT_MS = 10 * 1000;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -375,15 +376,21 @@ const fetchSubjectDailyAttendance = async (
 
   const client = new PortalClient(relaySession, authContext);
   const data = await client
-    .post('/StudentPortalAPI/StudentClassAttendance/getstudentsubjectpersentage', {
-      cmpidkey,
-      clientid: authContext.clientid,
-      instituteid: authContext.instituteid,
-      registrationcode: semesterRow.registration_code,
-      registrationid: semesterRow.registration_id,
-      subjectcode: subjectRow.individualsubjectcode || subjectCode,
-      subjectid: subjectRow.subjectid,
-    })
+    .post(
+      '/StudentPortalAPI/StudentClassAttendance/getstudentsubjectpersentage',
+      {
+        cmpidkey,
+        clientid: authContext.clientid,
+        instituteid: authContext.instituteid,
+        registrationcode: semesterRow.registration_code,
+        registrationid: semesterRow.registration_id,
+        subjectcode: subjectRow.individualsubjectcode || subjectCode,
+        subjectid: subjectRow.subjectid,
+      },
+      // The portal takes over 4 s to list a long subject's classes while the other
+      // subjects are being fetched alongside it; a timeout here shows up as 0 / 0.
+      { timeout: SUBJECT_DAILY_TIMEOUT_MS }
+    )
     .catch((e) => {
       console.error('PORTAL API ERROR:', e.message);
       return { error: true, httpStatus: e.details?.httpStatus };
